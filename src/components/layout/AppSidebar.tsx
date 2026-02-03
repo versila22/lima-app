@@ -38,7 +38,7 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
           />
           {!collapsed && (
             <div className="overflow-hidden">
-              <h1 className="font-bold text-lg gradient-text truncate">ImproClub</h1>
+              <h1 className="font-bold text-lg gradient-text truncate">LIMA</h1>
               <p className="text-xs text-muted-foreground truncate">Gestion & Spectacles</p>
             </div>
           )}
