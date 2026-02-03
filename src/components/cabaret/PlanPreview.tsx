@@ -1,4 +1,5 @@
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Copy, Download, FileText, Sparkles } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -94,7 +95,7 @@ export function PlanPreview({ plan, isGenerating }: PlanPreviewProps) {
               "prose-th:border prose-th:border-border prose-th:bg-muted prose-th:p-2",
               "prose-td:border prose-td:border-border prose-td:p-2"
             )}>
-              <ReactMarkdown>{plan}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{plan}</ReactMarkdown>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
