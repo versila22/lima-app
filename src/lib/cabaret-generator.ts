@@ -1,16 +1,39 @@
 import { type CabaretFormData } from "@/components/cabaret/CabaretForm";
 
 export function generateMockPlan(formData: CabaretFormData): string {
-  const { venueName, venueContact, theme, playerCount, duration, constraints } = formData;
+  const { venueName, venueContact, showType, theme, playerCount, playerNames, duration, constraints, djCount, djNames } = formData;
   
-  const durationMinutes = duration === "1h" ? 60 : duration === "1h15" ? 75 : 90;
+  const durationMinutes = duration === "1h" ? 60 : duration === "1h15" ? 75 : duration === "2h" ? 120 : 90;
   const warmupDuration = 10;
   const intermissionDuration = durationMinutes > 60 ? 10 : 0;
   const availableShowTime = durationMinutes - warmupDuration - intermissionDuration;
   
   const games = getGameSuggestions(playerCount, availableShowTime, theme);
 
-  return `# 🎭 Plan de Soirée Cabaret
+  // Format player names
+  const filledPlayerNames = (playerNames || []).filter(name => name.trim() !== "");
+  const playerNamesDisplay = filledPlayerNames.length > 0 
+    ? filledPlayerNames.join(", ") 
+    : `${playerCount} joueur${playerCount > 1 ? "s" : ""} (noms non renseignés)`;
+
+  // Format DJ names
+  const filledDjNames = (djNames || []).filter(name => name.trim() !== "");
+  const djDisplay = djCount === 0 
+    ? "Aucun DJ" 
+    : filledDjNames.length > 0 
+      ? filledDjNames.join(", ") 
+      : `${djCount} DJ (nom${djCount > 1 ? "s" : ""} non renseigné${djCount > 1 ? "s" : ""})`;
+
+  // Format show type
+  const showTypeLabels: Record<string, string> = {
+    match: "Match d'impro",
+    cabaret: "Cabaret",
+    catch: "Catch d'impro",
+    autre: "Autre format"
+  };
+  const showTypeDisplay = showTypeLabels[showType] || showType || "Cabaret";
+
+  return `# 🎭 Plan de Soirée ${showTypeDisplay}
 
 ## 📍 Informations Générales
 
@@ -18,9 +41,25 @@ export function generateMockPlan(formData: CabaretFormData): string {
 |---------|--------|
 | **Lieu** | ${venueName || "À définir"} |
 | **Contact** | ${venueContact || "Non renseigné"} |
+| **Type** | ${showTypeDisplay} |
 | **Thème** | ${theme || "Soirée libre"} |
-| **Joueurs** | ${playerCount} improvisateur${playerCount > 1 ? "s" : ""} |
 | **Durée totale** | ${duration} |
+
+---
+
+## 👥 L'Équipe
+
+### 🎭 Joueurs (${playerCount})
+${filledPlayerNames.length > 0 
+  ? filledPlayerNames.map((name, i) => `${i + 1}. **${name}**`).join("\n") 
+  : `_${playerCount} joueur${playerCount > 1 ? "s" : ""} - prénoms non renseignés_`}
+
+### 🎧 DJ
+${djCount === 0 
+  ? "_Pas de DJ pour cette soirée_" 
+  : filledDjNames.length > 0 
+    ? filledDjNames.map((name, i) => `${i + 1}. **${name}**`).join("\n") 
+    : `_${djCount} DJ - prénom${djCount > 1 ? "s" : ""} non renseigné${djCount > 1 ? "s" : ""}_`}
 
 ---
 
