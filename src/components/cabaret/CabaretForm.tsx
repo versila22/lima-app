@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Sparkles, MapPin, User, Palette, Users, Clock, AlertTriangle, Music } from "lucide-react";
+import { Sparkles, MapPin, User, Palette, Users, Clock, AlertTriangle, Music, Theater } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 export interface CabaretFormData {
   venueName: string;
   venueContact: string;
+  showType: string;
   theme: string;
   playerCount: number;
   playerNames: string[];
@@ -35,6 +36,7 @@ interface CabaretFormProps {
 const defaultFormData: CabaretFormData = {
   venueName: "",
   venueContact: "",
+  showType: "cabaret",
   theme: "",
   playerCount: 4,
   playerNames: ["", "", "", ""],
@@ -53,6 +55,7 @@ export function CabaretForm({ onGenerate, isGenerating, initialData }: CabaretFo
       ...initialData,
       playerCount,
       playerNames,
+      showType: initialData?.showType ?? "cabaret",
       djCount: initialData?.djCount ?? 0,
       djNames: initialData?.djNames ?? [],
     };
@@ -67,6 +70,7 @@ export function CabaretForm({ onGenerate, isGenerating, initialData }: CabaretFo
         ...initialData,
         playerCount,
         playerNames,
+        showType: initialData.showType ?? "cabaret",
         djCount: initialData.djCount ?? 0,
         djNames: initialData.djNames ?? [],
       });
@@ -125,6 +129,28 @@ export function CabaretForm({ onGenerate, isGenerating, initialData }: CabaretFo
               onChange={(e) => updateField("venueContact", e.target.value)}
               className="bg-background/50 border-border"
             />
+          </div>
+
+          {/* Show Type */}
+          <div className="space-y-2">
+            <Label htmlFor="showType" className="flex items-center gap-2">
+              <Theater className="w-4 h-4 text-primary" />
+              Type de Spectacle
+            </Label>
+            <Select
+              value={formData.showType}
+              onValueChange={(v) => updateField("showType", v)}
+            >
+              <SelectTrigger className="bg-background/50 border-border">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border-border">
+                <SelectItem value="match">Match</SelectItem>
+                <SelectItem value="cabaret">Cabaret</SelectItem>
+                <SelectItem value="catch">Catch</SelectItem>
+                <SelectItem value="autre">Autre</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Theme */}
