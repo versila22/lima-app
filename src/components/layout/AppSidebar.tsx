@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Sparkles, Home, Calendar, Settings, Users } from "lucide-react";
+import { ChevronLeft, ChevronRight, Sparkles, Home, Calendar, Settings, Users, Globe, Instagram, Facebook } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -91,6 +91,52 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
           return content;
         })}
       </nav>
+
+      {/* Social Links */}
+      <div className={cn(
+        "p-2 border-t border-sidebar-border flex gap-2",
+        collapsed ? "flex-col items-center" : "justify-center"
+      )}>
+        <Tooltip delayDuration={0}>
+          <TooltipTrigger asChild>
+            <a
+              href="https://www.lima.asso.fr"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors"
+            >
+              <Globe className="w-5 h-5" />
+            </a>
+          </TooltipTrigger>
+          <TooltipContent side="right">Site web LIMA</TooltipContent>
+        </Tooltip>
+        <Tooltip delayDuration={0}>
+          <TooltipTrigger asChild>
+            <a
+              href="https://www.instagram.com/lima_impro_angers/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors"
+            >
+              <Instagram className="w-5 h-5" />
+            </a>
+          </TooltipTrigger>
+          <TooltipContent side="right">Instagram</TooltipContent>
+        </Tooltip>
+        <Tooltip delayDuration={0}>
+          <TooltipTrigger asChild>
+            <a
+              href="https://www.facebook.com/lima.impro"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors"
+            >
+              <Facebook className="w-5 h-5" />
+            </a>
+          </TooltipTrigger>
+          <TooltipContent side="right">Facebook</TooltipContent>
+        </Tooltip>
+      </div>
 
       {/* Collapse button */}
       <div className="p-2 border-t border-sidebar-border">
