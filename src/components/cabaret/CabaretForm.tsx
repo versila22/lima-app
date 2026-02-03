@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Sparkles, MapPin, User, Palette, Users, Clock, AlertTriangle } from "lucide-react";
+import { Sparkles, MapPin, User, Palette, Users, Clock, AlertTriangle, Music } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +21,8 @@ export interface CabaretFormData {
   playerCount: number;
   duration: string;
   constraints: string;
+  djCount: number;
+  djNames: string[];
 }
 
 interface CabaretFormProps {
@@ -36,6 +38,8 @@ const defaultFormData: CabaretFormData = {
   playerCount: 4,
   duration: "1h30",
   constraints: "",
+  djCount: 0,
+  djNames: [],
 };
 
 export function CabaretForm({ onGenerate, isGenerating, initialData }: CabaretFormProps) {
@@ -161,6 +165,60 @@ export function CabaretForm({ onGenerate, isGenerating, initialData }: CabaretFo
               </Select>
             </div>
           </div>
+
+          {/* DJ Count */}
+          <div className="space-y-2">
+            <Label htmlFor="djCount" className="flex items-center gap-2">
+              <Music className="w-4 h-4 text-accent" />
+              Nombre de DJ
+            </Label>
+            <Select
+              value={formData.djCount.toString()}
+              onValueChange={(v) => {
+                const count = parseInt(v);
+                updateField("djCount", count);
+                // Adjust djNames array size
+                const newNames = [...formData.djNames];
+                while (newNames.length < count) newNames.push("");
+                while (newNames.length > count) newNames.pop();
+                updateField("djNames", newNames);
+              }}
+            >
+              <SelectTrigger className="bg-background/50 border-border">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border-border">
+                <SelectItem value="0">Aucun DJ</SelectItem>
+                <SelectItem value="1">1 DJ</SelectItem>
+                <SelectItem value="2">2 DJ</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* DJ Names */}
+          {formData.djCount > 0 && (
+            <div className="space-y-3 pl-4 border-l-2 border-accent/30">
+              {Array.from({ length: formData.djCount }, (_, i) => (
+                <div key={i} className="space-y-2">
+                  <Label htmlFor={`djName-${i}`} className="flex items-center gap-2 text-sm">
+                    <Music className="w-3 h-3 text-accent" />
+                    Prénom DJ {i + 1}
+                  </Label>
+                  <Input
+                    id={`djName-${i}`}
+                    placeholder={`Ex: DJ ${i + 1}`}
+                    value={formData.djNames[i] || ""}
+                    onChange={(e) => {
+                      const newNames = [...formData.djNames];
+                      newNames[i] = e.target.value;
+                      updateField("djNames", newNames);
+                    }}
+                    className="bg-background/50 border-border"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Constraints */}
           <div className="space-y-2">
