@@ -43,11 +43,21 @@ const defaultFormData: CabaretFormData = {
 };
 
 export function CabaretForm({ onGenerate, isGenerating, initialData }: CabaretFormProps) {
-  const [formData, setFormData] = useState<CabaretFormData>(initialData || defaultFormData);
+  const [formData, setFormData] = useState<CabaretFormData>(() => ({
+    ...defaultFormData,
+    ...initialData,
+    djCount: initialData?.djCount ?? 0,
+    djNames: initialData?.djNames ?? [],
+  }));
 
   useEffect(() => {
     if (initialData) {
-      setFormData(initialData);
+      setFormData({
+        ...defaultFormData,
+        ...initialData,
+        djCount: initialData.djCount ?? 0,
+        djNames: initialData.djNames ?? [],
+      });
     }
   }, [initialData]);
 
