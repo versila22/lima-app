@@ -238,7 +238,7 @@ export function CabaretForm({ onGenerate, isGenerating, initialData }: CabaretFo
           Détails de la Soirée
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent key={formData.showType}>
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Venue Name */}
           <div className="space-y-2">
