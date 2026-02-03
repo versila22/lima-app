@@ -19,6 +19,7 @@ export interface CabaretFormData {
   venueContact: string;
   theme: string;
   playerCount: number;
+  playerNames: string[];
   duration: string;
   constraints: string;
   djCount: number;
@@ -36,6 +37,7 @@ const defaultFormData: CabaretFormData = {
   venueContact: "",
   theme: "",
   playerCount: 4,
+  playerNames: ["", "", "", ""],
   duration: "1h30",
   constraints: "",
   djCount: 0,
@@ -43,18 +45,28 @@ const defaultFormData: CabaretFormData = {
 };
 
 export function CabaretForm({ onGenerate, isGenerating, initialData }: CabaretFormProps) {
-  const [formData, setFormData] = useState<CabaretFormData>(() => ({
-    ...defaultFormData,
-    ...initialData,
-    djCount: initialData?.djCount ?? 0,
-    djNames: initialData?.djNames ?? [],
-  }));
+  const [formData, setFormData] = useState<CabaretFormData>(() => {
+    const playerCount = initialData?.playerCount ?? 4;
+    const playerNames = initialData?.playerNames ?? Array(playerCount).fill("");
+    return {
+      ...defaultFormData,
+      ...initialData,
+      playerCount,
+      playerNames,
+      djCount: initialData?.djCount ?? 0,
+      djNames: initialData?.djNames ?? [],
+    };
+  });
 
   useEffect(() => {
     if (initialData) {
+      const playerCount = initialData.playerCount ?? 4;
+      const playerNames = initialData.playerNames ?? Array(playerCount).fill("");
       setFormData({
         ...defaultFormData,
         ...initialData,
+        playerCount,
+        playerNames,
         djCount: initialData.djCount ?? 0,
         djNames: initialData.djNames ?? [],
       });
@@ -139,7 +151,15 @@ export function CabaretForm({ onGenerate, isGenerating, initialData }: CabaretFo
               </Label>
               <Select
                 value={formData.playerCount.toString()}
-                onValueChange={(v) => updateField("playerCount", parseInt(v))}
+                onValueChange={(v) => {
+                  const count = parseInt(v);
+                  updateField("playerCount", count);
+                  // Adjust playerNames array size
+                  const newNames = [...formData.playerNames];
+                  while (newNames.length < count) newNames.push("");
+                  while (newNames.length > count) newNames.pop();
+                  updateField("playerNames", newNames);
+                }}
               >
                 <SelectTrigger className="bg-background/50 border-border">
                   <SelectValue />
@@ -153,6 +173,31 @@ export function CabaretForm({ onGenerate, isGenerating, initialData }: CabaretFo
                 </SelectContent>
               </Select>
             </div>
+
+          {/* Player Names */}
+          {formData.playerCount > 0 && (
+            <div className="space-y-3 pl-4 border-l-2 border-primary/30">
+              {Array.from({ length: formData.playerCount }, (_, i) => (
+                <div key={i} className="space-y-2">
+                  <Label htmlFor={`playerName-${i}`} className="flex items-center gap-2 text-sm">
+                    <User className="w-3 h-3 text-primary" />
+                    Prénom Joueur {i + 1}
+                  </Label>
+                  <Input
+                    id={`playerName-${i}`}
+                    placeholder={`Ex: Joueur ${i + 1}`}
+                    value={formData.playerNames[i] || ""}
+                    onChange={(e) => {
+                      const newNames = [...formData.playerNames];
+                      newNames[i] = e.target.value;
+                      updateField("playerNames", newNames);
+                    }}
+                    className="bg-background/50 border-border"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
 
             <div className="space-y-2">
               <Label htmlFor="duration" className="flex items-center gap-2">
