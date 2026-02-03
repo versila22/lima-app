@@ -156,6 +156,7 @@ export function CabaretForm({ onGenerate, isGenerating, initialData }: CabaretFo
                   <SelectItem value="1h">1 heure</SelectItem>
                   <SelectItem value="1h15">1h15</SelectItem>
                   <SelectItem value="1h30">1h30</SelectItem>
+                  <SelectItem value="2h">2 heures</SelectItem>
                 </SelectContent>
               </Select>
             </div>
