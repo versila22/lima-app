@@ -45,5 +45,5 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 EXPOSE 8000
 
-# Run migrations then start the app
-CMD ["bash", "start.sh"]
+# Start the app (tables created via lifespan event)
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

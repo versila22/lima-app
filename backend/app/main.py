@@ -6,7 +6,21 @@ FastAPI Application Entry Point
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from contextlib import asynccontextmanager
+
 from app.config import settings
+from app.database import engine, Base
+import app.models  # noqa: F401 — register all models
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Create tables on startup if they don't exist."""
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+
+
 from app.routers import (
     auth,
     alignments,
@@ -25,6 +39,7 @@ app = FastAPI(
     version="0.1.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # ---------------------------------------------------------------------------
