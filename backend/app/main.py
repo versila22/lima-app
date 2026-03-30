@@ -16,8 +16,19 @@ import app.models  # noqa: F401 — register all models
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Create tables on startup if they don't exist."""
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    import asyncio
+    for attempt in range(15):
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            break
+        except Exception as e:
+            if attempt < 14:
+                print(f"DB not ready (attempt {attempt + 1}/15): {e}")
+                await asyncio.sleep(2)
+            else:
+                print(f"Could not connect to DB after 15 attempts: {e}")
+                raise
     yield
 
 
