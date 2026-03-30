@@ -12,5 +12,4 @@ build/
 *.egg
 .mypy_cache/
 .pytest_cache/
-alembic/versions/*.py
-!alembic/versions/.gitkeep
+# Keep migration files tracked
