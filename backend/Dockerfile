@@ -46,5 +46,4 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 EXPOSE 8000
 
 # Run migrations then start the app
-CMD alembic upgrade head && \
-    uvicorn app.main:app --host 0.0.0.0 --port ${PORT} --workers 2
+CMD ["bash", "start.sh"]
