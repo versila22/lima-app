@@ -3,8 +3,7 @@
 // ============================================================
 
 const BASE_URL =
-  (import.meta.env.VITE_API_URL as string | undefined) ??
-  "https://wind-five-reasonable-bodies.trycloudflare.com";
+  (import.meta.env.VITE_API_URL as string | undefined) ?? "";
 
 const TOKEN_KEY = "lima_token";
 
