@@ -3,7 +3,7 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: lima
-      POSTGRES_PASSWORD: lima_s3cure_2026
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
       POSTGRES_DB: lima_db
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -20,7 +20,7 @@ services:
     ports:
       - "8001:8000"
     environment:
-      DATABASE_URL: postgresql+asyncpg://lima:lima_s3cure_2026@db:5432/lima_db
+      DATABASE_URL: postgresql+asyncpg://lima:${POSTGRES_PASSWORD:-changeme}@db:5432/lima_db
       JWT_SECRET: ${JWT_SECRET:-$(openssl rand -hex 32)}
       JWT_ALGORITHM: HS256
       CORS_ORIGINS: "*"

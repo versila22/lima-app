@@ -1,73 +1,201 @@
-# Welcome to your Lovable project
+# 🎭 LIMA App — Ligue d'Improvisation du Maine-et-Loire
 
-## Project info
+Application web de gestion pour la **LIMA** (Ligue d'Improvisation du Maine-et-Loire). Planification de spectacles, gestion des membres, agenda de la saison, et grilles d'alignement.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+![React](https://img.shields.io/badge/React-18-blue?logo=react)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green?logo=fastapi)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue?logo=postgresql)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)
 
-## How can I edit this code?
+---
 
-There are several ways of editing your application.
+## ✨ Fonctionnalités
 
-**Use Lovable**
+### 🔐 Authentification
+- Login email / mot de passe (JWT)
+- Rôles : **Admin** (CA + Bureau) / **Membre**
+- Activation de compte par token
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+### 👥 Gestion des membres
+- Import CSV depuis **HelloAsso** (adhérents + joueurs)
+- 4 statuts : **Match** (M), **Cabaret** (C), **Loisir** (L), **Adhérent** (A)
+- Commissions : Comspec, Comprog, Comform, Comadh, Comcom
+- Recherche et filtrage
 
-Changes made via Lovable will be committed automatically to this repo.
+### 📅 Agenda
+- Calendrier mensuel avec code couleur par type d'événement
+- Types : Entraînement spectacle, Entraînement loisir, Match, Cabaret, Welsh, Formation, AG
+- Détail événement avec **casting** (joueurs, MJ/MC, DJ, arbitre)
 
-**Use your preferred IDE**
+### 🎭 Organisateur de spectacle
+- Formulaire de configuration (lieu, type, joueurs, durée, contraintes)
+- Génération de plan de soirée en Markdown
+- Historique des plans sauvegardés
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### 📊 Grilles d'alignement
+- Affectation des joueurs aux événements par trimestre
+- Rôles : JR (Joueur), DJ, MJ/MC, AR (Arbitre), COACH
+- Séparation Cabaret / Match
+- Publication pour les adhérents
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### ⚙️ Paramètres
+- Configuration de l'association (admin only)
+- Gestion des saisons, lieux, commissions
 
-Follow these steps:
+---
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## 🏗️ Stack technique
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Frontend
+- **React 18** + TypeScript + Vite
+- **Tailwind CSS** + **shadcn/ui**
+- **React Query** (TanStack) pour les appels API
+- **React Router** v6
+- `date-fns` + `react-markdown` + `remark-gfm`
 
-# Step 3: Install the necessary dependencies.
-npm i
+### Backend
+- **FastAPI** (Python 3.12+)
+- **SQLAlchemy 2.0** (async, asyncpg)
+- **PostgreSQL 16**
+- **Alembic** pour les migrations
+- **JWT** (python-jose) + **bcrypt** pour l'auth
+- Import CSV HelloAsso + Import Excel calendrier
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+---
+
+## 🚀 Démarrage rapide
+
+### Prérequis
+- Node.js 18+
+- Python 3.12+
+- PostgreSQL 16+
+
+### Backend
+
+```bash
+cd backend
+
+# Copier et configurer les variables d'environnement
+cp .env.example .env
+# Éditer .env avec vos valeurs (DATABASE_URL, JWT_SECRET, etc.)
+
+# Installer les dépendances
+pip install -r requirements.txt
+
+# Lancer les migrations
+alembic upgrade head
+
+# (Optionnel) Seeder avec des données de démo
+python seed.py
+
+# Lancer le serveur
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-**Edit a file directly in GitHub**
+### Frontend
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```bash
+# Installer les dépendances
+npm install
 
-**Use GitHub Codespaces**
+# Configurer l'URL du backend (optionnel si même serveur)
+export VITE_API_URL=http://localhost:8000
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+# Lancer en développement
+npm run dev
 
-## What technologies are used for this project?
+# Build pour la production
+npm run build
+```
 
-This project is built with:
+### Docker Compose (tout-en-un)
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+```bash
+cd backend
 
-## How can I deploy this project?
+# Configurer les variables
+cp .env.example .env
+# Éditer .env
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+# Lancer
+docker compose up -d
+```
 
-## Can I connect a custom domain to my Lovable project?
+---
 
-Yes, you can!
+## 📁 Structure du projet
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+```
+lima-app/
+├── src/                          # Frontend React
+│   ├── components/               # Composants UI
+│   │   ├── cabaret/              # Organisateur de spectacle
+│   │   ├── layout/               # Sidebar, Dashboard
+│   │   └── ui/                   # shadcn/ui components
+│   ├── contexts/                 # AuthContext
+│   ├── hooks/                    # Custom hooks
+│   ├── lib/                      # API client, utilitaires
+│   ├── pages/                    # Pages (Login, Agenda, Members, Settings)
+│   └── types/                    # Types TypeScript
+├── backend/                      # Backend FastAPI
+│   ├── app/
+│   │   ├── models/               # SQLAlchemy models
+│   │   ├── schemas/              # Pydantic schemas
+│   │   ├── routers/              # API endpoints
+│   │   ├── services/             # Business logic (import, auth)
+│   │   └── utils/                # Security, dependencies
+│   ├── alembic/                  # Migrations DB
+│   ├── static/                   # Frontend buildé (production)
+│   ├── requirements.txt
+│   ├── Dockerfile
+│   └── docker-compose.yml
+├── package.json
+└── vite.config.ts
+```
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+---
+
+## 🔌 API Endpoints (33)
+
+| Domaine | Endpoints |
+|---------|-----------|
+| **Auth** | `POST /auth/login`, `GET /auth/me`, `PUT /auth/me`, `POST /auth/activate`, `POST /auth/forgot-password`, `POST /auth/reset-password`, `PUT /auth/me/password` |
+| **Members** | `GET /members`, `POST /members`, `GET /members/{id}`, `PUT /members/{id}`, `DELETE /members/{id}`, `POST /members/import`, `POST /members/{id}/resend-activation`, `PUT /members/{id}/role` |
+| **Events** | `GET /events`, `POST /events`, `GET /events/{id}`, `GET /events/{id}/cast`, `PUT /events/{id}`, `DELETE /events/{id}`, `POST /events/import-calendar` |
+| **Alignments** | `GET /alignments`, `POST /alignments`, `GET /alignments/{id}`, `PUT /alignments/{id}`, `DELETE /alignments/{id}`, `POST /alignments/{id}/assign`, `PUT /alignments/{id}/publish` |
+| **Autres** | `GET /seasons`, `GET /venues`, `GET /commissions`, `GET /show-plans`, `GET /settings`, `GET /health` |
+
+Documentation Swagger : `/docs` | ReDoc : `/redoc`
+
+---
+
+## 📋 Import HelloAsso
+
+L'application importe directement les exports CSV de HelloAsso :
+
+1. **CSV Adhérents** — bulletin d'adhésion (données personnelles, commission)
+2. **CSV Joueurs** — cotisation joueur (groupe de jeu : Match/Cabaret, tarif)
+
+Les membres sont rapprochés par **email**. Le statut (M/C/L/A) est déduit du groupe de jeu ou du tarif de cotisation.
+
+---
+
+## 🎨 Design
+
+- Thème **sombre** avec accents **violet** (#7C3AED) et **or** (#F59E0B)
+- **Responsive** — mobile-first
+- Sidebar rétractable avec navigation et liens sociaux
+- Calendrier avec **code couleur** par type d'événement
+
+---
+
+## 📄 Licence
+
+Ce projet est développé pour la **LIMA** (Ligue d'Improvisation du Maine-et-Loire).
+
+---
+
+## 👥 Contributeurs
+
+- **Jérôme Jacq** — Développeur principal, membre LIMA
+- Développé avec l'assistance de **Jayvis** (IA coach & dev)
