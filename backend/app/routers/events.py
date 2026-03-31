@@ -70,6 +70,34 @@ async def get_event(
     return event
 
 
+@router.get("/{event_id}/cast")
+async def get_event_cast(
+    event_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: Member = Depends(get_current_user),
+):
+    """Get the cast (players, MJ, DJ, etc.) assigned to an event."""
+    from app.models.alignment import AlignmentAssignment
+    from sqlalchemy.orm import selectinload
+
+    result = await db.execute(
+        select(AlignmentAssignment)
+        .options(selectinload(AlignmentAssignment.member))
+        .where(AlignmentAssignment.event_id == event_id)
+    )
+    assignments = result.scalars().all()
+
+    cast = []
+    for a in assignments:
+        cast.append({
+            "member_id": str(a.member_id),
+            "first_name": a.member.first_name,
+            "last_name": a.member.last_name,
+            "role": a.role,
+        })
+    return cast
+
+
 @router.post("", response_model=EventRead, status_code=status.HTTP_201_CREATED)
 async def create_event(
     data: EventCreate,

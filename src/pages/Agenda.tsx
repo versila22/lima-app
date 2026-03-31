@@ -103,6 +103,22 @@ function weekdayIndex(date: Date): number {
   return d === 0 ? 6 : d - 1;
 }
 
+// ---- Cast member type ----
+interface CastMember {
+  member_id: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+}
+
+const ROLE_LABELS: Record<string, { label: string; emoji: string }> = {
+  JR: { label: "Joueur", emoji: "🎭" },
+  MJ_MC: { label: "MJ / MC", emoji: "🎤" },
+  DJ: { label: "DJ", emoji: "🎵" },
+  AR: { label: "Arbitre", emoji: "⚖️" },
+  COACH: { label: "Coach", emoji: "🏋️" },
+};
+
 // ---- Event Detail Dialog ----
 function EventDetailDialog({
   event,
@@ -112,6 +128,22 @@ function EventDetailDialog({
   onClose: () => void;
 }) {
   const cfg = EVENT_TYPE_CONFIG[event.event_type] ?? EVENT_TYPE_CONFIG.other;
+
+  const { data: cast = [], isLoading: castLoading } = useQuery<CastMember[]>({
+    queryKey: ["event-cast", event.id],
+    queryFn: () => api.get<CastMember[]>(`/events/${event.id}/cast`),
+  });
+
+  // Group by role
+  const byRole = cast.reduce<Record<string, CastMember[]>>((acc, c) => {
+    if (!acc[c.role]) acc[c.role] = [];
+    acc[c.role].push(c);
+    return acc;
+  }, {});
+
+  // Display order
+  const roleOrder = ["JR", "MJ_MC", "DJ", "AR", "COACH"];
+
   return (
     <DialogContent className="bg-card border-border max-w-md">
       <DialogHeader>
@@ -150,6 +182,38 @@ function EventDetailDialog({
             {event.notes}
           </div>
         )}
+
+        {/* Cast */}
+        {castLoading ? (
+          <div className="flex items-center gap-2 text-muted-foreground py-2">
+            <Loader2 className="w-4 h-4 animate-spin" /> Chargement du casting…
+          </div>
+        ) : cast.length > 0 ? (
+          <div className="space-y-3 pt-2 border-t border-border">
+            <span className="font-semibold text-foreground">🎬 Casting</span>
+            {roleOrder.map((role) => {
+              const members = byRole[role];
+              if (!members?.length) return null;
+              const rl = ROLE_LABELS[role] ?? { label: role, emoji: "👤" };
+              return (
+                <div key={role}>
+                  <span className="text-muted-foreground text-xs">{rl.emoji} {rl.label}</span>
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {members.map((m) => (
+                      <Badge
+                        key={m.member_id}
+                        variant="secondary"
+                        className="text-xs"
+                      >
+                        {m.first_name} {m.last_name.charAt(0)}.
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
       </div>
       <DialogFooter>
         <Button variant="outline" onClick={onClose}>
