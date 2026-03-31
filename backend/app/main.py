@@ -89,3 +89,23 @@ app.include_router(settings_router.router)
 async def health_check():
     """Returns 200 OK when the service is running."""
     return {"status": "ok", "version": "0.1.0"}
+
+
+# ---------------------------------------------------------------------------
+# Serve frontend static files (SPA)
+# ---------------------------------------------------------------------------
+import os
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+_static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
+if os.path.isdir(_static_dir):
+    app.mount("/assets", StaticFiles(directory=os.path.join(_static_dir, "assets")), name="static-assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa(full_path: str):
+        """Serve the SPA index.html for all non-API routes."""
+        file_path = os.path.join(_static_dir, full_path)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join(_static_dir, "index.html"))
