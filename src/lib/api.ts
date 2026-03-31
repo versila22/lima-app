@@ -2,8 +2,8 @@
 // LIMA – API client (fetch-based, JWT auth)
 // ============================================================
 
-const BASE_URL =
-  (import.meta.env.VITE_API_URL as string | undefined) ?? "";
+const _env_url = import.meta.env.VITE_API_URL as string | undefined;
+const BASE_URL = _env_url && _env_url.length > 0 ? _env_url : "";
 
 const TOKEN_KEY = "lima_token";
 
@@ -42,7 +42,8 @@ async function request<T>(
   path: string,
   { body, params, headers: extraHeaders, ...rest }: RequestOptions = {}
 ): Promise<T> {
-  const url = new URL(`${BASE_URL}${path}`);
+  const fullUrl = BASE_URL ? `${BASE_URL}${path}` : path;
+  const url = new URL(fullUrl, window.location.origin);
 
   if (params) {
     Object.entries(params).forEach(([k, v]) => {
