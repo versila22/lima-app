@@ -1,8 +1,21 @@
-import { ChevronLeft, ChevronRight, Sparkles, Home, Calendar, Settings, Users, Globe, Instagram, Facebook } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
+  Home,
+  Calendar,
+  Settings,
+  Users,
+  Globe,
+  Instagram,
+  Facebook,
+  LogOut,
+} from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAuth } from "@/contexts/AuthContext";
 import limaLogo from "@/assets/logo-lima.jpg";
 
 interface AppSidebarProps {
@@ -13,13 +26,26 @@ interface AppSidebarProps {
 const menuItems = [
   { icon: Home, label: "Accueil", path: "/" },
   { icon: Sparkles, label: "Organisateur Cabaret", path: "/cabaret" },
-  { icon: Calendar, label: "Agenda", path: "/agenda", disabled: true },
-  { icon: Users, label: "Membres", path: "/membres", disabled: true },
-  { icon: Settings, label: "Paramètres", path: "/settings", disabled: true },
+  { icon: Calendar, label: "Agenda", path: "/agenda" },
+  { icon: Users, label: "Membres", path: "/membres" },
+  { icon: Settings, label: "Paramètres", path: "/settings", adminOnly: true },
 ];
 
 export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout, isAuthenticated } = useAuth();
+  const isAdmin = user?.app_role === "admin";
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login", { replace: true });
+  };
+
+  // Filter menu: hide admin-only items for non-admins
+  const visibleItems = menuItems.filter(
+    (item) => !item.adminOnly || isAdmin
+  );
 
   return (
     <aside
@@ -31,36 +57,34 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
       {/* Header */}
       <div className="p-4 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <img 
-            src={limaLogo} 
-            alt="LIMA" 
+          <img
+            src={limaLogo}
+            alt="LIMA"
             className="w-10 h-10 rounded-lg object-contain bg-white shrink-0"
           />
           {!collapsed && (
             <div className="overflow-hidden">
               <h1 className="font-bold text-lg gradient-text truncate">LIMA</h1>
-              <p className="text-xs text-muted-foreground truncate">Gestion & Spectacles</p>
+              <p className="text-xs text-muted-foreground truncate">Gestion &amp; Spectacles</p>
             </div>
           )}
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-2 space-y-1">
-        {menuItems.map((item) => {
+      <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+        {visibleItems.map((item) => {
           const isActive = location.pathname === item.path;
           const content = (
             <Link
               key={item.path}
-              to={item.disabled ? "#" : item.path}
+              to={item.path}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group",
                 isActive
                   ? "bg-primary/10 text-primary glow-primary"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                item.disabled && "opacity-50 cursor-not-allowed pointer-events-none"
+                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
               )}
-              onClick={(e) => item.disabled && e.preventDefault()}
             >
               <item.icon
                 className={cn(
@@ -71,11 +95,6 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
               {!collapsed && (
                 <span className="truncate">{item.label}</span>
               )}
-              {!collapsed && item.disabled && (
-                <span className="ml-auto text-xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
-                  Bientôt
-                </span>
-              )}
             </Link>
           );
 
@@ -85,7 +104,6 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
                 <TooltipTrigger asChild>{content}</TooltipTrigger>
                 <TooltipContent side="right" className="bg-popover border-border">
                   <p>{item.label}</p>
-                  {item.disabled && <p className="text-xs text-muted-foreground">Bientôt disponible</p>}
                 </TooltipContent>
               </Tooltip>
             );
@@ -95,11 +113,50 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
         })}
       </nav>
 
+      {/* Logout button (when authenticated) */}
+      {isAuthenticated && (
+        <div className="p-2 border-t border-sidebar-border">
+          {collapsed ? (
+            <Tooltip delayDuration={0}>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleLogout}
+                  className="w-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                >
+                  <LogOut className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="bg-popover border-border">
+                Déconnexion
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              className="w-full justify-start gap-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            >
+              <LogOut className="w-4 h-4 shrink-0" />
+              <span className="truncate">
+                {user?.first_name
+                  ? `Déconnexion (${user.first_name})`
+                  : "Déconnexion"}
+              </span>
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* Social Links */}
-      <div className={cn(
-        "p-2 border-t border-sidebar-border flex gap-2",
-        collapsed ? "flex-col items-center" : "justify-center"
-      )}>
+      <div
+        className={cn(
+          "p-2 border-t border-sidebar-border flex gap-2",
+          collapsed ? "flex-col items-center" : "justify-center"
+        )}
+      >
         <Tooltip delayDuration={0}>
           <TooltipTrigger asChild>
             <a

@@ -4,10 +4,82 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+
+// Pages
 import CabaretOrganizer from "./pages/CabaretOrganizer";
+import Login from "./pages/Login";
+import Members from "./pages/Members";
+import Agenda from "./pages/Agenda";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 30_000,
+    },
+  },
+});
+
+// ---- ProtectedRoute ----
+function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
+  const { isAuthenticated, isLoading, user } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (adminOnly && user?.app_role !== "admin") {
+    return <Navigate to="/cabaret" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+// ---- Routes ----
+function AppRoutes() {
+  return (
+    <Routes>
+      {/* Public */}
+      <Route path="/login" element={<Login />} />
+
+      {/* Protected */}
+      <Route
+        element={
+          <ProtectedRoute>
+            <DashboardLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route path="/" element={<Navigate to="/cabaret" replace />} />
+        <Route path="/cabaret" element={<CabaretOrganizer />} />
+        <Route path="/agenda" element={<Agenda />} />
+        <Route path="/membres" element={<Members />} />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute adminOnly>
+              <Settings />
+            </ProtectedRoute>
+          }
+        />
+      </Route>
+
+      {/* 404 */}
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -15,14 +87,9 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route element={<DashboardLayout />}>
-            <Route path="/" element={<Navigate to="/cabaret" replace />} />
-            <Route path="/cabaret" element={<CabaretOrganizer />} />
-          </Route>
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
