@@ -17,6 +17,7 @@ import app.models  # noqa: F401 — register all models
 async def lifespan(app: FastAPI):
     """Create tables on startup if they don't exist."""
     import asyncio
+    import os
     for attempt in range(15):
         try:
             async with engine.begin() as conn:
@@ -29,6 +30,21 @@ async def lifespan(app: FastAPI):
             else:
                 print(f"Could not connect to DB after 15 attempts: {e}")
                 raise
+
+    # Run seed if SEED_ON_STARTUP=1
+    if os.environ.get("SEED_ON_STARTUP") == "1":
+        print("SEED_ON_STARTUP=1 — running seed...")
+        try:
+            import sys, os
+            sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            from seed import seed as run_seed
+            from app.database import AsyncSessionLocal
+            async with AsyncSessionLocal() as db:
+                await run_seed(db)
+            print("Seed completed.")
+        except Exception as e:
+            print(f"Seed failed (non-fatal): {e}")
+
     yield
 
 
