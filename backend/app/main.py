@@ -108,6 +108,30 @@ async def health_check():
 
 
 # ---------------------------------------------------------------------------
+# One-shot seed endpoint (protected by secret token)
+# ---------------------------------------------------------------------------
+from fastapi import Header
+from app.database import AsyncSessionLocal
+
+@app.post("/admin/seed", tags=["admin"], include_in_schema=False)
+async def trigger_seed(x_seed_token: str = Header(...)):
+    """Trigger seed manually via secret token."""
+    expected = os.environ.get("SEED_SECRET", "")
+    if not expected or x_seed_token != expected:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Forbidden")
+    try:
+        import sys
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        from seed import seed as run_seed
+        async with AsyncSessionLocal() as db:
+            await run_seed(db)
+        return {"status": "seed completed"}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+
+
+# ---------------------------------------------------------------------------
 # Serve frontend static files (SPA)
 # ---------------------------------------------------------------------------
 import os
