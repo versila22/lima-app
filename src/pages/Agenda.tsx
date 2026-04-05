@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -7,6 +7,8 @@ import {
   CalendarDays,
   Plus,
   Loader2,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import {
   format,
@@ -24,7 +26,7 @@ import { fr } from "date-fns/locale";
 
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import type { EventRead, EventCreate, SeasonRead, EventType } from "@/types";
+import type { EventRead, EventCreate, EventUpdate, SeasonRead, EventType } from "@/types";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -34,8 +36,17 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import {
@@ -122,10 +133,16 @@ const ROLE_LABELS: Record<string, { label: string; emoji: string }> = {
 // ---- Event Detail Dialog ----
 function EventDetailDialog({
   event,
+  isAdmin,
   onClose,
+  onEdit,
+  onDelete,
 }: {
   event: EventRead;
+  isAdmin: boolean;
   onClose: () => void;
+  onEdit: (event: EventRead) => void;
+  onDelete: (event: EventRead) => void;
 }) {
   const cfg = EVENT_TYPE_CONFIG[event.event_type] ?? EVENT_TYPE_CONFIG.other;
 
@@ -148,9 +165,7 @@ function EventDetailDialog({
     <DialogContent className="bg-card border-border max-w-md">
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
-          <span
-            className={`inline-block w-3 h-3 rounded-full ${cfg.dot}`}
-          />
+          <span className={`inline-block w-3 h-3 rounded-full ${cfg.dot}`} />
           {event.title}
         </DialogTitle>
         <DialogDescription>
@@ -200,11 +215,7 @@ function EventDetailDialog({
                   <span className="text-muted-foreground text-xs">{rl.emoji} {rl.label}</span>
                   <div className="flex flex-wrap gap-1.5 mt-1">
                     {members.map((m) => (
-                      <Badge
-                        key={m.member_id}
-                        variant="secondary"
-                        className="text-xs"
-                      >
+                      <Badge key={m.member_id} variant="secondary" className="text-xs">
                         {m.first_name} {m.last_name.charAt(0)}.
                       </Badge>
                     ))}
@@ -215,12 +226,167 @@ function EventDetailDialog({
           </div>
         ) : null}
       </div>
-      <DialogFooter>
+      <DialogFooter className="flex-col sm:flex-row gap-2">
+        {isAdmin && (
+          <div className="flex gap-2 mr-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onEdit(event)}
+              className="gap-1.5"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              Modifier
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => onDelete(event)}
+              className="gap-1.5"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Supprimer
+            </Button>
+          </div>
+        )}
         <Button variant="outline" onClick={onClose}>
           Fermer
         </Button>
       </DialogFooter>
     </DialogContent>
+  );
+}
+
+// ---- Edit Event Dialog ----
+function EditEventDialog({
+  event,
+  open,
+  onOpenChange,
+}: {
+  event: EventRead;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const queryClient = useQueryClient();
+
+  // Format ISO date to datetime-local string
+  const toDatetimeLocal = (iso: string) =>
+    format(parseISO(iso), "yyyy-MM-dd'T'HH:mm");
+
+  const [title, setTitle] = useState(event.title);
+  const [eventType, setEventType] = useState<EventType>(event.event_type);
+  const [startAt, setStartAt] = useState(toDatetimeLocal(event.start_at));
+  const [endAt, setEndAt] = useState(event.end_at ? toDatetimeLocal(event.end_at) : "");
+  const [notes, setNotes] = useState(event.notes ?? "");
+
+  const updateMutation = useMutation<EventRead, ApiError, EventUpdate>({
+    mutationFn: (data) => api.put<EventRead>(`/events/${event.id}`, data),
+    onSuccess: () => {
+      toast.success("Événement modifié !");
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+      onOpenChange(false);
+    },
+    onError: (err) => toast.error(err.detail ?? "Erreur lors de la modification"),
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title || !startAt) {
+      toast.error("Titre et date de début sont requis");
+      return;
+    }
+    updateMutation.mutate({
+      title,
+      event_type: eventType,
+      start_at: new Date(startAt).toISOString(),
+      end_at: endAt ? new Date(endAt).toISOString() : undefined,
+      notes: notes || undefined,
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="bg-card border-border">
+        <DialogHeader>
+          <DialogTitle>Modifier l'événement</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label htmlFor="edit-title">Titre</Label>
+            <Input
+              id="edit-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="bg-background/50"
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Type</Label>
+            <Select value={eventType} onValueChange={(v) => setEventType(v as EventType)}>
+              <SelectTrigger className="bg-background/50">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border-border">
+                {(Object.keys(EVENT_TYPE_CONFIG) as EventType[]).map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {EVENT_TYPE_CONFIG[t].label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-start">Début</Label>
+              <Input
+                id="edit-start"
+                type="datetime-local"
+                value={startAt}
+                onChange={(e) => setStartAt(e.target.value)}
+                className="bg-background/50"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-end">Fin (optionnel)</Label>
+              <Input
+                id="edit-end"
+                type="datetime-local"
+                value={endAt}
+                onChange={(e) => setEndAt(e.target.value)}
+                className="bg-background/50"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-notes">Notes</Label>
+            <Textarea
+              id="edit-notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="bg-background/50"
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Annuler
+            </Button>
+            <Button
+              type="submit"
+              disabled={updateMutation.isPending}
+              className="bg-gradient-to-r from-cabaret-purple to-cabaret-gold text-background"
+            >
+              {updateMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                "Enregistrer"
+              )}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -370,10 +536,24 @@ function AddEventDialog({
 export default function Agenda() {
   const { user } = useAuth();
   const isAdmin = user?.app_role === "admin";
+  const queryClient = useQueryClient();
 
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState<EventRead | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const [editEvent, setEditEvent] = useState<EventRead | null>(null);
+  const [deleteEvent, setDeleteEvent] = useState<EventRead | null>(null);
+
+  const deleteMutation = useMutation<void, ApiError, string>({
+    mutationFn: (id) => api.delete(`/events/${id}`),
+    onSuccess: () => {
+      toast.success("Événement supprimé");
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+      setDeleteEvent(null);
+      setSelectedEvent(null);
+    },
+    onError: (err) => toast.error(err.detail ?? "Erreur lors de la suppression"),
+  });
 
   // Fetch current season
   const { data: seasons } = useQuery<SeasonRead[]>({
@@ -538,7 +718,15 @@ export default function Agenda() {
         >
           <EventDetailDialog
             event={selectedEvent}
+            isAdmin={isAdmin}
             onClose={() => setSelectedEvent(null)}
+            onEdit={(ev) => {
+              setSelectedEvent(null);
+              setEditEvent(ev);
+            }}
+            onDelete={(ev) => {
+              setDeleteEvent(ev);
+            }}
           />
         </Dialog>
       )}
@@ -551,6 +739,45 @@ export default function Agenda() {
           currentSeasonId={currentSeason.id}
         />
       )}
+
+      {/* Edit event dialog */}
+      {editEvent && (
+        <EditEventDialog
+          event={editEvent}
+          open={!!editEvent}
+          onOpenChange={(open) => !open && setEditEvent(null)}
+        />
+      )}
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog
+        open={!!deleteEvent}
+        onOpenChange={(open) => !open && setDeleteEvent(null)}
+      >
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer l'événement ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="font-medium text-foreground">{deleteEvent?.title}</span>
+              {" "}sera définitivement supprimé. Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteEvent && deleteMutation.mutate(deleteEvent.id)}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                "Supprimer"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
