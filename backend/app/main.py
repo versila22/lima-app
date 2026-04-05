@@ -131,6 +131,38 @@ async def trigger_seed(x_seed_token: str = Header(...)):
         return {"status": "error", "detail": str(e)}
 
 
+@app.post("/admin/reset-admin", tags=["admin"], include_in_schema=False)
+async def reset_admin(x_seed_token: str = Header(...)):
+    """Create or reset admin account."""
+    from fastapi import HTTPException
+    expected = os.environ.get("SEED_SECRET", "")
+    if not expected or x_seed_token != expected:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    from sqlalchemy import select
+    from app.models.member import Member
+    from app.utils.security import hash_password
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(select(Member).where(Member.email == "admin@lima-impro.fr"))
+        member = result.scalar_one_or_none()
+        if member is None:
+            member = Member(
+                email="admin@lima-impro.fr",
+                first_name="Alexandre",
+                last_name="Bertrand",
+                app_role="admin",
+                password_hash=hash_password("Admin1234!"),
+                is_active=True,
+            )
+            db.add(member)
+            await db.commit()
+            return {"status": "admin created"}
+        else:
+            member.password_hash = hash_password("Admin1234!")
+            member.is_active = True
+            await db.commit()
+            return {"status": "admin password reset", "id": str(member.id)}
+
+
 # ---------------------------------------------------------------------------
 # Serve frontend static files (SPA)
 # ---------------------------------------------------------------------------
