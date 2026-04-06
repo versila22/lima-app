@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -9,6 +9,9 @@ import {
   Loader2,
   Pencil,
   Trash2,
+  Calendar as CalendarIcon,
+  Check,
+  ChevronsUpDown,
 } from "lucide-react";
 import {
   format,
@@ -21,12 +24,25 @@ import {
   subMonths,
   getDay,
   parseISO,
+  setHours,
+  setMinutes,
+  setSeconds,
+  setMilliseconds,
+  isValid,
 } from "date-fns";
 import { fr } from "date-fns/locale";
 
 import { api, ApiError } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import type { EventRead, EventCreate, EventUpdate, SeasonRead, EventType } from "@/types";
+import type {
+  EventRead,
+  EventCreate,
+  EventUpdate,
+  SeasonRead,
+  EventType,
+  MemberSummary,
+} from "@/types";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -58,6 +74,20 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
 // ---- Event type config ----
 const EVENT_TYPE_CONFIG: Record<
@@ -107,6 +137,34 @@ const EVENT_TYPE_CONFIG: Record<
 };
 
 const DAYS_FR = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+const CAST_NOTES_MARKER = "--- CAST_DATA ---";
+const COMMISSION_OPTIONS = ["comadh", "comform", "comcom", "comprog", "comspec", "ca"];
+const MINUTE_OPTIONS = ["00", "15", "30", "45"];
+
+type CastFieldKey =
+  | "player1"
+  | "player2"
+  | "player3"
+  | "player4"
+  | "player5"
+  | "arbitre"
+  | "mc"
+  | "mj"
+  | "dj"
+  | "referent";
+
+type CastFormState = Record<CastFieldKey, string>;
+
+interface CastFieldDefinition {
+  key: CastFieldKey;
+  label: string;
+  kind: "member" | "referent";
+}
+
+interface StructuredCastData {
+  eventType: EventType;
+  assignments: Partial<Record<CastFieldKey, string>>;
+}
 
 // Monday-first weekday index (0=Mon … 6=Sun)
 function weekdayIndex(date: Date): number {
@@ -122,13 +180,493 @@ interface CastMember {
   role: string;
 }
 
-const ROLE_LABELS: Record<string, { label: string; emoji: string }> = {
+const DETAIL_ROLE_LABELS: Record<string, { label: string; emoji: string }> = {
   JR: { label: "Joueur", emoji: "🎭" },
   MJ_MC: { label: "MJ / MC", emoji: "🎤" },
   DJ: { label: "DJ", emoji: "🎵" },
   AR: { label: "Arbitre", emoji: "⚖️" },
   COACH: { label: "Coach", emoji: "🏋️" },
 };
+
+const EMPTY_CAST_FORM: CastFormState = {
+  player1: "",
+  player2: "",
+  player3: "",
+  player4: "",
+  player5: "",
+  arbitre: "",
+  mc: "",
+  mj: "",
+  dj: "",
+  referent: "",
+};
+
+function getDefaultDateTime(): Date {
+  const now = new Date();
+  return setMilliseconds(setSeconds(setMinutes(now, 0), 0), 0);
+}
+
+function getCastFields(eventType: EventType): CastFieldDefinition[] {
+  if (eventType === "match") {
+    return [
+      { key: "player1", label: "Joueur 1", kind: "member" },
+      { key: "player2", label: "Joueur 2", kind: "member" },
+      { key: "player3", label: "Joueur 3", kind: "member" },
+      { key: "player4", label: "Joueur 4", kind: "member" },
+      { key: "player5", label: "Joueur 5", kind: "member" },
+      { key: "arbitre", label: "Arbitre", kind: "member" },
+      { key: "mc", label: "MC", kind: "member" },
+      { key: "dj", label: "DJ", kind: "member" },
+    ];
+  }
+
+  if (eventType === "cabaret") {
+    return [
+      { key: "player1", label: "Joueur 1", kind: "member" },
+      { key: "player2", label: "Joueur 2", kind: "member" },
+      { key: "player3", label: "Joueur 3", kind: "member" },
+      { key: "player4", label: "Joueur 4", kind: "member" },
+      { key: "player5", label: "Joueur 5", kind: "member" },
+      { key: "mj", label: "MJ (Maître de Jeu)", kind: "member" },
+      { key: "dj", label: "DJ", kind: "member" },
+    ];
+  }
+
+  return [{ key: "referent", label: "Référent", kind: "referent" }];
+}
+
+function parseStructuredNotes(notes?: string | null): {
+  plainNotes: string;
+  cast: CastFormState;
+} {
+  if (!notes) {
+    return { plainNotes: "", cast: { ...EMPTY_CAST_FORM } };
+  }
+
+  const markerIndex = notes.indexOf(CAST_NOTES_MARKER);
+  if (markerIndex === -1) {
+    return { plainNotes: notes.trim(), cast: { ...EMPTY_CAST_FORM } };
+  }
+
+  const plainNotes = notes.slice(0, markerIndex).trim();
+  const rawPayload = notes.slice(markerIndex + CAST_NOTES_MARKER.length).trim();
+
+  try {
+    const parsed = JSON.parse(rawPayload) as StructuredCastData;
+    const nextCast = { ...EMPTY_CAST_FORM };
+
+    Object.entries(parsed.assignments ?? {}).forEach(([key, value]) => {
+      if (key in nextCast && typeof value === "string") {
+        nextCast[key as CastFieldKey] = value;
+      }
+    });
+
+    return { plainNotes, cast: nextCast };
+  } catch {
+    return { plainNotes: notes.trim(), cast: { ...EMPTY_CAST_FORM } };
+  }
+}
+
+function buildStructuredNotes(notes: string, eventType: EventType, cast: CastFormState): string | undefined {
+  const trimmedNotes = notes.trim();
+  const assignments = Object.fromEntries(
+    Object.entries(cast).filter(([, value]) => value.trim().length > 0),
+  ) as Partial<Record<CastFieldKey, string>>;
+
+  if (Object.keys(assignments).length === 0) {
+    return trimmedNotes || undefined;
+  }
+
+  const payload: StructuredCastData = {
+    eventType,
+    assignments,
+  };
+
+  const serialized = JSON.stringify(payload, null, 2);
+  return trimmedNotes
+    ? `${trimmedNotes}\n\n${CAST_NOTES_MARKER}\n${serialized}`
+    : `${CAST_NOTES_MARKER}\n${serialized}`;
+}
+
+function formatEventNotes(notes?: string | null): string | null {
+  const plainNotes = parseStructuredNotes(notes).plainNotes;
+  return plainNotes || null;
+}
+
+function parseDateTimeValue(value?: string | null): Date | undefined {
+  if (!value) return undefined;
+  const parsed = typeof value === "string" ? parseISO(value) : value;
+  return isValid(parsed) ? parsed : undefined;
+}
+
+function combineDateAndTime(date: Date | undefined, hour: string, minute: string): string | undefined {
+  if (!date) return undefined;
+
+  const safeHour = Math.min(23, Math.max(0, Number(hour || "0")));
+  const safeMinute = Number(minute || "0");
+  const withTime = setMilliseconds(
+    setSeconds(setMinutes(setHours(date, safeHour), safeMinute), 0),
+    0,
+  );
+
+  return withTime.toISOString();
+}
+
+function getInitialDateTimeState(value?: string | null): {
+  date: Date;
+  hour: string;
+  minute: string;
+} {
+  const parsed = parseDateTimeValue(value) ?? getDefaultDateTime();
+  return {
+    date: parsed,
+    hour: format(parsed, "HH"),
+    minute: MINUTE_OPTIONS.includes(format(parsed, "mm")) ? format(parsed, "mm") : "00",
+  };
+}
+
+function displayDateTime(date?: Date, hour = "00", minute = "00"): string {
+  if (!date) return "Choisir une date";
+  return `${format(date, "dd/MM/yyyy")} ${hour.padStart(2, "0")}:${minute.padStart(2, "0")}`;
+}
+
+function useMembers() {
+  return useQuery<MemberSummary[]>({
+    queryKey: ["members"],
+    queryFn: () => api.get<MemberSummary[]>("/members"),
+  });
+}
+
+function DateTimeField({
+  label,
+  value,
+  onChange,
+  required,
+}: {
+  label: string;
+  value?: string;
+  onChange: (value?: string) => void;
+  required?: boolean;
+}) {
+  const initialState = useMemo(() => getInitialDateTimeState(value), [value]);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(initialState.date);
+  const [hour, setHour] = useState(initialState.hour);
+  const [minute, setMinute] = useState(initialState.minute);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const nextState = getInitialDateTimeState(value);
+    setSelectedDate(nextState.date);
+    setHour(nextState.hour);
+    setMinute(nextState.minute);
+  }, [value]);
+
+  const sync = (date: Date | undefined, nextHour: string, nextMinute: string) => {
+    setSelectedDate(date);
+    setHour(nextHour);
+    setMinute(nextMinute);
+    onChange(combineDateAndTime(date, nextHour, nextMinute));
+  };
+
+  return (
+    <div className="space-y-2">
+      <Label>
+        {label}
+        {required ? " *" : ""}
+      </Label>
+      <div className="space-y-2">
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full justify-between bg-background/50 text-left font-normal hover:bg-background/70"
+            >
+              <span className={cn(!selectedDate && "text-muted-foreground")}>
+                {displayDateTime(selectedDate, hour, minute)}
+              </span>
+              <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto border-border bg-popover p-0" align="start">
+            <Calendar
+              mode="single"
+              locale={fr}
+              selected={selectedDate}
+              onSelect={(date) => {
+                sync(date ?? getDefaultDateTime(), hour, minute);
+                setOpen(false);
+              }}
+              initialFocus
+              className="bg-popover"
+            />
+          </PopoverContent>
+        </Popover>
+
+        <div className="grid grid-cols-[1fr_auto] gap-2">
+          <Input
+            type="number"
+            min={0}
+            max={23}
+            inputMode="numeric"
+            value={hour}
+            onChange={(e) => {
+              const raw = e.target.value;
+              const nextHour = raw === "" ? "" : String(Math.min(23, Math.max(0, Number(raw)))).padStart(2, "0");
+              sync(selectedDate ?? getDefaultDateTime(), nextHour, minute || "00");
+            }}
+            className="bg-background/50"
+            placeholder="Heure (0-23)"
+          />
+          <Select
+            value={minute}
+            onValueChange={(nextMinute) => sync(selectedDate ?? getDefaultDateTime(), hour || "00", nextMinute)}
+          >
+            <SelectTrigger className="w-[120px] bg-background/50">
+              <SelectValue placeholder="Minutes" />
+            </SelectTrigger>
+            <SelectContent className="bg-popover border-border">
+              {MINUTE_OPTIONS.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MemberCombobox({
+  label,
+  value,
+  onChange,
+  members,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  members: MemberSummary[];
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const selectedMember = members.find((member) => member.id === value);
+
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="w-full justify-between bg-background/50 font-normal"
+          >
+            <span className="truncate text-left">
+              {selectedMember
+                ? `${selectedMember.first_name} ${selectedMember.last_name}`
+                : (placeholder ?? "Sélectionner un membre")}
+            </span>
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[var(--radix-popover-trigger-width)] border-border bg-popover p-0" align="start">
+          <Command>
+            <CommandInput placeholder="Rechercher un membre..." />
+            <CommandList>
+              <CommandEmpty>Aucun membre trouvé.</CommandEmpty>
+              <CommandGroup>
+                <CommandItem
+                  value="aucun"
+                  onSelect={() => {
+                    onChange("");
+                    setOpen(false);
+                  }}
+                >
+                  <Check className={cn("mr-2 h-4 w-4", !value ? "opacity-100" : "opacity-0")} />
+                  Aucun
+                </CommandItem>
+                {members.map((member) => {
+                  const fullName = `${member.first_name} ${member.last_name}`;
+                  return (
+                    <CommandItem
+                      key={member.id}
+                      value={`${fullName} ${member.email}`}
+                      onSelect={() => {
+                        onChange(member.id);
+                        setOpen(false);
+                      }}
+                    >
+                      <Check className={cn("mr-2 h-4 w-4", value === member.id ? "opacity-100" : "opacity-0")} />
+                      <span>{fullName}</span>
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+function ReferentField({
+  value,
+  onChange,
+  members,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  members: MemberSummary[];
+}) {
+  const [open, setOpen] = useState(false);
+  const selectedMember = members.find((member) => member.id === value);
+  const selectedCommission = COMMISSION_OPTIONS.find((option) => option === value);
+
+  const buttonLabel = selectedMember
+    ? `${selectedMember.first_name} ${selectedMember.last_name}`
+    : ((selectedCommission ?? value) || "Choisir un membre ou une commission");
+
+  return (
+    <div className="space-y-2 rounded-lg border border-border/60 bg-background/30 p-3">
+      <Label>Référent</Label>
+      <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_220px]">
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              role="combobox"
+              aria-expanded={open}
+              className="w-full justify-between bg-background/50 font-normal"
+            >
+              <span className="truncate text-left">{buttonLabel}</span>
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[var(--radix-popover-trigger-width)] border-border bg-popover p-0" align="start">
+            <Command>
+              <CommandInput placeholder="Rechercher un membre ou une commission..." />
+              <CommandList>
+                <CommandEmpty>Aucun résultat.</CommandEmpty>
+                <CommandGroup heading="Membres">
+                  {members.map((member) => {
+                    const fullName = `${member.first_name} ${member.last_name}`;
+                    return (
+                      <CommandItem
+                        key={member.id}
+                        value={`${fullName} ${member.email}`}
+                        onSelect={() => {
+                          onChange(member.id);
+                          setOpen(false);
+                        }}
+                      >
+                        <Check className={cn("mr-2 h-4 w-4", value === member.id ? "opacity-100" : "opacity-0")} />
+                        {fullName}
+                      </CommandItem>
+                    );
+                  })}
+                </CommandGroup>
+                <CommandGroup heading="Commissions">
+                  <CommandItem
+                    value="aucun"
+                    onSelect={() => {
+                      onChange("");
+                      setOpen(false);
+                    }}
+                  >
+                    <Check className={cn("mr-2 h-4 w-4", !value ? "opacity-100" : "opacity-0")} />
+                    Aucun
+                  </CommandItem>
+                  {COMMISSION_OPTIONS.map((option) => (
+                    <CommandItem
+                      key={option}
+                      value={option}
+                      onSelect={() => {
+                        onChange(option);
+                        setOpen(false);
+                      }}
+                    >
+                      <Check className={cn("mr-2 h-4 w-4", value === option ? "opacity-100" : "opacity-0")} />
+                      {option}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+
+        <Input
+          value={selectedMember ? `${selectedMember.first_name} ${selectedMember.last_name}` : value}
+          onChange={(e) => onChange(e.target.value)}
+          className="bg-background/50"
+          placeholder="Ou saisir librement..."
+        />
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Optionnel : membre de l'association ou code commission (comadh, comform, comcom, comprog, comspec, ca).
+      </p>
+    </div>
+  );
+}
+
+function CastFieldsSection({
+  eventType,
+  cast,
+  onChange,
+  members,
+  membersLoading,
+}: {
+  eventType: EventType;
+  cast: CastFormState;
+  onChange: (key: CastFieldKey, value: string) => void;
+  members: MemberSummary[];
+  membersLoading: boolean;
+}) {
+  const fields = getCastFields(eventType);
+
+  return (
+    <div className="space-y-3 rounded-lg border border-border/60 bg-background/30 p-4">
+      <div>
+        <h3 className="text-sm font-semibold text-foreground">Distribution & responsabilités</h3>
+        <p className="text-xs text-muted-foreground">
+          Tous les champs sont optionnels.
+        </p>
+      </div>
+
+      {membersLoading ? (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" /> Chargement des membres...
+        </div>
+      ) : eventType === "match" || eventType === "cabaret" ? (
+        <div className="grid gap-3 md:grid-cols-2">
+          {fields.map((field) => (
+            <MemberCombobox
+              key={field.key}
+              label={field.label}
+              value={cast[field.key]}
+              onChange={(value) => onChange(field.key, value)}
+              members={members}
+            />
+          ))}
+        </div>
+      ) : (
+        <ReferentField
+          value={cast.referent}
+          onChange={(value) => onChange("referent", value)}
+          members={members}
+        />
+      )}
+    </div>
+  );
+}
 
 // ---- Event Detail Dialog ----
 function EventDetailDialog({
@@ -160,6 +698,7 @@ function EventDetailDialog({
 
   // Display order
   const roleOrder = ["JR", "MJ_MC", "DJ", "AR", "COACH"];
+  const visibleNotes = formatEventNotes(event.notes);
 
   return (
     <DialogContent className="bg-card border-border max-w-md">
@@ -191,10 +730,10 @@ function EventDetailDialog({
             {event.away_opponent && ` — ${event.away_opponent}`}
           </div>
         )}
-        {event.notes && (
+        {visibleNotes && (
           <div>
             <span className="text-muted-foreground">Notes : </span>
-            {event.notes}
+            {visibleNotes}
           </div>
         )}
 
@@ -209,7 +748,7 @@ function EventDetailDialog({
             {roleOrder.map((role) => {
               const members = byRole[role];
               if (!members?.length) return null;
-              const rl = ROLE_LABELS[role] ?? { label: role, emoji: "👤" };
+              const rl = DETAIL_ROLE_LABELS[role] ?? { label: role, emoji: "👤" };
               return (
                 <div key={role}>
                   <span className="text-muted-foreground text-xs">{rl.emoji} {rl.label}</span>
@@ -268,16 +807,26 @@ function EditEventDialog({
   onOpenChange: (v: boolean) => void;
 }) {
   const queryClient = useQueryClient();
+  const { data: members = [], isLoading: membersLoading } = useMembers();
 
-  // Format ISO date to datetime-local string
-  const toDatetimeLocal = (iso: string) =>
-    format(parseISO(iso), "yyyy-MM-dd'T'HH:mm");
+  const parsedNotes = useMemo(() => parseStructuredNotes(event.notes), [event.notes]);
 
   const [title, setTitle] = useState(event.title);
   const [eventType, setEventType] = useState<EventType>(event.event_type);
-  const [startAt, setStartAt] = useState(toDatetimeLocal(event.start_at));
-  const [endAt, setEndAt] = useState(event.end_at ? toDatetimeLocal(event.end_at) : "");
-  const [notes, setNotes] = useState(event.notes ?? "");
+  const [startAt, setStartAt] = useState<string | undefined>(event.start_at);
+  const [endAt, setEndAt] = useState<string | undefined>(event.end_at ?? undefined);
+  const [notes, setNotes] = useState(parsedNotes.plainNotes);
+  const [cast, setCast] = useState<CastFormState>(parsedNotes.cast);
+
+  useEffect(() => {
+    const nextParsed = parseStructuredNotes(event.notes);
+    setTitle(event.title);
+    setEventType(event.event_type);
+    setStartAt(event.start_at);
+    setEndAt(event.end_at ?? undefined);
+    setNotes(nextParsed.plainNotes);
+    setCast(nextParsed.cast);
+  }, [event]);
 
   const updateMutation = useMutation<EventRead, ApiError, EventUpdate>({
     mutationFn: (data) => api.put<EventRead>(`/events/${event.id}`, data),
@@ -298,15 +847,15 @@ function EditEventDialog({
     updateMutation.mutate({
       title,
       event_type: eventType,
-      start_at: new Date(startAt).toISOString(),
-      end_at: endAt ? new Date(endAt).toISOString() : undefined,
-      notes: notes || undefined,
+      start_at: startAt,
+      end_at: endAt || undefined,
+      notes: buildStructuredNotes(notes, eventType, cast),
     });
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-card border-border">
+      <DialogContent className="bg-card border-border max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Modifier l'événement</DialogTitle>
         </DialogHeader>
@@ -336,28 +885,27 @@ function EditEventDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-start">Début</Label>
-              <Input
-                id="edit-start"
-                type="datetime-local"
-                value={startAt}
-                onChange={(e) => setStartAt(e.target.value)}
-                className="bg-background/50"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-end">Fin (optionnel)</Label>
-              <Input
-                id="edit-end"
-                type="datetime-local"
-                value={endAt}
-                onChange={(e) => setEndAt(e.target.value)}
-                className="bg-background/50"
-              />
-            </div>
+
+          <CastFieldsSection
+            eventType={eventType}
+            cast={cast}
+            onChange={(key, value) => setCast((prev) => ({ ...prev, [key]: value }))}
+            members={members}
+            membersLoading={membersLoading}
+          />
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <DateTimeField
+              label="Début"
+              value={startAt}
+              onChange={setStartAt}
+              required
+            />
+            <DateTimeField
+              label="Fin (optionnel)"
+              value={endAt}
+              onChange={setEndAt}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="edit-notes">Notes</Label>
@@ -365,7 +913,7 @@ function EditEventDialog({
               id="edit-notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="bg-background/50"
+              className="bg-background/50 min-h-28"
             />
           </div>
           <DialogFooter>
@@ -401,11 +949,29 @@ function AddEventDialog({
   currentSeasonId: string;
 }) {
   const queryClient = useQueryClient();
+  const { data: members = [], isLoading: membersLoading } = useMembers();
   const [title, setTitle] = useState("");
   const [eventType, setEventType] = useState<EventType>("training_show");
-  const [startAt, setStartAt] = useState("");
-  const [endAt, setEndAt] = useState("");
+  const [startAt, setStartAt] = useState<string | undefined>(() => combineDateAndTime(getDefaultDateTime(), format(getDefaultDateTime(), "HH"), "00"));
+  const [endAt, setEndAt] = useState<string | undefined>(undefined);
   const [notes, setNotes] = useState("");
+  const [cast, setCast] = useState<CastFormState>({ ...EMPTY_CAST_FORM });
+
+  useEffect(() => {
+    if (open) {
+      setStartAt((current) => current ?? combineDateAndTime(getDefaultDateTime(), format(getDefaultDateTime(), "HH"), "00"));
+    }
+  }, [open]);
+
+  const resetForm = () => {
+    const defaultDate = getDefaultDateTime();
+    setTitle("");
+    setEventType("training_show");
+    setStartAt(combineDateAndTime(defaultDate, format(defaultDate, "HH"), "00"));
+    setEndAt(undefined);
+    setNotes("");
+    setCast({ ...EMPTY_CAST_FORM });
+  };
 
   const createMutation = useMutation<EventRead, ApiError, EventCreate>({
     mutationFn: (data) => api.post<EventRead>("/events", data),
@@ -413,12 +979,7 @@ function AddEventDialog({
       toast.success("Événement créé !");
       queryClient.invalidateQueries({ queryKey: ["events"] });
       onOpenChange(false);
-      // Reset
-      setTitle("");
-      setEventType("training_show");
-      setStartAt("");
-      setEndAt("");
-      setNotes("");
+      resetForm();
     },
     onError: (err) => toast.error(err.detail ?? "Erreur lors de la création"),
   });
@@ -433,15 +994,23 @@ function AddEventDialog({
       season_id: currentSeasonId,
       title,
       event_type: eventType,
-      start_at: new Date(startAt).toISOString(),
-      end_at: endAt ? new Date(endAt).toISOString() : undefined,
-      notes: notes || undefined,
+      start_at: startAt,
+      end_at: endAt || undefined,
+      notes: buildStructuredNotes(notes, eventType, cast),
     });
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-card border-border">
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        onOpenChange(nextOpen);
+        if (!nextOpen && !createMutation.isPending) {
+          resetForm();
+        }
+      }}
+    >
+      <DialogContent className="bg-card border-border max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Ajouter un événement</DialogTitle>
         </DialogHeader>
@@ -474,28 +1043,27 @@ function AddEventDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="ev-start">Début</Label>
-              <Input
-                id="ev-start"
-                type="datetime-local"
-                value={startAt}
-                onChange={(e) => setStartAt(e.target.value)}
-                className="bg-background/50"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="ev-end">Fin (optionnel)</Label>
-              <Input
-                id="ev-end"
-                type="datetime-local"
-                value={endAt}
-                onChange={(e) => setEndAt(e.target.value)}
-                className="bg-background/50"
-              />
-            </div>
+
+          <CastFieldsSection
+            eventType={eventType}
+            cast={cast}
+            onChange={(key, value) => setCast((prev) => ({ ...prev, [key]: value }))}
+            members={members}
+            membersLoading={membersLoading}
+          />
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <DateTimeField
+              label="Début"
+              value={startAt}
+              onChange={setStartAt}
+              required
+            />
+            <DateTimeField
+              label="Fin (optionnel)"
+              value={endAt}
+              onChange={setEndAt}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="ev-notes">Notes</Label>
@@ -503,7 +1071,7 @@ function AddEventDialog({
               id="ev-notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="bg-background/50"
+              className="bg-background/50 min-h-28"
             />
           </div>
           <DialogFooter>
