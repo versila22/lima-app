@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
+import { VitePWA } from "vite-plugin-pwa";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -13,7 +14,60 @@ export default defineConfig(({ mode }) => ({
     },
     allowedHosts: "all",
   },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: "autoUpdate",
+      includeAssets: ["favicon.ico"],
+      manifest: {
+        name: "LIMA — Espace Membres",
+        short_name: "LIMA",
+        description:
+          "Application de gestion pour la Ligue d'Improvisation du Maine-et-Loire",
+        theme_color: "#1a1a2e",
+        background_color: "#1a1a2e",
+        display: "standalone",
+        orientation: "portrait",
+        scope: "/",
+        start_url: "/",
+        icons: [
+          {
+            src: "pwa-192x192.png",
+            sizes: "192x192",
+            type: "image/png",
+          },
+          {
+            src: "pwa-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+          },
+          {
+            src: "pwa-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "any maskable",
+          },
+        ],
+      },
+      workbox: {
+        globPatterns: ["**/*.{js,css,html,ico,png,svg}"],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/api-production-e15b\.up\.railway\.app\/.*/i,
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "lima-api-cache",
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60,
+              },
+            },
+          },
+        ],
+      },
+    }),
+    mode === "development" && componentTagger(),
+  ].filter(Boolean),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
