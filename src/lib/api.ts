@@ -6,6 +6,7 @@ import type {
   LoginAttempt,
   LoginStats,
   MemberPlanning,
+  MemberProfileRead,
 } from "@/types";
 
 // ============================================================
@@ -289,4 +290,8 @@ export async function fetchLoginStats(days: number): Promise<LoginStats> {
 
 export async function fetchMyPlanning(): Promise<MemberPlanning> {
   return api.get<MemberPlanning>("/members/me/planning");
+}
+
+export async function fetchMyProfile(): Promise<MemberProfileRead> {
+  return api.get<MemberProfileRead>("/auth/me");
 }

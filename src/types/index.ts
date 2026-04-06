@@ -64,6 +64,28 @@ export interface MemberRead {
   member_seasons: MemberSeasonRead[];
 }
 
+export interface MemberProfileSeasonHistory {
+  season_id: string;
+  season_name: string;
+  player_status: PlayerStatus | null;
+  asso_role: string | null;
+}
+
+export interface MemberProfileRead {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  phone: string | null;
+  app_role: AppRole;
+  is_active: boolean;
+  player_status: PlayerStatus | null;
+  asso_role: string | null;
+  commissions: string[];
+  season_history: MemberProfileSeasonHistory[];
+  member_seasons: MemberSeasonRead[];
+}
+
 export interface MemberSummary {
   id: string;
   email: string;

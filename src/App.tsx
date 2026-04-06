@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 
 // Pages
 import CabaretOrganizer from "./pages/CabaretOrganizer";
@@ -17,6 +18,7 @@ import Stats from "./pages/Stats";
 import ResetPassword from "./pages/ResetPassword";
 import Settings from "./pages/Settings";
 import MonPlanning from "./pages/MonPlanning";
+import MonProfil from "./pages/MonProfil";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -72,6 +74,7 @@ function AppRoutes() {
         <Route path="/" element={<Navigate to="/cabaret" replace />} />
         <Route path="/cabaret" element={<CabaretOrganizer />} />
         <Route path="/agenda" element={<Agenda />} />
+        <Route path="/mon-profil" element={<MonProfil />} />
         <Route path="/mon-planning" element={<MonPlanning />} />
         <Route path="/membres" element={<Members />} />
         <Route
@@ -106,6 +109,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <AppRoutes />
+          <PwaInstallPrompt />
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
