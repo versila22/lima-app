@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { Menu } from "lucide-react";
 
 import { AppSidebar } from "./AppSidebar";
@@ -8,10 +8,22 @@ import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
+const PAGE_TITLES: Record<string, string> = {
+  "/cabaret": "Organisateur Cabaret",
+  "/agenda": "Agenda",
+  "/mon-profil": "Mon Profil",
+  "/mon-planning": "Mon Planning",
+  "/membres": "Membres",
+  "/stats": "Statistiques",
+  "/settings": "Paramètres",
+};
+
 export function DashboardLayout() {
   const isMobile = useIsMobile();
+  const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pageTitle = PAGE_TITLES[location.pathname] ?? "LIMA";
 
   useEffect(() => {
     if (!isMobile) {
@@ -57,12 +69,12 @@ export function DashboardLayout() {
               <Menu className="h-5 w-5" />
             </Button>
             <div>
-              <p className="text-sm font-semibold">LIMA</p>
-              <p className="text-xs text-muted-foreground">Gestion & Spectacles</p>
+              <p className="text-sm font-semibold">{pageTitle}</p>
+              <p className="text-xs text-muted-foreground">LIMA</p>
             </div>
           </div>
 
-          <div className="h-full px-4 py-4 pb-24 md:p-6 md:pb-6">
+          <div className="h-full px-4 py-4 md:p-6" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
             <Outlet />
           </div>
         </main>

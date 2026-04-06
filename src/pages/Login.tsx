@@ -77,7 +77,7 @@ export default function Login() {
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isLoading}
                 required
-                className="bg-background/50"
+                className="bg-background/50 h-11 text-base"
               />
             </div>
 
@@ -92,7 +92,7 @@ export default function Login() {
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
                 required
-                className="bg-background/50"
+                className="bg-background/50 h-11 text-base"
               />
             </div>
 

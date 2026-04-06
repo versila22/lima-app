@@ -1324,7 +1324,7 @@ export default function Agenda() {
         open={!!deleteEvent}
         onOpenChange={(open) => !open && setDeleteEvent(null)}
       >
-        <AlertDialogContent className="bg-card border-border">
+        <AlertDialogContent className="bg-card border-border w-[95vw] max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer l'événement ?</AlertDialogTitle>
             <AlertDialogDescription>

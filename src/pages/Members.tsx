@@ -244,8 +244,17 @@ export default function Members() {
           Impossible de charger les membres. Vérifiez votre connexion.
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          {search ? "Aucun résultat pour cette recherche." : "Aucun membre trouvé."}
+        <div className="text-center py-16 text-muted-foreground flex flex-col items-center gap-3">
+          <Users className="h-12 w-12 opacity-30" />
+          <p className="text-sm">{search ? `Aucun résultat pour "${search}".` : "Aucun membre pour cette saison."}</p>
+          {!search && isAdmin && (
+            <button
+              onClick={() => setImportOpen(true)}
+              className="text-sm text-primary hover:underline"
+            >
+              Importer des membres via CSV
+            </button>
+          )}
         </div>
       ) : (
         <div className="rounded-lg border border-border overflow-x-auto">
