@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,20 +7,23 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
+import { Loader2 } from "lucide-react";
 
-// Pages
-import CabaretOrganizer from "./pages/CabaretOrganizer";
+// Always-loaded (auth pages — needed immediately)
 import Login from "./pages/Login";
 import Activate from "./pages/Activate";
 import ForgotPassword from "./pages/ForgotPassword";
-import Members from "./pages/Members";
-import Agenda from "./pages/Agenda";
-import Stats from "./pages/Stats";
 import ResetPassword from "./pages/ResetPassword";
-import Settings from "./pages/Settings";
-import MonPlanning from "./pages/MonPlanning";
-import MonProfil from "./pages/MonProfil";
 import NotFound from "./pages/NotFound";
+
+// Lazy-loaded (heavy pages — split into separate chunks)
+const CabaretOrganizer = lazy(() => import("./pages/CabaretOrganizer"));
+const Agenda = lazy(() => import("./pages/Agenda"));
+const Members = lazy(() => import("./pages/Members"));
+const Stats = lazy(() => import("./pages/Stats"));
+const Settings = lazy(() => import("./pages/Settings"));
+const MonPlanning = lazy(() => import("./pages/MonPlanning"));
+const MonProfil = lazy(() => import("./pages/MonProfil"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -29,6 +33,14 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center h-64">
+      <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
+    </div>
+  );
+}
 
 // ---- ProtectedRoute ----
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
@@ -56,48 +68,50 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
 // ---- Routes ----
 function AppRoutes() {
   return (
-    <Routes>
-      {/* Public */}
-      <Route path="/login" element={<Login />} />
-      <Route path="/activate" element={<Activate />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
+        {/* Public */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/activate" element={<Activate />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
-      {/* Protected */}
-      <Route
-        element={
-          <ProtectedRoute>
-            <DashboardLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route path="/" element={<Navigate to="/cabaret" replace />} />
-        <Route path="/cabaret" element={<CabaretOrganizer />} />
-        <Route path="/agenda" element={<Agenda />} />
-        <Route path="/mon-profil" element={<MonProfil />} />
-        <Route path="/mon-planning" element={<MonPlanning />} />
-        <Route path="/membres" element={<Members />} />
+        {/* Protected */}
         <Route
-          path="/stats"
           element={
-            <ProtectedRoute adminOnly>
-              <Stats />
+            <ProtectedRoute>
+              <DashboardLayout />
             </ProtectedRoute>
           }
-        />
-        <Route
-          path="/settings"
-          element={
-            <ProtectedRoute adminOnly>
-              <Settings />
-            </ProtectedRoute>
-          }
-        />
-      </Route>
+        >
+          <Route path="/" element={<Navigate to="/cabaret" replace />} />
+          <Route path="/cabaret" element={<CabaretOrganizer />} />
+          <Route path="/agenda" element={<Agenda />} />
+          <Route path="/mon-profil" element={<MonProfil />} />
+          <Route path="/mon-planning" element={<MonPlanning />} />
+          <Route path="/membres" element={<Members />} />
+          <Route
+            path="/stats"
+            element={
+              <ProtectedRoute adminOnly>
+                <Stats />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute adminOnly>
+                <Settings />
+              </ProtectedRoute>
+            }
+          />
+        </Route>
 
-      {/* 404 */}
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+        {/* 404 */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Suspense>
   );
 }
 
