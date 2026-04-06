@@ -154,11 +154,11 @@ export default function MonProfil() {
     },
   });
 
-  const displayedHistory = useMemo(() => profile?.season_history.slice(0, 5) ?? [], [profile?.season_history]);
-  const hiddenHistoryCount = Math.max((profile?.season_history.length ?? 0) - displayedHistory.length, 0);
+  const displayedHistory = useMemo(() => (profile?.season_history ?? []).slice(0, 5), [profile?.season_history]);
+  const hiddenHistoryCount = Math.max(((profile?.season_history ?? []).length) - displayedHistory.length, 0);
 
   const hasCurrentSeasonInfo =
-    !!profile?.player_status || !!profile?.asso_role || (profile?.commissions.length ?? 0) > 0;
+    !!profile?.player_status || !!profile?.asso_role || ((profile?.commissions ?? []).length) > 0;
 
   const handleChange = (field: "first_name" | "last_name" | "phone", value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -345,9 +345,9 @@ export default function MonProfil() {
 
               <div className="space-y-2">
                 <p className="text-sm font-medium text-foreground">Commissions</p>
-                {profile.commissions.length > 0 ? (
+                {(profile.commissions ?? []).length > 0 ? (
                   <div className="flex flex-wrap gap-2">
-                    {profile.commissions.map((commission) => (
+                    {(profile.commissions ?? []).map((commission) => (
                       <CommissionBadge key={commission} commission={commission} />
                     ))}
                   </div>
