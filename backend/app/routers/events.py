@@ -135,11 +135,18 @@ async def delete_event(
     db: AsyncSession = Depends(get_db),
     _: Member = Depends(require_admin),
 ):
-    """Delete an event (admin only)."""
+    """Delete an event and its related assignments (admin only)."""
+    from sqlalchemy import delete as sql_delete
+    from app.models.alignment import AlignmentAssignment, AlignmentEvent
+
     result = await db.execute(select(Event).where(Event.id == event_id))
     event = result.scalar_one_or_none()
     if event is None:
         raise HTTPException(status_code=404, detail="Événement introuvable")
+
+    # Remove dependent rows first (in case DB lacks ON DELETE CASCADE)
+    await db.execute(sql_delete(AlignmentAssignment).where(AlignmentAssignment.event_id == event_id))
+    await db.execute(sql_delete(AlignmentEvent).where(AlignmentEvent.event_id == event_id))
     await db.delete(event)
     await db.flush()
 
