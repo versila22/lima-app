@@ -9,8 +9,11 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 // Pages
 import CabaretOrganizer from "./pages/CabaretOrganizer";
 import Login from "./pages/Login";
+import Activate from "./pages/Activate";
+import ForgotPassword from "./pages/ForgotPassword";
 import Members from "./pages/Members";
 import Agenda from "./pages/Agenda";
+import ResetPassword from "./pages/ResetPassword";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -52,6 +55,9 @@ function AppRoutes() {
     <Routes>
       {/* Public */}
       <Route path="/login" element={<Login />} />
+      <Route path="/activate" element={<Activate />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
       {/* Protected */}
       <Route

@@ -6,7 +6,13 @@ import React, {
   useState,
 } from "react";
 import { api, ApiError, getToken, removeToken, setToken } from "@/lib/api";
-import type { MemberRead, TokenResponse } from "@/types";
+import type {
+  ActivateAccountRequest,
+  ApiMessage,
+  MemberRead,
+  ResetPasswordRequest,
+  TokenResponse,
+} from "@/types";
 
 // ============================================================
 // Context shape
@@ -17,6 +23,9 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  activateAccount: (payload: ActivateAccountRequest) => Promise<ApiMessage>;
+  forgotPassword: (email: string) => Promise<ApiMessage>;
+  resetPassword: (payload: ResetPasswordRequest) => Promise<ApiMessage>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -68,6 +77,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(me);
   }, []);
 
+  const activateAccount = useCallback((payload: ActivateAccountRequest) => {
+    return api.post<ApiMessage>("/auth/activate", payload);
+  }, []);
+
+  const forgotPassword = useCallback((email: string) => {
+    return api.post<ApiMessage>("/auth/forgot-password", { email });
+  }, []);
+
+  const resetPassword = useCallback((payload: ResetPasswordRequest) => {
+    return api.post<ApiMessage>("/auth/reset-password", payload);
+  }, []);
+
   const logout = useCallback(() => {
     removeToken();
     setTokenState(null);
@@ -82,6 +103,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: !!user,
         isLoading,
         login,
+        activateAccount,
+        forgotPassword,
+        resetPassword,
         logout,
         refreshUser,
       }}

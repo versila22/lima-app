@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
@@ -12,12 +12,18 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import limaLogo from "@/assets/logo-lima.jpg";
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/cabaret", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,6 +110,15 @@ export default function Login() {
                 "Se connecter"
               )}
             </Button>
+
+            <div className="space-y-2 pt-2 text-center text-sm">
+              <Link
+                to="/forgot-password"
+                className="text-primary hover:underline"
+              >
+                Mot de passe oublié ?
+              </Link>
+            </div>
           </form>
         </CardContent>
       </Card>

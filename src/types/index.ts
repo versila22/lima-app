@@ -14,6 +14,24 @@ export interface TokenResponse {
   expires_in: number;
 }
 
+export interface ActivateAccountRequest {
+  token: string;
+  password: string;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  password: string;
+}
+
+export interface ApiMessage {
+  detail: string;
+}
+
 // ---------- Member ----------
 export type PlayerStatus = "M" | "C" | "L" | "A";
 export type AppRole = "admin" | "member";
