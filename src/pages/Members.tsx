@@ -166,7 +166,7 @@ export default function Members() {
                 Importer CSV
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-h-[90vh] overflow-y-auto bg-card border-border">
+            <DialogContent className="max-h-[85vh] overflow-y-auto bg-card border-border w-[95vw] max-w-lg">
               <DialogHeader>
                 <DialogTitle>Importer des membres</DialogTitle>
                 <DialogDescription>

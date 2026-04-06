@@ -701,7 +701,7 @@ function EventDetailDialog({
   const visibleNotes = formatEventNotes(event.notes);
 
   return (
-    <DialogContent className="max-h-[90vh] overflow-y-auto bg-card border-border max-w-md">
+    <DialogContent className="max-h-[85vh] overflow-y-auto bg-card border-border w-[95vw] max-w-md">
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
           <span className={`inline-block w-3 h-3 rounded-full ${cfg.dot}`} />
@@ -855,7 +855,7 @@ function EditEventDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-card border-border max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="bg-card border-border w-[95vw] max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Modifier l'événement</DialogTitle>
         </DialogHeader>
@@ -1010,7 +1010,7 @@ function AddEventDialog({
         }
       }}
     >
-      <DialogContent className="bg-card border-border max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="bg-card border-border w-[95vw] max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Ajouter un événement</DialogTitle>
         </DialogHeader>
