@@ -1,3 +1,12 @@
+import type {
+  ActivityLog,
+  ActivityStats,
+  DailyActiveUserStat,
+  EndpointStat,
+  LoginAttempt,
+  LoginStats,
+} from "@/types";
+
 // ============================================================
 // LIMA – API client (fetch-based, JWT auth)
 // ============================================================
@@ -114,3 +123,163 @@ export const api = {
   postForm: <T>(path: string, form: FormData, params?: RequestOptions["params"]) =>
     request<T>("POST", path, { body: form, params }),
 };
+
+function normalizeEndpointStats(value: unknown): EndpointStat[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item): EndpointStat | null => {
+      if (Array.isArray(item) && item.length >= 2) {
+        return {
+          path: String(item[0] ?? "—"),
+          count: Number(item[1] ?? 0),
+        };
+      }
+
+      if (item && typeof item === "object") {
+        const obj = item as Record<string, unknown>;
+        return {
+          path: String(obj.path ?? obj.endpoint ?? obj.url ?? obj.label ?? "—"),
+          count: Number(obj.count ?? obj.total ?? obj.value ?? 0),
+        };
+      }
+
+      return null;
+    })
+    .filter((item): item is EndpointStat => !!item && !!item.path)
+    .sort((a, b) => b.count - a.count);
+}
+
+function normalizeDailyActiveUsers(value: unknown): DailyActiveUserStat[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item): DailyActiveUserStat | null => {
+      if (Array.isArray(item) && item.length >= 2) {
+        return {
+          date: String(item[0] ?? ""),
+          count: Number(item[1] ?? 0),
+        };
+      }
+
+      if (item && typeof item === "object") {
+        const obj = item as Record<string, unknown>;
+        return {
+          date: String(obj.date ?? obj.day ?? obj.label ?? ""),
+          count: Number(obj.count ?? obj.users ?? obj.value ?? 0),
+        };
+      }
+
+      return null;
+    })
+    .filter((item): item is DailyActiveUserStat => !!item && !!item.date)
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function normalizeRecentActivity(value: unknown): ActivityLog[] {
+  const items = Array.isArray(value)
+    ? value
+    : value && typeof value === "object"
+      ? ((value as Record<string, unknown>).items ?? (value as Record<string, unknown>).results ?? value)
+      : [];
+
+  if (!Array.isArray(items)) return [];
+
+  return items
+    .map((item): ActivityLog | null => {
+      if (!item || typeof item !== "object") return null;
+      const obj = item as Record<string, unknown>;
+      const firstName = typeof obj.first_name === "string" ? obj.first_name : "";
+      const lastName = typeof obj.last_name === "string" ? obj.last_name : "";
+      const fullName = `${firstName} ${lastName}`.trim();
+
+      return {
+        id: typeof obj.id === "string" ? obj.id : undefined,
+        user_id: typeof obj.user_id === "string" ? obj.user_id : null,
+        email: typeof obj.email === "string" ? obj.email : null,
+        name: typeof obj.name === "string" ? obj.name : fullName || null,
+        path: String(obj.path ?? obj.endpoint ?? obj.url ?? ""),
+        method: typeof obj.method === "string" ? obj.method : null,
+        status_code: typeof obj.status_code === "number" ? obj.status_code : typeof obj.status === "number" ? obj.status : null,
+        response_time_ms:
+          typeof obj.response_time_ms === "number"
+            ? obj.response_time_ms
+            : typeof obj.duration_ms === "number"
+              ? obj.duration_ms
+              : null,
+        created_at: String(obj.created_at ?? obj.timestamp ?? obj.occurred_at ?? ""),
+      };
+    })
+    .filter((item): item is ActivityLog => !!item && !!item.path && !!item.created_at);
+}
+
+function normalizeLoginAttempts(value: unknown): LoginStats {
+  const raw = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+  const directAttempts = Array.isArray(raw.attempts) ? raw.attempts : null;
+
+  const toAttempt = (item: unknown, successFallback?: boolean): LoginAttempt | null => {
+    if (!item || typeof item !== "object") return null;
+    const obj = item as Record<string, unknown>;
+    const firstName = typeof obj.first_name === "string" ? obj.first_name : "";
+    const lastName = typeof obj.last_name === "string" ? obj.last_name : "";
+    const fullName = `${firstName} ${lastName}`.trim();
+    const inferredSuccess =
+      typeof obj.success === "boolean"
+        ? obj.success
+        : typeof obj.status === "string"
+          ? obj.status.toLowerCase() === "success"
+          : successFallback ?? false;
+
+    const createdAt = String(obj.created_at ?? obj.timestamp ?? obj.last_attempt_at ?? obj.date ?? "");
+    if (!createdAt) return null;
+
+    return {
+      id: typeof obj.id === "string" ? obj.id : undefined,
+      user_id: typeof obj.user_id === "string" ? obj.user_id : null,
+      email: typeof obj.email === "string" ? obj.email : null,
+      name: typeof obj.name === "string" ? obj.name : fullName || null,
+      success: inferredSuccess,
+      created_at: createdAt,
+    };
+  };
+
+  const attempts = directAttempts
+    ? directAttempts.map((item) => toAttempt(item)).filter((item): item is LoginAttempt => !!item)
+    : [
+        ...(Array.isArray(raw.success) ? raw.success.map((item) => toAttempt(item, true)) : []),
+        ...(Array.isArray(raw.failure) ? raw.failure.map((item) => toAttempt(item, false)) : []),
+        ...(Array.isArray(raw.failures) ? raw.failures.map((item) => toAttempt(item, false)) : []),
+      ].filter((item): item is LoginAttempt => !!item);
+
+  const success_count = attempts.filter((attempt) => attempt.success).length;
+  const failure_count = attempts.length - success_count;
+
+  return {
+    attempts: attempts.sort((a, b) => b.created_at.localeCompare(a.created_at)),
+    success_count,
+    failure_count,
+  };
+}
+
+export async function fetchActivityStats(days: number): Promise<ActivityStats> {
+  const raw = await api.get<Record<string, unknown>>("/api/admin/activity/stats", { days });
+
+  return {
+    total_requests: Number(raw.total_requests ?? 0),
+    unique_users: Number(raw.unique_users ?? 0),
+    top_endpoints: normalizeEndpointStats(raw.top_endpoints),
+    error_endpoints: normalizeEndpointStats(raw.error_endpoints),
+    daily_active_users: normalizeDailyActiveUsers(raw.daily_active_users),
+    avg_response_time_ms: Number(raw.avg_response_time_ms ?? 0),
+  };
+}
+
+export async function fetchRecentActivity(limit: number): Promise<ActivityLog[]> {
+  const raw = await api.get<unknown>("/api/admin/activity/recent", { limit });
+  return normalizeRecentActivity(raw);
+}
+
+export async function fetchLoginStats(days: number): Promise<LoginStats> {
+  const raw = await api.get<unknown>("/api/admin/activity/logins", { days });
+  return normalizeLoginAttempts(raw);
+}

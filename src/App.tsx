@@ -13,6 +13,7 @@ import Activate from "./pages/Activate";
 import ForgotPassword from "./pages/ForgotPassword";
 import Members from "./pages/Members";
 import Agenda from "./pages/Agenda";
+import Stats from "./pages/Stats";
 import ResetPassword from "./pages/ResetPassword";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -71,6 +72,14 @@ function AppRoutes() {
         <Route path="/cabaret" element={<CabaretOrganizer />} />
         <Route path="/agenda" element={<Agenda />} />
         <Route path="/membres" element={<Members />} />
+        <Route
+          path="/stats"
+          element={
+            <ProtectedRoute adminOnly>
+              <Stats />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/settings"
           element={

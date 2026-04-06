@@ -277,3 +277,50 @@ export interface AssignmentRead {
   role: AssignmentRole;
   created_at: string;
 }
+
+// ---------- Admin Analytics ----------
+export interface EndpointStat {
+  path: string;
+  count: number;
+}
+
+export interface DailyActiveUserStat {
+  date: string;
+  count: number;
+}
+
+export interface ActivityStats {
+  total_requests: number;
+  unique_users: number;
+  top_endpoints: EndpointStat[];
+  error_endpoints: EndpointStat[];
+  daily_active_users: DailyActiveUserStat[];
+  avg_response_time_ms: number;
+}
+
+export interface ActivityLog {
+  id?: string;
+  user_id?: string | null;
+  email?: string | null;
+  name?: string | null;
+  path: string;
+  method?: string | null;
+  status_code?: number | null;
+  response_time_ms?: number | null;
+  created_at: string;
+}
+
+export interface LoginAttempt {
+  id?: string;
+  user_id?: string | null;
+  email?: string | null;
+  name?: string | null;
+  success: boolean;
+  created_at: string;
+}
+
+export interface LoginStats {
+  attempts: LoginAttempt[];
+  success_count: number;
+  failure_count: number;
+}

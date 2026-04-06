@@ -6,6 +6,7 @@ import {
   Calendar,
   Settings,
   Users,
+  BarChart3,
   Globe,
   Instagram,
   Facebook,
@@ -28,6 +29,7 @@ const menuItems = [
   { icon: Sparkles, label: "Organisateur Cabaret", path: "/cabaret" },
   { icon: Calendar, label: "Agenda", path: "/agenda" },
   { icon: Users, label: "Membres", path: "/membres" },
+  { icon: BarChart3, label: "Statistiques", path: "/stats", adminOnly: true },
   { icon: Settings, label: "Paramètres", path: "/settings", adminOnly: true },
 ];
 
