@@ -1,0 +1,19 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend.Dockerfile
+    container_name: lima-frontend
+    restart: unless-stopped
+    networks:
+      - traefik_default
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.lima-front.rule=Host(`lima.duckdns.org`)"
+      - "traefik.http.routers.lima-front.entrypoints=websecure"
+      - "traefik.http.routers.lima-front.tls.certresolver=letsencrypt"
+      - "traefik.http.services.lima-front.loadbalancer.server.port=80"
+
+networks:
+  traefik_default:
+    external: true
