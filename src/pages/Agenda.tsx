@@ -90,7 +90,7 @@ import {
 } from "@/components/ui/command";
 
 // ---- Event type config ----
-const EVENT_TYPE_CONFIG: Record<
+export const EVENT_TYPE_CONFIG: Record<
   EventType,
   { label: string; color: string; dot: string }
 > = {

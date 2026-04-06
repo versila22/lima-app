@@ -16,6 +16,7 @@ import Agenda from "./pages/Agenda";
 import Stats from "./pages/Stats";
 import ResetPassword from "./pages/ResetPassword";
 import Settings from "./pages/Settings";
+import MonPlanning from "./pages/MonPlanning";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -71,6 +72,7 @@ function AppRoutes() {
         <Route path="/" element={<Navigate to="/cabaret" replace />} />
         <Route path="/cabaret" element={<CabaretOrganizer />} />
         <Route path="/agenda" element={<Agenda />} />
+        <Route path="/mon-planning" element={<MonPlanning />} />
         <Route path="/membres" element={<Members />} />
         <Route
           path="/stats"

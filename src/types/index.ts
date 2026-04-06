@@ -278,6 +278,24 @@ export interface AssignmentRead {
   created_at: string;
 }
 
+export interface PlanningEvent {
+  event_id: string;
+  title: string;
+  event_type: EventType;
+  start_at: string;
+  end_at?: string;
+  venue_name?: string;
+  role: AssignmentRole;
+  alignment_name: string;
+  alignment_status: AlignmentStatus;
+}
+
+export interface MemberPlanning {
+  upcoming: PlanningEvent[];
+  past: PlanningEvent[];
+  total_shows: number;
+}
+
 // ---------- Admin Analytics ----------
 export interface EndpointStat {
   path: string;

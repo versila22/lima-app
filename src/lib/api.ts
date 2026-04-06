@@ -5,6 +5,7 @@ import type {
   EndpointStat,
   LoginAttempt,
   LoginStats,
+  MemberPlanning,
 } from "@/types";
 
 // ============================================================
@@ -284,4 +285,8 @@ export async function fetchRecentActivity(limit: number): Promise<ActivityLog[]>
 export async function fetchLoginStats(days: number): Promise<LoginStats> {
   const raw = await api.get<unknown>("/api/admin/activity/logins", { days });
   return normalizeLoginAttempts(raw);
+}
+
+export async function fetchMyPlanning(): Promise<MemberPlanning> {
+  return api.get<MemberPlanning>("/members/me/planning");
 }
