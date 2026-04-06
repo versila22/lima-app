@@ -277,7 +277,7 @@ export default function Members() {
                     )}
                   </TableCell>
                   <TableCell>
-                    <StatusBadge status={m.app_role === "admin" ? "A" : "A"} />
+                    <StatusBadge status={m.player_status ?? m.app_role ?? "member"} />
                   </TableCell>
                 </TableRow>
               ))}

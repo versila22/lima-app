@@ -285,8 +285,11 @@ export interface EndpointStat {
 }
 
 export interface DailyActiveUserStat {
-  date: string;
-  count: number;
+  day: string;
+  unique_users: number;
+  // aliases for frontend compatibility
+  date?: string;
+  count?: number;
 }
 
 export interface ActivityStats {

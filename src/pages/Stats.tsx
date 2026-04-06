@@ -203,7 +203,8 @@ export default function Stats() {
     () =>
       (monthlyStats?.daily_active_users ?? []).map((item) => ({
         ...item,
-        label: format(parseISO(item.date), "dd/MM", { locale: fr }),
+        label: format(parseISO(item.day ?? item.date ?? ""), "dd/MM", { locale: fr }),
+        count: item.unique_users ?? item.count ?? 0,
       })),
     [monthlyStats],
   );
