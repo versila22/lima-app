@@ -13,8 +13,10 @@ import {
   Instagram,
   Facebook,
   LogOut,
+  X,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -24,10 +26,13 @@ import limaLogo from "@/assets/logo-lima.jpg";
 interface AppSidebarProps {
   collapsed: boolean;
   onCollapse: (collapsed: boolean) => void;
+  mobileOpen?: boolean;
+  onMobileOpenChange?: (open: boolean) => void;
+  isMobile?: boolean;
 }
 
 const menuItems = [
-  { icon: Home, label: "Accueil", path: "/" },
+  { icon: Home, label: "Accueil", path: "/cabaret" },
   { icon: Sparkles, label: "Organisateur Cabaret", path: "/cabaret" },
   { icon: Calendar, label: "Agenda", path: "/agenda" },
   { icon: User, label: "Mon Profil", path: "/mon-profil" },
@@ -37,7 +42,13 @@ const menuItems = [
   { icon: Settings, label: "Paramètres", path: "/settings", adminOnly: true },
 ];
 
-export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
+export function AppSidebar({
+  collapsed,
+  onCollapse,
+  mobileOpen = false,
+  onMobileOpenChange,
+  isMobile = false,
+}: AppSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout, isAuthenticated } = useAuth();
@@ -45,48 +56,71 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
 
   const handleLogout = () => {
     logout();
+    onMobileOpenChange?.(false);
     navigate("/login", { replace: true });
   };
 
-  // Filter menu: hide admin-only items for non-admins
-  const visibleItems = menuItems.filter(
-    (item) => !item.adminOnly || isAdmin
-  );
+  const handleNavigate = () => {
+    if (isMobile) {
+      onMobileOpenChange?.(false);
+    }
+  };
+
+  const visibleItems = menuItems.filter((item) => !item.adminOnly || isAdmin);
 
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 h-screen border-r border-sidebar-border bg-sidebar transition-all duration-300 z-50 flex flex-col",
-        collapsed ? "w-16" : "w-64"
+        "top-0 h-screen border-r border-sidebar-border bg-sidebar transition-all duration-300 z-50 flex flex-col",
+        isMobile
+          ? cn(
+              "fixed left-0 w-72 max-w-[85vw] transform shadow-2xl",
+              mobileOpen ? "translate-x-0" : "-translate-x-full"
+            )
+          : cn("fixed left-0", collapsed ? "w-16" : "w-64")
       )}
     >
-      {/* Header */}
-      <div className="p-4 border-b border-sidebar-border">
-        <div className="flex items-center gap-3">
-          <img
-            src={limaLogo}
-            alt="LIMA"
-            className="w-10 h-10 rounded-lg object-contain bg-white shrink-0"
-          />
-          {!collapsed && (
-            <div className="overflow-hidden">
-              <h1 className="font-bold text-lg gradient-text truncate">LIMA</h1>
-              <p className="text-xs text-muted-foreground truncate">Gestion &amp; Spectacles</p>
-            </div>
+      <div className="border-b border-sidebar-border p-4">
+        <div className="mb-3 flex items-center justify-between gap-2 md:mb-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <img
+              src={limaLogo}
+              alt="LIMA"
+              className="w-10 h-10 rounded-lg object-contain bg-white shrink-0"
+            />
+            {(!collapsed || isMobile) && (
+              <div className="overflow-hidden">
+                <h1 className="truncate text-lg font-bold gradient-text">LIMA</h1>
+                <p className="truncate text-xs text-muted-foreground">Gestion &amp; Spectacles</p>
+              </div>
+            )}
+          </div>
+
+          {isMobile && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="shrink-0"
+              onClick={() => onMobileOpenChange?.(false)}
+              aria-label="Fermer le menu"
+            >
+              <X className="h-5 w-5" />
+            </Button>
           )}
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+      <nav className="flex-1 space-y-1 overflow-y-auto p-2">
         {visibleItems.map((item) => {
           const isActive = location.pathname === item.path;
           const content = (
             <Link
               key={item.path}
               to={item.path}
+              onClick={handleNavigate}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group",
+                "flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-200 group",
                 isActive
                   ? "bg-primary/10 text-primary glow-primary"
                   : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
@@ -94,17 +128,15 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
             >
               <item.icon
                 className={cn(
-                  "w-5 h-5 shrink-0 transition-colors",
+                  "h-5 w-5 shrink-0 transition-colors",
                   isActive && "text-primary"
                 )}
               />
-              {!collapsed && (
-                <span className="truncate">{item.label}</span>
-              )}
+              {(!collapsed || isMobile) && <span className="truncate">{item.label}</span>}
             </Link>
           );
 
-          if (collapsed) {
+          if (collapsed && !isMobile) {
             return (
               <Tooltip key={item.path} delayDuration={0}>
                 <TooltipTrigger asChild>{content}</TooltipTrigger>
@@ -119,10 +151,9 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
         })}
       </nav>
 
-      {/* Logout button (when authenticated) */}
       {isAuthenticated && (
-        <div className="p-2 border-t border-sidebar-border">
-          {collapsed ? (
+        <div className="border-t border-sidebar-border p-2">
+          {collapsed && !isMobile ? (
             <Tooltip delayDuration={0}>
               <TooltipTrigger asChild>
                 <Button
@@ -147,20 +178,17 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
             >
               <LogOut className="w-4 h-4 shrink-0" />
               <span className="truncate">
-                {user?.first_name
-                  ? `Déconnexion (${user.first_name})`
-                  : "Déconnexion"}
+                {user?.first_name ? `Déconnexion (${user.first_name})` : "Déconnexion"}
               </span>
             </Button>
           )}
         </div>
       )}
 
-      {/* Social Links */}
       <div
         className={cn(
-          "p-2 border-t border-sidebar-border flex gap-2",
-          collapsed ? "flex-col items-center" : "justify-center"
+          "border-t border-sidebar-border p-2 flex gap-2",
+          collapsed && !isMobile ? "flex-col items-center" : "justify-center"
         )}
       >
         <Tooltip delayDuration={0}>
@@ -169,7 +197,7 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
               href="https://www.lima.asso.fr"
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors"
+              className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
             >
               <Globe className="w-5 h-5" />
             </a>
@@ -182,7 +210,7 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
               href="https://www.instagram.com/lima_impro_angers/"
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors"
+              className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
             >
               <Instagram className="w-5 h-5" />
             </a>
@@ -195,7 +223,7 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
               href="https://www.facebook.com/lima.impro"
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors"
+              className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
             >
               <Facebook className="w-5 h-5" />
             </a>
@@ -204,24 +232,25 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
         </Tooltip>
       </div>
 
-      {/* Collapse button */}
-      <div className="p-2 border-t border-sidebar-border">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onCollapse(!collapsed)}
-          className="w-full justify-center text-muted-foreground hover:text-foreground"
-        >
-          {collapsed ? (
-            <ChevronRight className="w-4 h-4" />
-          ) : (
-            <>
-              <ChevronLeft className="w-4 h-4" />
-              <span className="ml-2">Réduire</span>
-            </>
-          )}
-        </Button>
-      </div>
+      {!isMobile && (
+        <div className="border-t border-sidebar-border p-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onCollapse(!collapsed)}
+            className="w-full justify-center text-muted-foreground hover:text-foreground"
+          >
+            {collapsed ? (
+              <ChevronRight className="w-4 h-4" />
+            ) : (
+              <>
+                <ChevronLeft className="w-4 h-4" />
+                <span className="ml-2">Réduire</span>
+              </>
+            )}
+          </Button>
+        </div>
+      )}
     </aside>
   );
 }

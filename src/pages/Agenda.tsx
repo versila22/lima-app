@@ -701,7 +701,7 @@ function EventDetailDialog({
   const visibleNotes = formatEventNotes(event.notes);
 
   return (
-    <DialogContent className="bg-card border-border max-w-md">
+    <DialogContent className="max-h-[90vh] overflow-y-auto bg-card border-border max-w-md">
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
           <span className={`inline-block w-3 h-3 rounded-full ${cfg.dot}`} />
@@ -1158,7 +1158,7 @@ export default function Agenda() {
           <h1 className="text-2xl font-bold">Agenda</h1>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Month navigation */}
           <Button
             variant="outline"
@@ -1209,7 +1209,8 @@ export default function Agenda() {
         </div>
       ) : (
         /* Calendar grid */
-        <div className="rounded-lg border border-border overflow-hidden">
+        <div className="overflow-x-auto">
+          <div className="min-w-[720px] rounded-lg border border-border overflow-hidden">
           {/* Day headers */}
           <div className="grid grid-cols-7 border-b border-border bg-sidebar">
             {DAYS_FR.map((d) => (
@@ -1274,6 +1275,7 @@ export default function Agenda() {
                 </div>
               );
             })}
+          </div>
           </div>
         </div>
       )}

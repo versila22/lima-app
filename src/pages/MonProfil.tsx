@@ -376,7 +376,7 @@ export default function MonProfil() {
             </div>
           ) : (
             <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
-              <div className="rounded-lg border border-border/70 overflow-hidden">
+              <div className="overflow-x-auto rounded-lg border border-border/70">
                 <Table>
                   <TableHeader>
                     <TableRow className="border-border hover:bg-transparent">
