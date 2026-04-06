@@ -196,7 +196,7 @@ MEMBERS_DATA = [
 
 
 def make_dt(year: int, month: int, day: int, hour: int = 20, minute: int = 30) -> datetime:
-    return datetime(year, month, day, hour, minute, tzinfo=timezone.utc)
+    return datetime(year, month, day, hour, minute)  # naive datetime for TIMESTAMP WITHOUT TIME ZONE
 
 
 # ---------------------------------------------------------------------------
