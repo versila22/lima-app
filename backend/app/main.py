@@ -163,6 +163,46 @@ async def reset_admin(x_seed_token: str = Header(...)):
             return {"status": "admin password reset", "id": str(member.id)}
 
 
+from pydantic import BaseModel
+from typing import List as TList
+
+class BulkAccountRequest(BaseModel):
+    accounts: TList[dict]  # [{email, first_name, last_name, password, app_role?}]
+
+@app.post("/admin/bulk-accounts", tags=["admin"], include_in_schema=False)
+async def bulk_create_accounts(data: BulkAccountRequest, x_seed_token: str = Header(...)):
+    """Create multiple accounts with explicit passwords (admin bootstrap only)."""
+    from fastapi import HTTPException
+    expected = os.environ.get("SEED_SECRET", "")
+    if not expected or x_seed_token != expected:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    from sqlalchemy import select
+    from app.models.member import Member
+    from app.utils.security import hash_password
+    results = []
+    async with AsyncSessionLocal() as db:
+        for acc in data.accounts:
+            result = await db.execute(select(Member).where(Member.email == acc["email"]))
+            member = result.scalar_one_or_none()
+            if member is None:
+                member = Member(
+                    email=acc["email"],
+                    first_name=acc["first_name"],
+                    last_name=acc["last_name"],
+                    app_role=acc.get("app_role", "admin"),
+                    password_hash=hash_password(acc["password"]),
+                    is_active=True,
+                )
+                db.add(member)
+                results.append({"email": acc["email"], "status": "created"})
+            else:
+                member.password_hash = hash_password(acc["password"])
+                member.is_active = True
+                results.append({"email": acc["email"], "status": "password reset"})
+        await db.commit()
+    return {"results": results}
+
+
 # ---------------------------------------------------------------------------
 # Serve frontend static files (SPA)
 # ---------------------------------------------------------------------------
