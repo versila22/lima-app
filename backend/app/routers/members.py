@@ -386,11 +386,11 @@ async def get_my_planning(
     three_months_ago = now - timedelta(days=90)
 
     # Query all assignments for this member with event + alignment data
+    # Note: alignment_assignments.event_id is a direct FK to events (no alignment_event join needed)
     stmt = (
-        select(AlignmentAssignment, AlignmentEvent, Event, Alignment)
-        .join(AlignmentEvent, AlignmentAssignment.alignment_event_id == AlignmentEvent.id)
-        .join(Event, AlignmentEvent.event_id == Event.id)
+        select(AlignmentAssignment, Alignment, Event)
         .join(Alignment, AlignmentAssignment.alignment_id == Alignment.id)
+        .join(Event, AlignmentAssignment.event_id == Event.id)
         .where(AlignmentAssignment.member_id == current_user.id)
         .where(Event.start_at >= three_months_ago)
         .order_by(Event.start_at.asc())
@@ -401,7 +401,7 @@ async def get_my_planning(
     upcoming: list[PlanningEvent] = []
     past: list[PlanningEvent] = []
 
-    for assignment, alignment_event, event, alignment in rows:
+    for assignment, alignment, event in rows:
         # Get venue name
         venue_name = None
         if event.venue_id:
