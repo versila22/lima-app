@@ -16,7 +16,7 @@ import type {
 const _env_url = import.meta.env.VITE_API_URL as string | undefined;
 const BASE_URL = _env_url && _env_url.length > 0
   ? _env_url
-  : "https://lima-api.duckdns.org";
+  : "https://api-production-e15b.up.railway.app";
 
 const TOKEN_KEY = "lima_token";
 
