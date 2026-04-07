@@ -59,7 +59,7 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
   }
 
   if (adminOnly && user?.app_role !== "admin") {
-    return <Navigate to="/cabaret" replace />;
+    return <Navigate to="/agenda" replace />;
   }
 
   return <>{children}</>;
@@ -84,7 +84,7 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         >
-          <Route path="/" element={<Navigate to="/cabaret" replace />} />
+          <Route path="/" element={<Navigate to="/agenda" replace />} />
           <Route path="/cabaret" element={<CabaretOrganizer />} />
           <Route path="/agenda" element={<Agenda />} />
           <Route path="/mon-profil" element={<MonProfil />} />
