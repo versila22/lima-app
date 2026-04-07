@@ -54,6 +54,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -668,15 +676,17 @@ function CastFieldsSection({
   );
 }
 
-// ---- Event Detail Dialog ----
-function EventDetailDialog({
+// ---- Event Detail Drawer (mobile-friendly bottom sheet) ----
+function EventDetailDrawer({
   event,
+  open,
   isAdmin,
   onClose,
   onEdit,
   onDelete,
 }: {
   event: EventRead;
+  open: boolean;
   isAdmin: boolean;
   onClose: () => void;
   onEdit: (event: EventRead) => void;
@@ -687,6 +697,7 @@ function EventDetailDialog({
   const { data: cast = [], isLoading: castLoading } = useQuery<CastMember[]>({
     queryKey: ["event-cast", event.id],
     queryFn: () => api.get<CastMember[]>(`/events/${event.id}/cast`),
+    enabled: open,
   });
 
   // Group by role
@@ -701,98 +712,104 @@ function EventDetailDialog({
   const visibleNotes = formatEventNotes(event.notes);
 
   return (
-    <DialogContent className="max-h-[85vh] overflow-y-auto bg-card border-border w-[95vw] max-w-md">
-      <DialogHeader>
-        <DialogTitle className="flex items-center gap-2">
-          <span className={`inline-block w-3 h-3 rounded-full ${cfg.dot}`} />
-          {event.title}
-        </DialogTitle>
-        <DialogDescription>
-          <Badge variant="outline" className={`text-xs ${cfg.color} mt-1`}>
-            {cfg.label}
-          </Badge>
-        </DialogDescription>
-      </DialogHeader>
-      <div className="space-y-3 text-sm py-2">
-        <div>
-          <span className="text-muted-foreground">Date : </span>
-          {format(parseISO(event.start_at), "EEEE d MMMM yyyy — HH:mm", {
-            locale: fr,
-          })}
-          {event.end_at && (
-            <> → {format(parseISO(event.end_at), "HH:mm")}</>
-          )}
-        </div>
-        {event.is_away && (
-          <div>
-            <span className="text-muted-foreground">Déplacement : </span>
-            {event.away_city ?? "Ville inconnue"}
-            {event.away_opponent && ` — ${event.away_opponent}`}
-          </div>
-        )}
-        {visibleNotes && (
-          <div>
-            <span className="text-muted-foreground">Notes : </span>
-            {visibleNotes}
-          </div>
-        )}
+    <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
+      <DrawerContent className="max-h-[85vh] bg-card border-border">
+        <div className="overflow-y-auto px-4 pb-2">
+          <DrawerHeader className="px-0">
+            <DrawerTitle className="flex items-center gap-2 text-left">
+              <span className={`inline-block w-3 h-3 rounded-full shrink-0 ${cfg.dot}`} />
+              {event.title}
+            </DrawerTitle>
+            <DrawerDescription className="text-left">
+              <Badge variant="outline" className={`text-xs ${cfg.color} mt-1`}>
+                {cfg.label}
+              </Badge>
+            </DrawerDescription>
+          </DrawerHeader>
 
-        {/* Cast */}
-        {castLoading ? (
-          <div className="flex items-center gap-2 text-muted-foreground py-2">
-            <Loader2 className="w-4 h-4 animate-spin" /> Chargement du casting…
+          <div className="space-y-3 text-sm py-2">
+            <div>
+              <span className="text-muted-foreground">Date : </span>
+              {format(parseISO(event.start_at), "EEEE d MMMM yyyy — HH:mm", {
+                locale: fr,
+              })}
+              {event.end_at && (
+                <> → {format(parseISO(event.end_at), "HH:mm")}</>
+              )}
+            </div>
+            {event.is_away && (
+              <div>
+                <span className="text-muted-foreground">Déplacement : </span>
+                {event.away_city ?? "Ville inconnue"}
+                {event.away_opponent && ` — ${event.away_opponent}`}
+              </div>
+            )}
+            {visibleNotes && (
+              <div>
+                <span className="text-muted-foreground">Notes : </span>
+                {visibleNotes}
+              </div>
+            )}
+
+            {/* Cast */}
+            {castLoading ? (
+              <div className="flex items-center gap-2 text-muted-foreground py-2">
+                <Loader2 className="w-4 h-4 animate-spin" /> Chargement du casting…
+              </div>
+            ) : cast.length > 0 ? (
+              <div className="space-y-3 pt-2 border-t border-border">
+                <span className="font-semibold text-foreground">🎬 Casting</span>
+                {roleOrder.map((role) => {
+                  const members = byRole[role];
+                  if (!members?.length) return null;
+                  const rl = DETAIL_ROLE_LABELS[role] ?? { label: role, emoji: "👤" };
+                  return (
+                    <div key={role}>
+                      <span className="text-muted-foreground text-xs">{rl.emoji} {rl.label}</span>
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {members.map((m) => (
+                          <Badge key={m.member_id} variant="secondary" className="text-xs">
+                            {m.first_name} {m.last_name.charAt(0)}.
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
           </div>
-        ) : cast.length > 0 ? (
-          <div className="space-y-3 pt-2 border-t border-border">
-            <span className="font-semibold text-foreground">🎬 Casting</span>
-            {roleOrder.map((role) => {
-              const members = byRole[role];
-              if (!members?.length) return null;
-              const rl = DETAIL_ROLE_LABELS[role] ?? { label: role, emoji: "👤" };
-              return (
-                <div key={role}>
-                  <span className="text-muted-foreground text-xs">{rl.emoji} {rl.label}</span>
-                  <div className="flex flex-wrap gap-1.5 mt-1">
-                    {members.map((m) => (
-                      <Badge key={m.member_id} variant="secondary" className="text-xs">
-                        {m.first_name} {m.last_name.charAt(0)}.
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : null}
-      </div>
-      <DialogFooter className="flex-col sm:flex-row gap-2">
-        {isAdmin && (
-          <div className="flex gap-2 mr-auto">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onEdit(event)}
-              className="gap-1.5"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-              Modifier
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => onDelete(event)}
-              className="gap-1.5"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              Supprimer
-            </Button>
-          </div>
-        )}
-        <Button variant="outline" onClick={onClose}>
-          Fermer
-        </Button>
-      </DialogFooter>
-    </DialogContent>
+        </div>
+
+        <DrawerFooter className="flex-row gap-2 border-t border-border pt-3">
+          {isAdmin && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onEdit(event)}
+                className="gap-1.5"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                Modifier
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => onDelete(event)}
+                className="gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Supprimer
+              </Button>
+            </>
+          )}
+          <Button variant="outline" onClick={onClose} className="ml-auto">
+            Fermer
+          </Button>
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
   );
 }
 
@@ -1280,25 +1297,21 @@ export default function Agenda() {
         </div>
       )}
 
-      {/* Event detail dialog */}
+      {/* Event detail drawer (bottom sheet) */}
       {selectedEvent && (
-        <Dialog
+        <EventDetailDrawer
+          event={selectedEvent}
           open={!!selectedEvent}
-          onOpenChange={(open) => !open && setSelectedEvent(null)}
-        >
-          <EventDetailDialog
-            event={selectedEvent}
-            isAdmin={isAdmin}
-            onClose={() => setSelectedEvent(null)}
-            onEdit={(ev) => {
-              setSelectedEvent(null);
-              setEditEvent(ev);
-            }}
-            onDelete={(ev) => {
-              setDeleteEvent(ev);
-            }}
-          />
-        </Dialog>
+          isAdmin={isAdmin}
+          onClose={() => setSelectedEvent(null)}
+          onEdit={(ev) => {
+            setSelectedEvent(null);
+            setEditEvent(ev);
+          }}
+          onDelete={(ev) => {
+            setDeleteEvent(ev);
+          }}
+        />
       )}
 
       {/* Add event dialog */}
