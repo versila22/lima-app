@@ -1,14 +1,12 @@
 """Authentication service — login, activation, password reset."""
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Optional
-from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.models.member import Member
 from app.utils.security import (
     generate_secure_token,
@@ -17,6 +15,11 @@ from app.utils.security import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _utcnow_naive() -> datetime:
+    """Return naive UTC datetimes to match SQLite TIMESTAMP behavior in tests."""
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 async def authenticate_member(
@@ -54,9 +57,7 @@ async def activate_account(
     member = result.scalar_one_or_none()
     if member is None:
         raise ValueError("Token d'activation invalide")
-    if member.activation_expires_at and member.activation_expires_at < datetime.now(
-        timezone.utc
-    ):
+    if member.activation_expires_at and member.activation_expires_at < _utcnow_naive():
         raise ValueError("Token d'activation expiré")
 
     member.password_hash = hash_password(password)
@@ -71,7 +72,7 @@ async def generate_activation_token(db: AsyncSession, member: Member) -> str:
     """Create and persist a new activation token (valid 7 days)."""
     token = generate_secure_token()
     member.activation_token = token
-    member.activation_expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+    member.activation_expires_at = _utcnow_naive() + timedelta(days=7)
     await db.flush()
     return token
 
@@ -94,7 +95,7 @@ async def request_password_reset(
 
     token = generate_secure_token()
     member.reset_token = token
-    member.reset_expires_at = datetime.now(timezone.utc) + timedelta(hours=2)
+    member.reset_expires_at = _utcnow_naive() + timedelta(hours=2)
     await db.flush()
     return member
 
@@ -111,9 +112,7 @@ async def reset_password(db: AsyncSession, token: str, password: str) -> Member:
     member = result.scalar_one_or_none()
     if member is None:
         raise ValueError("Token de réinitialisation invalide")
-    if member.reset_expires_at and member.reset_expires_at < datetime.now(
-        timezone.utc
-    ):
+    if member.reset_expires_at and member.reset_expires_at < _utcnow_naive():
         raise ValueError("Token de réinitialisation expiré")
 
     member.password_hash = hash_password(password)

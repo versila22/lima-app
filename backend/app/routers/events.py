@@ -1,19 +1,19 @@
 """Events router."""
 
-import asyncio
 from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from pydantic import BaseModel
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.database import get_db
+from app.models.alignment import AlignmentAssignment, AlignmentEvent
 from app.models.event import Event
 from app.models.member import Member
-from app.models.alignment import AlignmentAssignment
+from app.models.show_plan import ShowPlan
 from app.schemas.event import (
     CalendarImportReport,
     EventCreate,
@@ -21,29 +21,16 @@ from app.schemas.event import (
     EventUpdate,
 )
 from app.services import import_service
-from app.services.email_service import notify_event_created, notify_event_updated, notify_event_deleted
 from app.utils.deps import get_current_user, require_admin
 
-
-async def _get_cast_emails(db: AsyncSession, event_id: UUID) -> List[str]:
-    """Fetch email addresses of all members assigned to an event."""
-    result = await db.execute(
-        select(AlignmentAssignment)
-        .options(selectinload(AlignmentAssignment.member))
-        .where(AlignmentAssignment.event_id == event_id)
-    )
-    assignments = result.scalars().all()
-    emails = list({a.member.email for a in assignments if a.member and a.member.email})
-    return emails
-
-
-def _format_event_date(event: Event) -> str:
-    """Format event date for email notifications."""
-    if event.start_at:
-        return event.start_at.strftime("%A %d/%m/%Y à %Hh%M")
-    return "Date non définie"
-
 router = APIRouter(prefix="/events", tags=["events"])
+
+
+class EventCastMember(BaseModel):
+    member_id: UUID
+    first_name: str
+    last_name: str
+    role: str
 
 
 @router.get("", response_model=List[EventRead])
@@ -93,29 +80,37 @@ async def get_event(
     return event
 
 
-@router.get("/{event_id}/cast")
+@router.get("/{event_id}/cast", response_model=List[EventCastMember])
 async def get_event_cast(
     event_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: Member = Depends(get_current_user),
+    _: Member = Depends(get_current_user),
 ):
-    """Get the cast (players, MJ, DJ, etc.) assigned to an event."""
-    result = await db.execute(
-        select(AlignmentAssignment)
-        .options(selectinload(AlignmentAssignment.member))
-        .where(AlignmentAssignment.event_id == event_id)
-    )
-    assignments = result.scalars().all()
+    """Return the cast assignments for a given event."""
+    event_result = await db.execute(select(Event.id).where(Event.id == event_id))
+    if event_result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail="Événement introuvable")
 
-    cast = []
-    for a in assignments:
-        cast.append({
-            "member_id": str(a.member_id),
-            "first_name": a.member.first_name,
-            "last_name": a.member.last_name,
-            "role": a.role,
-        })
-    return cast
+    result = await db.execute(
+        select(
+            AlignmentAssignment.member_id,
+            Member.first_name,
+            Member.last_name,
+            AlignmentAssignment.role,
+        )
+        .join(Member, Member.id == AlignmentAssignment.member_id)
+        .where(AlignmentAssignment.event_id == event_id)
+        .order_by(AlignmentAssignment.role, Member.last_name, Member.first_name)
+    )
+    return [
+        EventCastMember(
+            member_id=member_id,
+            first_name=first_name,
+            last_name=last_name,
+            role=role,
+        )
+        for member_id, first_name, last_name, role in result.all()
+    ]
 
 
 @router.post("", response_model=EventRead, status_code=status.HTTP_201_CREATED)
@@ -128,6 +123,7 @@ async def create_event(
     event = Event(**data.model_dump())
     db.add(event)
     await db.flush()
+    await db.refresh(event)
     return event
 
 
@@ -135,64 +131,39 @@ async def create_event(
 async def update_event(
     event_id: UUID,
     data: EventUpdate,
-    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     _: Member = Depends(require_admin),
 ):
-    """Update an event (admin only). Notifies cast members by email."""
+    """Update an event (admin only)."""
     result = await db.execute(select(Event).where(Event.id == event_id))
     event = result.scalar_one_or_none()
     if event is None:
         raise HTTPException(status_code=404, detail="Événement introuvable")
-
-    # Get cast emails before update
-    cast_emails = await _get_cast_emails(db, event_id)
-
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(event, field, value)
     await db.flush()
-
-    # Send notification in background
-    if cast_emails:
-        background_tasks.add_task(
-            notify_event_updated, event.title, _format_event_date(event), cast_emails
-        )
-
+    await db.refresh(event)
     return event
 
 
 @router.delete("/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_event(
     event_id: UUID,
-    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     _: Member = Depends(require_admin),
 ):
-    """Delete an event and its related assignments (admin only). Notifies cast members."""
-    from sqlalchemy import delete as sql_delete
-    from app.models.alignment import AlignmentEvent
-
+    """Delete an event (admin only)."""
     result = await db.execute(select(Event).where(Event.id == event_id))
     event = result.scalar_one_or_none()
     if event is None:
         raise HTTPException(status_code=404, detail="Événement introuvable")
-
-    # Get cast emails + event info BEFORE deleting
-    cast_emails = await _get_cast_emails(db, event_id)
-    event_title = event.title
-    event_date = _format_event_date(event)
-
-    # Remove dependent rows first (in case DB lacks ON DELETE CASCADE)
-    await db.execute(sql_delete(AlignmentAssignment).where(AlignmentAssignment.event_id == event_id))
-    await db.execute(sql_delete(AlignmentEvent).where(AlignmentEvent.event_id == event_id))
+    await db.execute(
+        delete(AlignmentAssignment).where(AlignmentAssignment.event_id == event_id)
+    )
+    await db.execute(delete(AlignmentEvent).where(AlignmentEvent.event_id == event_id))
+    await db.execute(delete(ShowPlan).where(ShowPlan.event_id == event_id))
     await db.delete(event)
     await db.flush()
-
-    # Send notification in background
-    if cast_emails:
-        background_tasks.add_task(
-            notify_event_deleted, event_title, event_date, cast_emails
-        )
 
 
 @router.post("/import-calendar", response_model=CalendarImportReport)

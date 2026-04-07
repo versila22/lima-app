@@ -39,7 +39,7 @@ async def list_show_plans(
     else:
         # Default to current season
         season_result = await db.execute(
-            select(Season).where(Season.is_current == True)
+            select(Season).where(Season.is_current)
         )
         current_season = season_result.scalar_one_or_none()
         if current_season:
@@ -76,6 +76,7 @@ async def create_show_plan(
     plan = ShowPlan(**data.model_dump(), created_by=admin.id)
     db.add(plan)
     await db.flush()
+    await db.refresh(plan)
     return plan
 
 
@@ -94,6 +95,7 @@ async def update_show_plan(
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(plan, field, value)
     await db.flush()
+    await db.refresh(plan)
     return plan
 
 

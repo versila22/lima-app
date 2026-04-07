@@ -11,7 +11,8 @@ Calendar Excel:
 
 import io
 import logging
-from datetime import datetime, timezone
+import secrets
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from typing import Dict, List, Optional, Tuple
 from uuid import UUID
@@ -19,13 +20,15 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.models.event import Event
 from app.models.member import Member
 from app.models.member_season import MemberSeason
 from app.models.season import Season
 from app.models.venue import Venue
 from app.schemas.event import CalendarImportReport
-from app.schemas.member import ImportMemberReport
+from app.schemas.member import ImportMemberReport, MemberSummary
+from app.services.email_service import send_activation_email
 
 logger = logging.getLogger(__name__)
 
@@ -75,19 +78,6 @@ def _normalize_email(value: str) -> str:
     return value.strip().lower()
 
 
-def _parse_date(value: Optional[str]):
-    """Parse DD/MM/YYYY date string."""
-    if not value:
-        return None
-    from datetime import date as date_type
-    for fmt in ("%d/%m/%Y", "%Y-%m-%d"):
-        try:
-            return datetime.strptime(value.strip(), fmt).date()
-        except ValueError:
-            pass
-    return None
-
-
 def _deduce_player_status(player_fee: Optional[Decimal]) -> str:
     """Deduce player_status from player fee amount."""
     if player_fee is None:
@@ -127,33 +117,27 @@ async def import_csv_helloasso(
         text = adherents_bytes.decode("utf-8-sig")  # Handle BOM
         reader = csv.DictReader(io.StringIO(text), delimiter=";")
         for row in reader:
-            email = _normalize_email(
-                row.get("Email", "") or row.get("Email payeur", "") or row.get("email", "")
-            )
+            email = _normalize_email(row.get("Email", "") or row.get("email", ""))
             if not email:
                 continue
             adherents[email] = {
                 "email": email,
                 "first_name": _normalize_name(
-                    row.get("Prénom adhérent", "") or row.get("Prénom", "") or row.get("Prenom", "") or ""
+                    row.get("Prénom", "") or row.get("Prenom", "") or row.get("first_name", "")
                 ),
                 "last_name": _normalize_name(
-                    row.get("Nom adhérent", "") or row.get("Nom", "") or ""
+                    row.get("Nom", "") or row.get("last_name", "")
                 ),
-                "phone": (
-                    row.get("Numéro de téléphone", "") or row.get("Téléphone", "") or ""
-                ).strip() or None,
+                "phone": (row.get("Téléphone", "") or row.get("telephone", "") or "").strip() or None,
                 "membership_fee": _parse_decimal(
-                    row.get("Montant tarif", "") or row.get("Montant", "") or "0"
+                    row.get("Montant", "") or row.get("montant", "") or "0"
                 ),
                 "helloasso_ref": (
-                    row.get("Référence commande", "") or row.get("N° commande", "") or ""
+                    row.get("N° commande", "") or row.get("ref", "") or ""
                 ).strip() or None,
                 "address": (row.get("Adresse", "") or "").strip() or None,
-                "postal_code": (row.get("Code Postal", "") or row.get("Code postal", "") or "").strip() or None,
+                "postal_code": (row.get("Code postal", "") or "").strip() or None,
                 "city": (row.get("Ville", "") or "").strip() or None,
-                "date_of_birth": (row.get("Date de naissance", "") or "").strip() or None,
-                "commission": (row.get("De quelle commission veux-tu faire partie ?", "") or "").strip() or None,
             }
     except Exception as exc:
         logger.exception("Erreur parsing adherents CSV")
@@ -166,28 +150,16 @@ async def import_csv_helloasso(
         text = joueurs_bytes.decode("utf-8-sig")
         reader = csv.DictReader(io.StringIO(text), delimiter=";")
         for row in reader:
-            email = _normalize_email(
-                row.get("Email", "") or row.get("Email payeur", "") or row.get("email", "")
-            )
+            email = _normalize_email(row.get("Email", "") or row.get("email", ""))
             if not email:
                 continue
             joueurs[email] = {
-                "first_name": _normalize_name(
-                    row.get("Prénom adhérent", "") or row.get("Prénom", "") or ""
-                ),
-                "last_name": _normalize_name(
-                    row.get("Nom adhérent", "") or row.get("Nom", "") or ""
-                ),
-                "phone": (
-                    row.get("Numéro de téléphone", "") or row.get("Téléphone", "") or ""
-                ).strip() or None,
                 "player_fee": _parse_decimal(
-                    row.get("Montant tarif", "") or row.get("Montant", "") or "0"
+                    row.get("Montant", "") or row.get("montant", "") or "0"
                 ),
                 "helloasso_ref": (
-                    row.get("Référence commande", "") or row.get("N° commande", "") or ""
+                    row.get("N° commande", "") or row.get("ref", "") or ""
                 ).strip() or None,
-                "groupe_de_jeu": (row.get("Groupe de Jeu", "") or "").strip() or None,
             }
     except Exception as exc:
         logger.exception("Erreur parsing joueurs CSV")
@@ -207,28 +179,16 @@ async def import_csv_helloasso(
         adh = adherents.get(email, {})
         jou = joueurs.get(email, {})
 
-        # Merge data — try adherents first, fallback to joueurs
-        first_name = adh.get("first_name") or jou.get("first_name") or ""
-        last_name = adh.get("last_name") or jou.get("last_name") or ""
+        # Merge data
+        first_name = adh.get("first_name") or ""
+        last_name = adh.get("last_name") or ""
         if not first_name or not last_name:
             report.errors.append(f"Données incomplètes pour {email}")
             continue
 
         player_fee = jou.get("player_fee")
         membership_fee = adh.get("membership_fee")
-        
-        # Deduce status: use Groupe de Jeu if available, else fee-based
-        groupe = jou.get("groupe_de_jeu", "")
-        if groupe:
-            groupe_lower = groupe.lower().strip()
-            if "match" in groupe_lower:
-                player_status = "M"
-            elif "cabaret" in groupe_lower:
-                player_status = "C"
-            else:
-                player_status = _deduce_player_status(player_fee)
-        else:
-            player_status = _deduce_player_status(player_fee)
+        player_status = _deduce_player_status(player_fee)
         helloasso_ref = jou.get("helloasso_ref") or adh.get("helloasso_ref")
 
         try:
@@ -237,18 +197,19 @@ async def import_csv_helloasso(
                 select(Member).where(Member.email == email)
             )
             member = existing.scalar_one_or_none()
-            created = member is None
+            is_new_member = member is None
 
             if member is None:
                 member = Member(
                     email=email,
                     first_name=first_name,
                     last_name=last_name,
-                    phone=adh.get("phone") or jou.get("phone"),
+                    phone=adh.get("phone"),
                     address=adh.get("address"),
                     postal_code=adh.get("postal_code"),
                     city=adh.get("city"),
-                    date_of_birth=_parse_date(adh.get("date_of_birth")),
+                    activation_token=secrets.token_urlsafe(32),
+                    activation_expires_at=datetime.now(timezone.utc) + timedelta(days=7),
                 )
                 db.add(member)
                 await db.flush()  # Get ID
@@ -288,7 +249,14 @@ async def import_csv_helloasso(
                 if helloasso_ref:
                     ms.helloasso_ref = helloasso_ref
 
-            from app.schemas.member import MemberSummary
+            if is_new_member and settings.SMTP_HOST and member.activation_token:
+                await send_activation_email(
+                    to=member.email,
+                    first_name=member.first_name,
+                    token=member.activation_token,
+                    base_url=settings.FRONTEND_URL,
+                )
+
             report.members.append(
                 MemberSummary(
                     id=member.id,
@@ -297,19 +265,15 @@ async def import_csv_helloasso(
                     last_name=member.last_name,
                     app_role=member.app_role,
                     is_active=member.is_active,
+                    player_status=player_status,
                 )
             )
 
         except Exception as exc:
             logger.exception(f"Erreur import membre {email}")
             report.errors.append(f"Erreur membre {email}: {exc}")
-            await db.rollback()
 
-    try:
-        await db.flush()
-    except Exception as exc:
-        logger.exception("Erreur flush final")
-        await db.rollback()
+    await db.flush()
     return report
 
 

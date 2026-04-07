@@ -32,7 +32,7 @@ async def get_current_season(
     _: Member = Depends(get_current_user),
 ):
     """Return the season marked as current."""
-    result = await db.execute(select(Season).where(Season.is_current == True))
+    result = await db.execute(select(Season).where(Season.is_current))
     season = result.scalar_one_or_none()
     if season is None:
         raise HTTPException(
@@ -78,6 +78,7 @@ async def create_season(
     )
     db.add(season)
     await db.flush()
+    await db.refresh(season)
     return season
 
 
@@ -103,4 +104,5 @@ async def update_season(
     for field, value in update_data.items():
         setattr(season, field, value)
     await db.flush()
+    await db.refresh(season)
     return season

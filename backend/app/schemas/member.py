@@ -5,7 +5,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr
 
 
 # ---------- MemberSeason ----------
@@ -26,6 +26,7 @@ class MemberSeasonCreate(MemberSeasonBase):
 class MemberSeasonRead(MemberSeasonBase):
     id: uuid.UUID
     created_at: datetime
+    season_name: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -80,6 +81,9 @@ class MemberRead(MemberBase):
     created_at: datetime
     updated_at: datetime
     member_seasons: List[MemberSeasonRead] = []
+    player_status: Optional[Literal["M", "C", "L", "A"]] = None
+    asso_role: Optional[str] = None
+    commissions: List[str] = []
 
     model_config = {"from_attributes": True}
 
@@ -92,8 +96,40 @@ class MemberSummary(BaseModel):
     last_name: str
     app_role: str
     is_active: bool
+    player_status: Optional[Literal["M", "C", "L", "A"]] = None
 
     model_config = {"from_attributes": True}
+
+
+class SeasonHistoryEntry(BaseModel):
+    season_id: uuid.UUID
+    season_name: str
+    player_status: Literal["M", "C", "L", "A"]
+    asso_role: Optional[str] = None
+
+
+class MemberProfileRead(MemberRead):
+    season_history: List[SeasonHistoryEntry] = []
+
+
+# ---------- Planning ----------
+
+class PlanningEvent(BaseModel):
+    event_id: uuid.UUID
+    title: str
+    event_type: str
+    start_at: datetime
+    end_at: Optional[datetime] = None
+    venue_name: Optional[str] = None
+    role: str
+    alignment_name: str
+    alignment_status: Literal["draft", "published"]
+
+
+class MemberPlanning(BaseModel):
+    upcoming: List[PlanningEvent] = []
+    past: List[PlanningEvent] = []
+    total_shows: int = 0
 
 
 # ---------- Import report ----------
