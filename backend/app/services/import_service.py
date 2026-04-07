@@ -50,12 +50,18 @@ EVENT_TYPE_KEYWORDS: List[Tuple[str, str]] = [
     ("assemblée", "ag"),
 ]
 
-# HelloAsso player_status deduced from player_fee range
+# HelloAsso player_status deduced from player_fee range (fallback only)
 PLAYER_FEE_STATUS: List[Tuple[float, float, str]] = [
-    (70.0, 90.0, "C"),    # Cabaret ~75€
     (150.0, 180.0, "M"),  # Match ~160€
-    (0.01, 70.0, "L"),    # Loisir < 70€
+    (0.01, 100.0, "L"),   # Loisir ~75€ (anything below match)
 ]
+
+# "Groupe de Jeu" column → player_status mapping (takes priority over fee)
+GROUPE_JEU_STATUS: dict = {
+    "match": "M",
+    "cabaret": "C",
+    "loisir": "L",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -78,8 +84,14 @@ def _normalize_email(value: str) -> str:
     return value.strip().lower()
 
 
-def _deduce_player_status(player_fee: Optional[Decimal]) -> str:
-    """Deduce player_status from player fee amount."""
+def _deduce_player_status(player_fee: Optional[Decimal], groupe_jeu: Optional[str] = None) -> str:
+    """Deduce player_status from Groupe de Jeu field (priority) or player fee (fallback)."""
+    # Priority: explicit group from CSV
+    if groupe_jeu:
+        status = GROUPE_JEU_STATUS.get(groupe_jeu.strip().lower())
+        if status:
+            return status
+    # Fallback: fee-based detection
     if player_fee is None:
         return "A"
     fee_f = float(player_fee)
@@ -150,15 +162,21 @@ async def import_csv_helloasso(
         text = joueurs_bytes.decode("utf-8-sig")
         reader = csv.DictReader(io.StringIO(text), delimiter=";")
         for row in reader:
-            email = _normalize_email(row.get("Email", "") or row.get("email", ""))
+            # joueurs CSV uses "Email" column (the player's own email)
+            email = _normalize_email(
+                row.get("Email", "") or row.get("email", "") or row.get("Email payeur", "") or ""
+            )
             if not email:
                 continue
             joueurs[email] = {
                 "player_fee": _parse_decimal(
-                    row.get("Montant", "") or row.get("montant", "") or "0"
+                    row.get("Montant tarif", "") or row.get("Montant", "") or row.get("montant", "") or "0"
                 ),
                 "helloasso_ref": (
-                    row.get("N° commande", "") or row.get("ref", "") or ""
+                    row.get("Référence commande", "") or row.get("N° commande", "") or row.get("ref", "") or ""
+                ).strip() or None,
+                "groupe_jeu": (
+                    row.get("Groupe de Jeu", "") or row.get("groupe_jeu", "") or ""
                 ).strip() or None,
             }
     except Exception as exc:
@@ -188,7 +206,8 @@ async def import_csv_helloasso(
 
         player_fee = jou.get("player_fee")
         membership_fee = adh.get("membership_fee")
-        player_status = _deduce_player_status(player_fee)
+        groupe_jeu = jou.get("groupe_jeu")
+        player_status = _deduce_player_status(player_fee, groupe_jeu)
         helloasso_ref = jou.get("helloasso_ref") or adh.get("helloasso_ref")
 
         try:
