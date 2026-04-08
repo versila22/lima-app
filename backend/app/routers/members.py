@@ -291,6 +291,43 @@ async def update_member(
     return await _get_member_for_response(db, member.id)
 
 
+@router.post("/{member_id}/photo", status_code=status.HTTP_200_OK)
+async def upload_member_photo(
+    member_id: UUID,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    _: Member = Depends(require_admin),
+):
+    """Upload a profile photo for a member. Admin only. Stores in /static/photos/."""
+    import os, shutil, uuid as uuid_lib
+
+    result = await db.execute(select(Member).where(Member.id == member_id))
+    member = result.scalar_one_or_none()
+    if member is None:
+        raise HTTPException(status_code=404, detail="Membre introuvable")
+
+    # Validate file type
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Le fichier doit être une image")
+
+    # Save to /static/photos/
+    photos_dir = "/static/photos"
+    os.makedirs(photos_dir, exist_ok=True)
+
+    ext = os.path.splitext(file.filename or "photo.jpg")[1] or ".jpg"
+    filename = f"{member_id}{ext}"
+    dest = os.path.join(photos_dir, filename)
+
+    with open(dest, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+
+    photo_url = f"/static/photos/{filename}"
+    member.photo_url = photo_url
+    await db.flush()
+
+    return {"photo_url": photo_url}
+
+
 @router.delete("/{member_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def deactivate_member(
     member_id: UUID,

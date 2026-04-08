@@ -224,6 +224,10 @@ export default function MonProfil() {
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
               <Avatar className="h-24 w-24 border border-primary/20 shadow-lg">
+                <AvatarImage
+                  src={profile.photo_url ? `https://api-production-e15b.up.railway.app${profile.photo_url}` : undefined}
+                  alt={getFullName(profile)}
+                />
                 <AvatarFallback className="bg-gradient-to-br from-cabaret-purple/80 to-cabaret-gold/80 text-2xl font-bold text-background">
                   {getInitials(profile.first_name, profile.last_name)}
                 </AvatarFallback>

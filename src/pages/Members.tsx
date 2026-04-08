@@ -7,6 +7,7 @@ import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import type { MemberSummary, ImportMemberReport } from "@/types";
 
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -271,7 +272,20 @@ export default function Members() {
             <TableBody>
               {filtered.map((m) => (
                 <TableRow key={m.id} className="border-border hover:bg-sidebar-accent/30">
-                  <TableCell className="font-medium">{m.last_name}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-8 w-8 shrink-0">
+                        <AvatarImage
+                          src={m.photo_url ? `https://api-production-e15b.up.railway.app${m.photo_url}` : undefined}
+                          alt={`${m.first_name} ${m.last_name}`}
+                        />
+                        <AvatarFallback className="text-xs bg-primary/20 text-primary">
+                          {m.first_name[0]}{m.last_name[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="font-medium">{m.last_name}</span>
+                    </div>
+                  </TableCell>
                   <TableCell>{m.first_name}</TableCell>
                   <TableCell className="hidden sm:table-cell text-muted-foreground text-sm">
                     {m.email}

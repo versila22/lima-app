@@ -84,6 +84,7 @@ class MemberRead(MemberBase):
     player_status: Optional[Literal["M", "C", "L", "A"]] = None
     asso_role: Optional[str] = None
     commissions: List[str] = []
+    photo_url: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -97,6 +98,7 @@ class MemberSummary(BaseModel):
     app_role: str
     is_active: bool
     player_status: Optional[Literal["M", "C", "L", "A"]] = None
+    photo_url: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

@@ -48,6 +48,9 @@ class Member(Base):
     reset_token: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     reset_expires_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
 
+    # Photo
+    photo_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         default=func.now(), onupdate=func.now()
