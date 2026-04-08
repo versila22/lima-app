@@ -62,6 +62,7 @@ export interface MemberRead {
   created_at: string;
   updated_at: string;
   member_seasons: MemberSeasonRead[];
+  photo_url?: string | null;
 }
 
 export interface MemberProfileSeasonHistory {
@@ -84,6 +85,7 @@ export interface MemberProfileRead {
   commissions: string[];
   season_history: MemberProfileSeasonHistory[];
   member_seasons: MemberSeasonRead[];
+  photo_url?: string | null;
 }
 
 export interface MemberSummary {
@@ -93,6 +95,8 @@ export interface MemberSummary {
   last_name: string;
   app_role: AppRole;
   is_active: boolean;
+  player_status?: PlayerStatus | null;
+  photo_url?: string | null;
 }
 
 export interface MemberCreate {
