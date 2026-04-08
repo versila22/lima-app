@@ -225,7 +225,7 @@ export default function MonProfil() {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
               <Avatar className="h-24 w-24 border border-primary/20 shadow-lg">
                 <AvatarImage
-                  src={profile.photo_url ? `https://api-production-e15b.up.railway.app${profile.photo_url}` : undefined}
+                  src={profile.photo_url ? profile.photo_url : undefined}
                   alt={getFullName(profile)}
                 />
                 <AvatarFallback className="bg-gradient-to-br from-cabaret-purple/80 to-cabaret-gold/80 text-2xl font-bold text-background">

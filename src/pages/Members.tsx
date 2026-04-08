@@ -276,7 +276,7 @@ export default function Members() {
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8 shrink-0">
                         <AvatarImage
-                          src={m.photo_url ? `https://api-production-e15b.up.railway.app${m.photo_url}` : undefined}
+                          src={m.photo_url ? m.photo_url : undefined}
                           alt={`${m.first_name} ${m.last_name}`}
                         />
                         <AvatarFallback className="text-xs bg-primary/20 text-primary">
