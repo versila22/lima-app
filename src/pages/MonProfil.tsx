@@ -17,7 +17,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { api, type ApiError, fetchMyProfile } from "@/lib/api";
 import type { MemberProfileRead, MemberUpdate, PlayerStatus } from "@/types";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
