@@ -163,6 +163,7 @@ async def list_members(
                 app_role=member.app_role,
                 is_active=member.is_active,
                 player_status=player_status,
+                photo_url=member.photo_url,
             )
         )
     return summaries
