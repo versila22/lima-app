@@ -81,6 +81,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -214,18 +216,23 @@ function getDefaultDateTime(): Date {
   return setMilliseconds(setSeconds(setMinutes(now, 0), 0), 0);
 }
 
-function getCastFields(eventType: EventType): CastFieldDefinition[] {
+function getCastFields(eventType: EventType, isAway: boolean = false): CastFieldDefinition[] {
   if (eventType === "match") {
-    return [
+    const baseFields: CastFieldDefinition[] = [
       { key: "player1", label: "Joueur 1", kind: "member" },
       { key: "player2", label: "Joueur 2", kind: "member" },
       { key: "player3", label: "Joueur 3", kind: "member" },
       { key: "player4", label: "Joueur 4", kind: "member" },
       { key: "player5", label: "Joueur 5", kind: "member" },
-      { key: "arbitre", label: "Arbitre", kind: "member" },
-      { key: "mc", label: "MC", kind: "member" },
-      { key: "dj", label: "DJ", kind: "member" },
     ];
+    if (!isAway) {
+      baseFields.push(
+        { key: "arbitre", label: "Arbitre", kind: "member" },
+        { key: "mc", label: "MC", kind: "member" },
+        { key: "dj", label: "DJ", kind: "member" }
+      );
+    }
+    return baseFields;
   }
 
   if (eventType === "cabaret") {
@@ -237,6 +244,16 @@ function getCastFields(eventType: EventType): CastFieldDefinition[] {
       { key: "player5", label: "Joueur 5", kind: "member" },
       { key: "mj", label: "MJ (Maître de Jeu)", kind: "member" },
       { key: "dj", label: "DJ", kind: "member" },
+    ];
+  }
+
+  if (eventType === "welsh") {
+    return [
+      { key: "player1", label: "Joueur 1", kind: "member" },
+      { key: "player2", label: "Joueur 2", kind: "member" },
+      { key: "player3", label: "Joueur 3", kind: "member" },
+      { key: "player4", label: "Joueur 4", kind: "member" },
+      { key: "mj", label: "MJ", kind: "member" },
     ];
   }
 
@@ -627,18 +644,20 @@ function ReferentField({
 
 function CastFieldsSection({
   eventType,
+  isAway = false,
   cast,
   onChange,
   members,
   membersLoading,
 }: {
   eventType: EventType;
+  isAway?: boolean;
   cast: CastFormState;
   onChange: (key: CastFieldKey, value: string) => void;
   members: MemberSummary[];
   membersLoading: boolean;
 }) {
-  const fields = getCastFields(eventType);
+  const fields = getCastFields(eventType, isAway);
 
   return (
     <div className="space-y-3 rounded-lg border border-border/60 bg-background/30 p-4">
@@ -830,6 +849,7 @@ function EditEventDialog({
 
   const [title, setTitle] = useState(event.title);
   const [eventType, setEventType] = useState<EventType>(event.event_type);
+  const [isAway, setIsAway] = useState<boolean>(event.is_away || false);
   const [startAt, setStartAt] = useState<string | undefined>(event.start_at);
   const [endAt, setEndAt] = useState<string | undefined>(event.end_at ?? undefined);
   const [notes, setNotes] = useState(parsedNotes.plainNotes);
@@ -839,6 +859,7 @@ function EditEventDialog({
     const nextParsed = parseStructuredNotes(event.notes);
     setTitle(event.title);
     setEventType(event.event_type);
+    setIsAway(event.is_away || false);
     setStartAt(event.start_at);
     setEndAt(event.end_at ?? undefined);
     setNotes(nextParsed.plainNotes);
@@ -864,6 +885,8 @@ function EditEventDialog({
     updateMutation.mutate({
       title,
       event_type: eventType,
+      is_away: isAway,
+      is_away: isAway,
       start_at: startAt,
       end_at: endAt || undefined,
       notes: buildStructuredNotes(notes, eventType, cast),
@@ -903,8 +926,32 @@ function EditEventDialog({
             </Select>
           </div>
 
+          {eventType === "match" && (
+            <div className="flex items-center space-x-2 border rounded-lg p-3 bg-background/30">
+              <Switch
+                id="edit-is-away"
+                checked={isAway}
+                onCheckedChange={setIsAway}
+              />
+              <Label htmlFor="edit-is-away">Déplacement (match à l'extérieur)</Label>
+            </div>
+          )}
+
+          {eventType === "match" && (
+            <div className="flex items-center space-x-2 border rounded-lg p-3 bg-background/30">
+              <Switch
+                id="add-is-away"
+                checked={isAway}
+                onCheckedChange={setIsAway}
+              />
+              <Label htmlFor="add-is-away">Déplacement (match à l'extérieur)</Label>
+            </div>
+          )}
+
           <CastFieldsSection
             eventType={eventType}
+            isAway={isAway}
+            isAway={isAway}
             cast={cast}
             onChange={(key, value) => setCast((prev) => ({ ...prev, [key]: value }))}
             members={members}
@@ -969,6 +1016,7 @@ function AddEventDialog({
   const { data: members = [], isLoading: membersLoading } = useMembers();
   const [title, setTitle] = useState("");
   const [eventType, setEventType] = useState<EventType>("training_show");
+  const [isAway, setIsAway] = useState<boolean>(false);
   const [startAt, setStartAt] = useState<string | undefined>(() => combineDateAndTime(getDefaultDateTime(), format(getDefaultDateTime(), "HH"), "00"));
   const [endAt, setEndAt] = useState<string | undefined>(undefined);
   const [notes, setNotes] = useState("");
@@ -984,6 +1032,7 @@ function AddEventDialog({
     const defaultDate = getDefaultDateTime();
     setTitle("");
     setEventType("training_show");
+    setIsAway(false);
     setStartAt(combineDateAndTime(defaultDate, format(defaultDate, "HH"), "00"));
     setEndAt(undefined);
     setNotes("");
