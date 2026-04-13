@@ -21,7 +21,7 @@ export default function Login() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate("/cabaret", { replace: true });
+      navigate("/agenda", { replace: true });
     }
   }, [isAuthenticated, navigate]);
 
@@ -31,7 +31,7 @@ export default function Login() {
     try {
       await login(email, password);
       toast.success("Connexion réussie !");
-      navigate("/cabaret", { replace: true });
+      navigate("/agenda", { replace: true });
     } catch (err) {
       const message =
         err instanceof ApiError

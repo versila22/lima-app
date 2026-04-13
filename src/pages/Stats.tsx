@@ -220,7 +220,7 @@ export default function Stats() {
   }
 
   if (!isAdmin) {
-    return <Navigate to="/cabaret" replace />;
+    return <Navigate to="/agenda" replace />;
   }
 
   return (
