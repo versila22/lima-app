@@ -3,10 +3,8 @@ LIMA — Ligue d'Improvisation du Maine-et-Loire
 FastAPI Application Entry Point
 """
 
-import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
@@ -61,13 +59,6 @@ app.include_router(commissions.router)
 app.include_router(show_plans.router)
 app.include_router(settings_router.router)
 app.include_router(admin.router, prefix="/api/admin")
-
-# ---------------------------------------------------------------------------
-# Static files (member photos)
-# ---------------------------------------------------------------------------
-_photos_dir = "/static/photos"
-os.makedirs(_photos_dir, exist_ok=True)
-app.mount("/static", StaticFiles(directory="/static"), name="static")
 
 
 # ---------------------------------------------------------------------------
