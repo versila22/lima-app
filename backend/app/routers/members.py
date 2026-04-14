@@ -163,6 +163,7 @@ async def list_members(
                 app_role=member.app_role,
                 is_active=member.is_active,
                 player_status=player_status,
+                photo_url=member.photo_url,
             )
         )
     return summaries
@@ -291,6 +292,43 @@ async def update_member(
     return await _get_member_for_response(db, member.id)
 
 
+@router.post("/{member_id}/photo", status_code=status.HTTP_200_OK)
+async def upload_member_photo(
+    member_id: UUID,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    _: Member = Depends(require_admin),
+):
+    """Upload a profile photo for a member. Admin only. Stores in /static/photos/."""
+    import os, shutil, uuid as uuid_lib
+
+    result = await db.execute(select(Member).where(Member.id == member_id))
+    member = result.scalar_one_or_none()
+    if member is None:
+        raise HTTPException(status_code=404, detail="Membre introuvable")
+
+    # Validate file type
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Le fichier doit être une image")
+
+    # Save to /static/photos/
+    photos_dir = "/static/photos"
+    os.makedirs(photos_dir, exist_ok=True)
+
+    ext = os.path.splitext(file.filename or "photo.jpg")[1] or ".jpg"
+    filename = f"{member_id}{ext}"
+    dest = os.path.join(photos_dir, filename)
+
+    with open(dest, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+
+    photo_url = f"/static/photos/{filename}"
+    member.photo_url = photo_url
+    await db.flush()
+
+    return {"photo_url": photo_url}
+
+
 @router.delete("/{member_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def deactivate_member(
     member_id: UUID,
@@ -386,11 +424,11 @@ async def get_my_planning(
     three_months_ago = now - timedelta(days=90)
 
     # Query all assignments for this member with event + alignment data
+    # Note: alignment_assignments.event_id is a direct FK to events (no alignment_event join needed)
     stmt = (
-        select(AlignmentAssignment, AlignmentEvent, Event, Alignment)
-        .join(AlignmentEvent, AlignmentAssignment.alignment_event_id == AlignmentEvent.id)
-        .join(Event, AlignmentEvent.event_id == Event.id)
+        select(AlignmentAssignment, Alignment, Event)
         .join(Alignment, AlignmentAssignment.alignment_id == Alignment.id)
+        .join(Event, AlignmentAssignment.event_id == Event.id)
         .where(AlignmentAssignment.member_id == current_user.id)
         .where(Event.start_at >= three_months_ago)
         .order_by(Event.start_at.asc())
@@ -401,7 +439,7 @@ async def get_my_planning(
     upcoming: list[PlanningEvent] = []
     past: list[PlanningEvent] = []
 
-    for assignment, alignment_event, event, alignment in rows:
+    for assignment, alignment, event in rows:
         # Get venue name
         venue_name = None
         if event.venue_id:
