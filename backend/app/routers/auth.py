@@ -1,8 +1,10 @@
 """Authentication router — login, activation, password management."""
 
+from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
+from jose import JWTError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -19,6 +21,7 @@ from app.schemas.auth import (
     ChangePasswordRequest,
     ForgotPasswordRequest,
     LoginRequest,
+    RefreshResponse,
     ResetPasswordRequest,
     TokenResponse,
 )
@@ -26,7 +29,15 @@ from app.schemas.member import MemberProfileRead, MemberProfileUpdate, MemberRea
 from app.services import auth_service
 from app.services.email_service import send_password_reset_email
 from app.utils.deps import get_current_user
-from app.utils.security import create_access_token, hash_password, verify_password
+from app.utils.security import (
+    create_access_token,
+    create_refresh_token,
+    clear_auth_cookies,
+    decode_refresh_token,
+    hash_password,
+    set_auth_cookies,
+    verify_password,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -103,13 +114,15 @@ async def _build_member_profile(db: AsyncSession, member_id: UUID) -> MemberProf
 @limiter.limit("5/minute")
 async def login(
     request: Request,
+    response: Response,
     data: LoginRequest,
     db: AsyncSession = Depends(get_db),
 ):
     """
     Authenticate with email and password.
 
-    Returns a JWT access token valid for 30 minutes.
+    Sets httpOnly access_token and refresh_token cookies.
+    Also returns the access token in the body for backward compatibility.
     """
     member = await auth_service.authenticate_member(db, data.email, data.password)
     if member is None:
@@ -124,14 +137,70 @@ async def login(
             detail="Compte désactivé",
         )
 
-    token = create_access_token(
+    access_token = create_access_token(
         subject=str(member.id),
         extra_claims={"role": member.app_role},
     )
+    refresh_token = create_refresh_token(subject=str(member.id))
+    secure = not settings.is_development
+    set_auth_cookies(response, access_token, refresh_token, secure=secure)
+
     return TokenResponse(
-        access_token=token,
+        access_token=access_token,
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
+
+
+@router.post("/refresh", response_model=RefreshResponse)
+async def refresh_token(
+    response: Response,
+    refresh_token: Optional[str] = Cookie(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Issue a new access token using the refresh token cookie.
+
+    Rotates both cookies on success.
+    """
+    if not refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token manquant",
+        )
+    try:
+        payload = decode_refresh_token(refresh_token)
+        user_id: str = payload["sub"]
+    except (JWTError, KeyError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token invalide ou expiré",
+        )
+
+    result = await db.execute(select(Member).where(Member.id == UUID(user_id)))
+    member = result.scalar_one_or_none()
+    if member is None or not member.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Utilisateur introuvable ou inactif",
+        )
+
+    new_access = create_access_token(
+        subject=str(member.id),
+        extra_claims={"role": member.app_role},
+    )
+    new_refresh = create_refresh_token(subject=str(member.id))
+    secure = not settings.is_development
+    set_auth_cookies(response, new_access, new_refresh, secure=secure)
+
+    return RefreshResponse()
+
+
+@router.post("/logout", status_code=status.HTTP_200_OK)
+async def logout(response: Response):
+    """Clear auth cookies and end the session."""
+    secure = not settings.is_development
+    clear_auth_cookies(response, secure=secure)
+    return {"detail": "Déconnecté avec succès"}
 
 
 @router.post("/activate", status_code=status.HTTP_200_OK)
