@@ -65,7 +65,7 @@ export default function Settings() {
   // Save mutation
   const saveMutation = useMutation<AppSettings, ApiError, SettingsFormData>({
     mutationFn: (data) =>
-      api.put<AppSettings>("/settings", { data }),
+      api.put<AppSettings>("/settings", data),
     onSuccess: () => toast.success("Paramètres sauvegardés"),
     onError: (err) => toast.error(err.detail ?? "Erreur lors de la sauvegarde"),
   });
