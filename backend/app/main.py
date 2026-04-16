@@ -30,8 +30,8 @@ app = FastAPI(
     title="LIMA API",
     description="API backend de la Ligue d'Improvisation du Maine-et-Loire",
     version="0.1.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url="/docs" if settings.is_development else None,
+    redoc_url="/redoc" if settings.is_development else None,
 )
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)

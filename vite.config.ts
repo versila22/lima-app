@@ -1,11 +1,17 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
+  const apiOrigin = env.VITE_API_URL
+    ? (() => { try { return new URL(env.VITE_API_URL).origin; } catch { return ""; } })()
+    : "";
+
+  return ({
   server: {
     host: "::",
     port: 8080,
@@ -51,28 +57,21 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg}"],
-        runtimeCaching: [
-          {
-            urlPattern: ({ url }) => {
-              const apiBase = process.env.VITE_API_URL ?? "";
-              if (!apiBase) return false;
-              try {
-                const base = new URL(apiBase);
-                return url.origin === base.origin;
-              } catch {
-                return false;
-              }
-            },
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "lima-api-cache",
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60,
+        runtimeCaching: apiOrigin
+          ? [
+              {
+                urlPattern: ({ url }) => url.origin === apiOrigin,
+                handler: "NetworkFirst",
+                options: {
+                  cacheName: "lima-api-cache",
+                  expiration: {
+                    maxEntries: 50,
+                    maxAgeSeconds: 60 * 60,
+                  },
+                },
               },
-            },
-          },
-        ],
+            ]
+          : [],
       },
     }),
     mode === "development" && componentTagger(),
@@ -82,4 +81,5 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-}));
+  });
+});
