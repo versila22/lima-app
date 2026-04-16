@@ -7,6 +7,8 @@ import type {
   LoginStats,
   MemberPlanning,
   MemberProfileRead,
+  MemberRead,
+  MemberUpdate,
 } from "@/types";
 
 // ============================================================
@@ -159,6 +161,9 @@ export const api = {
 
   delete: <T = void>(path: string) =>
     request<T>("DELETE", path),
+
+  patch: <T>(path: string, body?: unknown) =>
+    request<T>("PATCH", path, { body }),
 
   postForm: <T>(path: string, form: FormData, params?: RequestOptions["params"]) =>
     request<T>("POST", path, { body: form, params }),
@@ -343,7 +348,7 @@ export async function uploadMemberPhoto(memberId: string, file: File): Promise<{
     body: formData,
     credentials: "include",
   });
-  
+
   if (!res.ok) {
     let detail = "Erreur lors de l'upload";
     try {
@@ -353,4 +358,30 @@ export async function uploadMemberPhoto(memberId: string, file: File): Promise<{
     throw new ApiError(res.status, detail);
   }
   return res.json();
+}
+
+// ---- Members CRUD helpers ----
+
+export function getMemberProfile(id: string): Promise<MemberProfileRead> {
+  return api.get<MemberProfileRead>(`/members/${id}/profile`);
+}
+
+export function updateMember(id: string, data: MemberUpdate): Promise<MemberRead> {
+  return api.put<MemberRead>(`/members/${id}`, data);
+}
+
+export function updateMemberRole(id: string, app_role: "admin" | "member"): Promise<MemberRead> {
+  return api.put<MemberRead>(`/members/${id}/role`, { app_role });
+}
+
+export function deactivateMember(id: string): Promise<void> {
+  return api.delete<void>(`/members/${id}`);
+}
+
+export function reactivateMember(id: string): Promise<MemberRead> {
+  return api.patch<MemberRead>(`/members/${id}/reactivate`);
+}
+
+export function resendInvite(id: string): Promise<{ detail: string }> {
+  return api.post<{ detail: string }>(`/members/${id}/resend-activation`);
 }
