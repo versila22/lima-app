@@ -1,14 +1,15 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 // Always-loaded (auth pages — needed immediately)
 import Login from "./pages/Login";
@@ -44,6 +45,22 @@ function PageLoader() {
       <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
     </div>
   );
+}
+
+// ---- AuthLogoutHandler ----
+function AuthLogoutHandler() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const handler = () => {
+      toast.error("Session expirée, veuillez vous reconnecter.");
+      navigate("/login", { replace: true });
+    };
+    window.addEventListener("auth:logout", handler);
+    return () => window.removeEventListener("auth:logout", handler);
+  }, [navigate]);
+
+  return null;
 }
 
 // ---- ProtectedRoute ----
@@ -126,6 +143,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <AuthLogoutHandler />
           <AppRoutes />
           <PwaInstallPrompt />
         </AuthProvider>
