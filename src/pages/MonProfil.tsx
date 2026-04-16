@@ -14,7 +14,8 @@ import {
 import { toast } from "sonner";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { api, type ApiError, fetchMyProfile, API_BASE_URL } from "@/lib/api";
+import { api, type ApiError, fetchMyProfile, API_BASE_URL, uploadMemberPhoto } from "@/lib/api";
+import { Camera } from "lucide-react";
 import type { MemberProfileRead, MemberUpdate, PlayerStatus } from "@/types";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -229,15 +230,38 @@ export default function MonProfil() {
         <CardContent className="p-6">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-              <Avatar className="h-24 w-24 border border-primary/20 shadow-lg">
-                <AvatarImage
-                  src={getPhotoUrl(profile.photo_url)}
-                  alt={getFullName(profile)}
-                />
-                <AvatarFallback className="bg-gradient-to-br from-cabaret-purple/80 to-cabaret-gold/80 text-2xl font-bold text-background">
-                  {getInitials(profile.first_name, profile.last_name)}
-                </AvatarFallback>
-              </Avatar>
+              <div className="relative group">
+                <Avatar className="h-24 w-24 border border-primary/20 shadow-lg">
+                  <AvatarImage
+                    src={getPhotoUrl(profile.photo_url)}
+                    alt={getFullName(profile)}
+                  />
+                  <AvatarFallback className="bg-gradient-to-br from-cabaret-purple/80 to-cabaret-gold/80 text-2xl font-bold text-background">
+                    {getInitials(profile.first_name, profile.last_name)}
+                  </AvatarFallback>
+                </Avatar>
+                
+                <label className="absolute inset-0 flex items-center justify-center bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity rounded-full cursor-pointer">
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      try {
+                        const loadingToast = toast.loading("Envoi de la photo...");
+                        await uploadMemberPhoto(profile.id, file);
+                        queryClient.invalidateQueries({ queryKey: ["my-profile"] });
+                        toast.success("Photo mise à jour !", { id: loadingToast });
+                      } catch (err: any) {
+                        toast.error(err.detail ?? "Erreur lors de l'upload");
+                      }
+                    }}
+                  />
+                  <Camera className="w-8 h-8" />
+                </label>
+              </div>
 
               <div className="space-y-3">
                 <div>

@@ -295,3 +295,27 @@ export async function fetchMyPlanning(): Promise<MemberPlanning> {
 export async function fetchMyProfile(): Promise<MemberProfileRead> {
   return api.get<MemberProfileRead>("/auth/me");
 }
+
+export async function uploadMemberPhoto(memberId: string, file: File): Promise<{ photo_url: string }> {
+  const token = getToken();
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const fullUrl = API_BASE_URL ? `${API_BASE_URL}/members/${memberId}/photo` : `/members/${memberId}/photo`;
+  
+  const res = await fetch(fullUrl, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+  
+  if (!res.ok) {
+    let detail = "Erreur lors de l'upload";
+    try {
+      const errorData = await res.json();
+      if (errorData.detail) detail = errorData.detail;
+    } catch (e) {}
+    throw new ApiError(res.status, detail);
+  }
+  return res.json();
+}

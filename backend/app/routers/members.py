@@ -297,9 +297,11 @@ async def upload_member_photo(
     member_id: UUID,
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    _: Member = Depends(require_admin),
+    current_user: Member = Depends(get_current_user),
 ):
-    """Upload a profile photo for a member. Admin only. Stores in /static/photos/."""
+    """Upload a profile photo for a member. Admin or self. Stores in /static/photos/."""
+    if not current_user.is_admin and current_user.id != member_id:
+        raise HTTPException(status_code=403, detail="Accès réservé à votre profil")
     import os, shutil, uuid as uuid_lib
 
     result = await db.execute(select(Member).where(Member.id == member_id))
