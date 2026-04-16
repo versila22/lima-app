@@ -244,6 +244,7 @@ async def create_member(
     )
     db.add(member)
     await db.flush()
+    await db.commit()
 
     # Generate activation token
     token = await auth_service.generate_activation_token(db, member)
@@ -289,6 +290,7 @@ async def update_member(
     for field, value in update_data.items():
         setattr(member, field, value)
     await db.flush()
+    await db.commit()
     return await _get_member_for_response(db, member.id)
 
 
@@ -327,6 +329,7 @@ async def upload_member_photo(
     photo_url = f"/static/photos/{filename}"
     member.photo_url = photo_url
     await db.flush()
+    await db.commit()
 
     return {"photo_url": photo_url}
 
@@ -344,6 +347,7 @@ async def deactivate_member(
         raise HTTPException(status_code=404, detail="Membre introuvable")
     member.is_active = False
     await db.flush()
+    await db.commit()
 
 
 @router.post("/{member_id}/resend-activation", status_code=status.HTTP_200_OK)
@@ -387,6 +391,7 @@ async def update_member_role(
         raise HTTPException(status_code=404, detail="Membre introuvable")
     member.app_role = data.app_role
     await db.flush()
+    await db.commit()
     return await _get_member_for_response(db, member.id)
 
 

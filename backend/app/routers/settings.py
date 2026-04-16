@@ -76,6 +76,7 @@ async def update_settings(
         else:
             setting.data = current
         await db.flush()
+        await db.commit()
     except Exception as exc:
         logger.exception("Erreur sauvegarde settings")
         raise HTTPException(

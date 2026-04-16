@@ -62,6 +62,7 @@ async def add_member_to_commission(
     )
     db.add(mc)
     await db.flush()
+    await db.commit()
     return {"detail": "Membre ajouté à la commission"}
 
 
@@ -89,3 +90,4 @@ async def remove_member_from_commission(
         raise HTTPException(status_code=404, detail="Affectation introuvable")
     await db.delete(mc)
     await db.flush()
+    await db.commit()

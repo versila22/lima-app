@@ -34,11 +34,14 @@ class Base(DeclarativeBase):
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """Dependency: yield an async database session."""
+    """Dependency: yield an async database session.
+
+    Routers are responsible for calling session.commit() after writes.
+    This dependency only rolls back on unhandled exceptions.
+    """
     async with AsyncSessionLocal() as session:
         try:
             yield session
-            await session.commit()
         except Exception:
             await session.rollback()
             raise

@@ -50,6 +50,7 @@ async def create_venue(
     venue = Venue(**data.model_dump())
     db.add(venue)
     await db.flush()
+    await db.commit()
     return venue
 
 
@@ -68,4 +69,5 @@ async def update_venue(
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(venue, field, value)
     await db.flush()
+    await db.commit()
     return venue

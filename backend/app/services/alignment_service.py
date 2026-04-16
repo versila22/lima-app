@@ -67,6 +67,7 @@ async def add_events_to_alignment(
         db.add(ae)
 
     await db.flush()
+    await db.commit()
 
 
 async def remove_event_from_alignment(
@@ -102,6 +103,7 @@ async def remove_event_from_alignment(
         await db.delete(assignment)
 
     await db.flush()
+    await db.commit()
 
 
 async def assign_member(
@@ -153,6 +155,7 @@ async def assign_member(
     )
     db.add(assignment)
     await db.flush()
+    await db.commit()
     return assignment
 
 
@@ -177,3 +180,4 @@ async def remove_assignment(
         raise ValueError("Affectation introuvable")
     await db.delete(assignment)
     await db.flush()
+    await db.commit()

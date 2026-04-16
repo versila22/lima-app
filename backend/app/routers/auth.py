@@ -209,6 +209,7 @@ async def update_me(
     for field, value in update_data.items():
         setattr(current_user, field, value)
     await db.flush()
+    await db.commit()
     return await _build_member_profile(db, current_user.id)
 
 
@@ -228,4 +229,5 @@ async def change_password(
         )
     current_user.password_hash = hash_password(data.new_password)
     await db.flush()
+    await db.commit()
     return {"detail": "Mot de passe modifié avec succès"}

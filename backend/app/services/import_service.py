@@ -274,6 +274,7 @@ async def import_csv_helloasso(
             report.errors.append(f"Erreur membre {email}: {exc}")
 
     await db.flush()
+    await db.commit()
     return report
 
 
@@ -453,4 +454,5 @@ async def import_excel_calendar(
             report.errors.append(f"Ligne {row_idx}: {exc}")
 
     await db.flush()
+    await db.commit()
     return report

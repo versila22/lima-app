@@ -123,6 +123,7 @@ async def create_event(
     event = Event(**data.model_dump())
     db.add(event)
     await db.flush()
+    await db.commit()
     await db.refresh(event)
     return event
 
@@ -142,6 +143,7 @@ async def update_event(
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(event, field, value)
     await db.flush()
+    await db.commit()
     await db.refresh(event)
     return event
 
@@ -164,6 +166,7 @@ async def delete_event(
     await db.execute(delete(ShowPlan).where(ShowPlan.event_id == event_id))
     await db.delete(event)
     await db.flush()
+    await db.commit()
 
 
 @router.post("/import-calendar", response_model=CalendarImportReport)

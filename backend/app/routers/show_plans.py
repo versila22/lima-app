@@ -76,6 +76,7 @@ async def create_show_plan(
     plan = ShowPlan(**data.model_dump(), created_by=admin.id)
     db.add(plan)
     await db.flush()
+    await db.commit()
     await db.refresh(plan)
     return plan
 
@@ -95,6 +96,7 @@ async def update_show_plan(
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(plan, field, value)
     await db.flush()
+    await db.commit()
     await db.refresh(plan)
     return plan
 
@@ -112,3 +114,4 @@ async def delete_show_plan(
         raise HTTPException(status_code=404, detail="Plan introuvable")
     await db.delete(plan)
     await db.flush()
+    await db.commit()

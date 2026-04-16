@@ -87,6 +87,7 @@ async def create_alignment(
     )
     db.add(alignment)
     await db.flush()
+    await db.commit()
     await db.refresh(alignment)
     return alignment
 
@@ -108,6 +109,7 @@ async def update_alignment(
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(alignment, field, value)
     await db.flush()
+    await db.commit()
     await db.refresh(alignment)
     return alignment
 
@@ -127,6 +129,7 @@ async def delete_alignment(
         raise HTTPException(status_code=404, detail="Grille introuvable")
     await db.delete(alignment)
     await db.flush()
+    await db.commit()
 
 
 @router.post("/{alignment_id}/events", status_code=status.HTTP_200_OK)

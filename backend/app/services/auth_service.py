@@ -65,6 +65,7 @@ async def activate_account(
     member.activation_expires_at = None
     member.is_active = True
     await db.flush()
+    await db.commit()
     return member
 
 
@@ -74,6 +75,7 @@ async def generate_activation_token(db: AsyncSession, member: Member) -> str:
     member.activation_token = token
     member.activation_expires_at = _utcnow_naive() + timedelta(days=7)
     await db.flush()
+    await db.commit()
     return token
 
 
@@ -97,6 +99,7 @@ async def request_password_reset(
     member.reset_token = token
     member.reset_expires_at = _utcnow_naive() + timedelta(hours=2)
     await db.flush()
+    await db.commit()
     return member
 
 
@@ -119,4 +122,5 @@ async def reset_password(db: AsyncSession, token: str, password: str) -> Member:
     member.reset_token = None
     member.reset_expires_at = None
     await db.flush()
+    await db.commit()
     return member
