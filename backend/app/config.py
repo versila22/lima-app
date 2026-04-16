@@ -27,7 +27,8 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
-    # Refresh token — use a different secret to allow independent rotation
+    # Refresh token secret — intentionally same as JWT_SECRET in development.
+    # Set to a distinct value in staging/production for independent rotation.
     REFRESH_JWT_SECRET: str = DEFAULT_JWT_SECRET
 
     # App

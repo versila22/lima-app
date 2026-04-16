@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from "react";
+import React, { lazy, Suspense, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -50,11 +50,15 @@ function PageLoader() {
 // ---- AuthLogoutHandler ----
 function AuthLogoutHandler() {
   const navigate = useNavigate();
+  const handlingRef = React.useRef(false);
 
   useEffect(() => {
     const handler = () => {
+      if (handlingRef.current) return;
+      handlingRef.current = true;
       toast.error("Session expirée, veuillez vous reconnecter.");
       navigate("/login", { replace: true });
+      setTimeout(() => { handlingRef.current = false; }, 2000);
     };
     window.addEventListener("auth:logout", handler);
     return () => window.removeEventListener("auth:logout", handler);

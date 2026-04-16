@@ -26,7 +26,7 @@ export const API_BASE_URL = _env_url && _env_url.length > 0
 // Token management moved to httpOnly cookies — no client-side token storage.
 // A 401 interceptor in _doRequest() handles silent refresh via POST /auth/refresh.
 let _isRefreshing = false;
-let _refreshQueue: Array<() => void> = [];
+let _refreshQueue: Array<(success: boolean) => void> = [];
 
 // ---- Core request helper ----
 interface RequestOptions extends Omit<RequestInit, "body"> {
@@ -120,7 +120,7 @@ async function _doRequest<T>(
 async function _tryRefresh(): Promise<boolean> {
   if (_isRefreshing) {
     return new Promise((resolve) => {
-      _refreshQueue.push(() => resolve(true));
+      _refreshQueue.push((success) => resolve(success));
     });
   }
   _isRefreshing = true;
@@ -130,13 +130,15 @@ async function _tryRefresh(): Promise<boolean> {
       credentials: "include",
     });
     if (!res.ok) {
+      _refreshQueue.forEach((cb) => cb(false));
       _refreshQueue = [];
       return false;
     }
-    _refreshQueue.forEach((cb) => cb());
+    _refreshQueue.forEach((cb) => cb(true));
     _refreshQueue = [];
     return true;
   } catch {
+    _refreshQueue.forEach((cb) => cb(false));
     _refreshQueue = [];
     return false;
   } finally {

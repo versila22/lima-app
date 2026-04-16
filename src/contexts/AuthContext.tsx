@@ -44,6 +44,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
         setUser(null);
+      } else {
+        // Unexpected error (network failure, 5xx) — log but don't clear user
+        console.error("[AuthContext] refreshUser failed:", err);
       }
     } finally {
       setIsLoading(false);
