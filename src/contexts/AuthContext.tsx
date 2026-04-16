@@ -5,13 +5,12 @@ import React, {
   useEffect,
   useState,
 } from "react";
-import { api, ApiError, getToken, removeToken, setToken } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import type {
   ActivateAccountRequest,
   ApiMessage,
   MemberRead,
   ResetPasswordRequest,
-  TokenResponse,
 } from "@/types";
 
 // ============================================================
@@ -19,14 +18,13 @@ import type {
 // ============================================================
 interface AuthContextValue {
   user: MemberRead | null;
-  token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   activateAccount: (payload: ActivateAccountRequest) => Promise<ApiMessage>;
   forgotPassword: (email: string) => Promise<ApiMessage>;
   resetPassword: (payload: ResetPasswordRequest) => Promise<ApiMessage>;
-  logout: () => void;
+  logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
@@ -37,25 +35,14 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 // ============================================================
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<MemberRead | null>(null);
-  const [token, setTokenState] = useState<string | null>(getToken);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch /auth/me and update user state
   const refreshUser = useCallback(async () => {
-    const stored = getToken();
-    if (!stored) {
-      setUser(null);
-      setIsLoading(false);
-      return;
-    }
     try {
       const me = await api.get<MemberRead>("/auth/me");
       setUser(me);
     } catch (err) {
-      // Invalid / expired token
       if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
-        removeToken();
-        setTokenState(null);
         setUser(null);
       }
     } finally {
@@ -68,13 +55,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshUser();
   }, [refreshUser]);
 
+  // Listen for global logout event (dispatched by 401 interceptor in api.ts)
+  useEffect(() => {
+    const handler = () => {
+      setUser(null);
+      setIsLoading(false);
+    };
+    window.addEventListener("auth:logout", handler);
+    return () => window.removeEventListener("auth:logout", handler);
+  }, []);
+
   const login = useCallback(async (email: string, password: string) => {
-    const data = await api.post<TokenResponse>("/auth/login", { email, password });
-    setToken(data.access_token);
-    setTokenState(data.access_token);
-    // Fetch user profile after successful login
+    // POST /auth/login sets httpOnly cookies; token in body is ignored
+    await api.post("/auth/login", { email, password });
     const me = await api.get<MemberRead>("/auth/me");
     setUser(me);
+  }, []);
+
+  const logout = useCallback(async () => {
+    try {
+      await api.post("/auth/logout");
+    } catch {
+      // Best-effort — clear state regardless
+    }
+    setUser(null);
   }, []);
 
   const activateAccount = useCallback((payload: ActivateAccountRequest) => {
@@ -89,17 +93,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return api.post<ApiMessage>("/auth/reset-password", payload);
   }, []);
 
-  const logout = useCallback(() => {
-    removeToken();
-    setTokenState(null);
-    setUser(null);
-  }, []);
-
   return (
     <AuthContext.Provider
       value={{
         user,
-        token,
         isAuthenticated: !!user,
         isLoading,
         login,

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { api, getToken } from "@/lib/api";
+import { api } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 import type { ShowPlanRead, ShowPlanCreate } from "@/types";
 import { type CabaretFormData } from "@/components/cabaret/CabaretForm";
 
@@ -66,7 +67,7 @@ function showPlanToSavedPlan(sp: ShowPlanRead): SavedPlan {
 // ---- Main hook ----
 export function usePlanHistory() {
   const queryClient = useQueryClient();
-  const isLoggedIn = !!getToken();
+  const { isAuthenticated: isLoggedIn } = useAuth();
 
   // ---- Fetch: API if logged in, localStorage otherwise ----
   const {
