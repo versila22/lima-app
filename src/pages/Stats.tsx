@@ -131,8 +131,7 @@ export default function Stats() {
   const [pageWindow, setPageWindow] = useState<1 | 7 | 30>(7);
   const isAdmin = user?.app_role === "admin";
 
-  const daysSinceMonthStart = new Date().getDate();
-  const loginWindow = Math.max(30, daysSinceMonthStart);
+  const loginWindow = 30;
 
   const { data: pageStats, isLoading: pageStatsLoading, isError: pageStatsError } = useQuery({
     queryKey: ["activity-stats", pageWindow],
