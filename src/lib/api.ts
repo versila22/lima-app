@@ -1,6 +1,12 @@
 import type {
   ActivityLog,
   ActivityStats,
+  AlignmentCreate,
+  AlignmentDetail,
+  AlignmentRead,
+  AlignmentUpdate,
+  AssignmentRead,
+  AssignmentRole,
   DailyActiveUserStat,
   EndpointStat,
   LoginAttempt,
@@ -384,4 +390,52 @@ export function reactivateMember(id: string): Promise<MemberRead> {
 
 export function resendInvite(id: string): Promise<{ detail: string }> {
   return api.post<{ detail: string }>(`/members/${id}/resend-activation`);
+}
+
+// ---- Alignments helpers ----
+
+export function getAlignments(): Promise<AlignmentRead[]> {
+  return api.get<AlignmentRead[]>("/alignments");
+}
+
+export function createAlignment(data: AlignmentCreate): Promise<AlignmentRead> {
+  return api.post<AlignmentRead>("/alignments", data);
+}
+
+export function getAlignmentDetail(id: string): Promise<AlignmentDetail> {
+  return api.get<AlignmentDetail>(`/alignments/${id}`);
+}
+
+export function updateAlignment(id: string, data: AlignmentUpdate): Promise<AlignmentRead> {
+  return api.put<AlignmentRead>(`/alignments/${id}`, data);
+}
+
+export function publishAlignment(id: string): Promise<AlignmentRead> {
+  return api.put<AlignmentRead>(`/alignments/${id}/publish`);
+}
+
+export function deleteAlignment(id: string): Promise<void> {
+  return api.delete<void>(`/alignments/${id}`);
+}
+
+export function addAlignmentEvents(
+  id: string,
+  event_ids: string[]
+): Promise<{ detail: string }> {
+  return api.post<{ detail: string }>(`/alignments/${id}/events`, { event_ids });
+}
+
+export function removeAlignmentEvent(id: string, event_id: string): Promise<void> {
+  return api.delete<void>(`/alignments/${id}/events/${event_id}`);
+}
+
+export function assignMember(
+  id: string,
+  data: { member_id: string; event_id: string; role: AssignmentRole }
+): Promise<AssignmentRead> {
+  return api.post<AssignmentRead>(`/alignments/${id}/assign`, data);
+}
+
+export function removeAssignment(id: string, assignment_id: string): Promise<void> {
+  return api.delete<void>(`/alignments/${id}/assign/${assignment_id}`);
 }

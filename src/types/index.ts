@@ -304,6 +304,32 @@ export interface AssignmentRead {
   created_at: string;
 }
 
+export interface AlignmentEventRead {
+  alignment_id: string;
+  event_id: string;
+  sort_order: number;
+  event: EventRead;
+}
+
+export interface AlignmentDetail extends AlignmentRead {
+  alignment_events: AlignmentEventRead[];
+  assignments: AssignmentRead[];
+}
+
+export interface AlignmentCreate {
+  season_id: string;
+  name: string;
+  start_date: string; // YYYY-MM-DD
+  end_date: string;   // YYYY-MM-DD
+}
+
+export interface AlignmentUpdate {
+  name?: string;
+  start_date?: string;
+  end_date?: string;
+  status?: AlignmentStatus;
+}
+
 export interface PlanningEvent {
   event_id: string;
   title: string;
