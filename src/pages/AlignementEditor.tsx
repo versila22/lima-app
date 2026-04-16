@@ -92,6 +92,8 @@ export default function AlignementEditor() {
   const [addEventOpen, setAddEventOpen] = useState(false);
   const [addEventIds, setAddEventIds] = useState<string[]>([]);
   const [assignDialogEventId, setAssignDialogEventId] = useState<string | null>(null);
+  const [removingEventId, setRemovingEventId] = useState<string | null>(null);
+  const [removingAssignmentId, setRemovingAssignmentId] = useState<string | null>(null);
   const [assignMemberId, setAssignMemberId] = useState("");
   const [assignRole, setAssignRole] = useState<AssignmentRole>("JR");
 
@@ -153,11 +155,13 @@ export default function AlignementEditor() {
 
   const removeEventMutation = useMutation({
     mutationFn: (event_id: string) => removeAlignmentEvent(id!, event_id),
+    onMutate: (event_id) => setRemovingEventId(event_id),
     onSuccess: () => {
       toast.success("Événement retiré");
       queryClient.invalidateQueries({ queryKey });
     },
     onError: () => toast.error("Erreur lors du retrait"),
+    onSettled: () => setRemovingEventId(null),
   });
 
   const assignMutation = useMutation({
@@ -183,11 +187,13 @@ export default function AlignementEditor() {
 
   const removeAssignmentMutation = useMutation({
     mutationFn: (assignment_id: string) => removeAssignment(id!, assignment_id),
+    onMutate: (assignment_id) => setRemovingAssignmentId(assignment_id),
     onSuccess: () => {
       toast.success("Assignation retirée");
       queryClient.invalidateQueries({ queryKey });
     },
     onError: () => toast.error("Erreur lors du retrait"),
+    onSettled: () => setRemovingAssignmentId(null),
   });
 
   if (isLoading) {
@@ -408,12 +414,12 @@ export default function AlignementEditor() {
                     assignments={eventAssignments}
                     members={members}
                     onRemoveEvent={() => removeEventMutation.mutate(ae.event_id)}
-                    isRemovingEvent={removeEventMutation.isPending}
+                    isRemovingEvent={removingEventId === ae.event_id}
                     onOpenAssign={() => setAssignDialogEventId(ae.event_id)}
                     onRemoveAssignment={(assignmentId) =>
                       removeAssignmentMutation.mutate(assignmentId)
                     }
-                    isRemovingAssignment={removeAssignmentMutation.isPending}
+                    isRemovingAssignmentId={removingAssignmentId}
                   />
                 );
               })}
@@ -602,7 +608,7 @@ interface EventCardProps {
   isRemovingEvent: boolean;
   onOpenAssign: () => void;
   onRemoveAssignment: (id: string) => void;
-  isRemovingAssignment: boolean;
+  isRemovingAssignmentId: string | null;
 }
 
 function EventCard({
@@ -613,7 +619,7 @@ function EventCard({
   isRemovingEvent,
   onOpenAssign,
   onRemoveAssignment,
-  isRemovingAssignment,
+  isRemovingAssignmentId,
 }: EventCardProps) {
   const memberMap = new Map(members.map((m) => [m.id, m]));
 
@@ -659,7 +665,7 @@ function EventCard({
                   variant="ghost"
                   size="icon"
                   onClick={() => onRemoveAssignment(a.id)}
-                  disabled={isRemovingAssignment}
+                  disabled={isRemovingAssignmentId === a.id}
                   className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0"
                   aria-label="Supprimer l'assignation"
                 >

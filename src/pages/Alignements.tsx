@@ -62,6 +62,7 @@ export default function Alignements() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: alignments = [], isLoading } = useQuery<AlignmentRead[]>({
     queryKey: ["alignments"],
@@ -97,12 +98,14 @@ export default function Alignements() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: deleteAlignment,
+    mutationFn: (alignmentId: string) => deleteAlignment(alignmentId),
+    onMutate: (alignmentId) => setDeletingId(alignmentId),
     onSuccess: () => {
       toast.success("Grille supprimée");
       queryClient.invalidateQueries({ queryKey: ["alignments"] });
     },
     onError: () => toast.error("Erreur lors de la suppression"),
+    onSettled: () => setDeletingId(null),
   });
 
   const currentSeasonId = watch("season_id");
@@ -152,7 +155,7 @@ export default function Alignements() {
                     alignment={a}
                     onOpen={() => navigate(`/alignements/${a.id}`)}
                     onDelete={() => deleteMutation.mutate(a.id)}
-                    isDeleting={deleteMutation.isPending}
+                    isDeleting={deletingId === a.id}
                   />
                 ))}
               </div>
@@ -170,7 +173,7 @@ export default function Alignements() {
                     alignment={a}
                     onOpen={() => navigate(`/alignements/${a.id}`)}
                     onDelete={() => deleteMutation.mutate(a.id)}
-                    isDeleting={deleteMutation.isPending}
+                    isDeleting={deletingId === a.id}
                   />
                 ))}
               </div>
