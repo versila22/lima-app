@@ -12,7 +12,7 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
-    allowedHosts: "all",
+    allowedHosts: ["localhost", "127.0.0.1"],
   },
   plugins: [
     react(),
@@ -53,12 +53,21 @@ export default defineConfig(({ mode }) => ({
         globPatterns: ["**/*.{js,css,html,ico,png,svg}"],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/api-production-e15b\.up\.railway\.app\/.*/i,
+            urlPattern: ({ url }) => {
+              const apiBase = process.env.VITE_API_URL ?? "";
+              if (!apiBase) return false;
+              try {
+                const base = new URL(apiBase);
+                return url.origin === base.origin;
+              } catch {
+                return false;
+              }
+            },
             handler: "NetworkFirst",
             options: {
               cacheName: "lima-api-cache",
               expiration: {
-                maxEntries: 10,
+                maxEntries: 50,
                 maxAgeSeconds: 60 * 60,
               },
             },
