@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -42,6 +43,7 @@ import type {
   EventUpdate,
   SeasonRead,
   EventType,
+  EventVisibility,
   MemberSummary,
 } from "@/types";
 
@@ -1243,6 +1245,9 @@ export default function Agenda() {
   const [editEvent, setEditEvent] = useState<EventRead | null>(null);
   const [deleteEvent, setDeleteEvent] = useState<EventRead | null>(null);
   const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filterType = (searchParams.get("type") as EventType) || null;
+  const filterVisibility = (searchParams.get("visibility") as EventVisibility) || null;
 
   const deleteMutation = useMutation<void, ApiError, string>({
     mutationFn: (id) => api.delete(`/events/${id}`),
@@ -1270,6 +1275,16 @@ export default function Agenda() {
     enabled: !!currentSeason,
   });
 
+  const filteredEvents = useMemo(
+    () =>
+      events.filter((e) => {
+        if (filterType && e.event_type !== filterType) return false;
+        if (filterVisibility && e.visibility !== filterVisibility) return false;
+        return true;
+      }),
+    [events, filterType, filterVisibility]
+  );
+
   // Calendar grid
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -1277,7 +1292,7 @@ export default function Agenda() {
   const leadingBlanks = weekdayIndex(monthStart);
 
   const eventsForDay = (day: Date) =>
-    events.filter((e) => isSameDay(parseISO(e.start_at), day));
+    filteredEvents.filter((e) => isSameDay(parseISO(e.start_at), day));
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6">
@@ -1359,6 +1374,67 @@ export default function Agenda() {
         )}
       </div>
 
+      {/* Filter bar */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Select
+          value={filterType ?? "all"}
+          onValueChange={(v) => {
+            setSearchParams((prev) => {
+              const next = new URLSearchParams(prev);
+              if (v === "all") next.delete("type"); else next.set("type", v);
+              return next;
+            });
+          }}
+        >
+          <SelectTrigger className="h-8 w-auto text-xs bg-background/50 border-border">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous les types</SelectItem>
+            {(Object.entries(EVENT_TYPE_CONFIG) as [EventType, (typeof EVENT_TYPE_CONFIG)[EventType]][]).map(
+              ([type, cfg]) => (
+                <SelectItem key={type} value={type}>{cfg.label}</SelectItem>
+              )
+            )}
+          </SelectContent>
+        </Select>
+
+        {isAdmin && (
+          <Select
+            value={filterVisibility ?? "all"}
+            onValueChange={(v) => {
+              setSearchParams((prev) => {
+                const next = new URLSearchParams(prev);
+                if (v === "all") next.delete("visibility"); else next.set("visibility", v);
+                return next;
+              });
+            }}
+          >
+            <SelectTrigger className="h-8 w-auto text-xs bg-background/50 border-border">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes visibilités</SelectItem>
+              <SelectItem value="match">Match</SelectItem>
+              <SelectItem value="cabaret">Cabaret</SelectItem>
+              <SelectItem value="loisir">Loisir</SelectItem>
+              <SelectItem value="admin">Admin</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
+
+        {(filterType || filterVisibility) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 text-xs text-muted-foreground"
+            onClick={() => setSearchParams({})}
+          >
+            Effacer filtres
+          </Button>
+        )}
+      </div>
+
       {/* Loading */}
       {isLoading ? (
         <div className="flex items-center justify-center py-16">
@@ -1366,7 +1442,7 @@ export default function Agenda() {
         </div>
       ) : viewMode === "list" ? (
         <AgendaListView
-          events={events}
+          events={filteredEvents}
           onEventClick={setSelectedEvent}
         />
       ) : (
