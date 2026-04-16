@@ -3,8 +3,7 @@
 from typing import Optional
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import Cookie, Depends, HTTPException, Request, status
 from jose import JWTError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,15 +13,17 @@ from app.database import get_db
 from app.models.member import Member
 from app.utils.security import decode_access_token
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
-
 
 async def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    request: Request,
+    access_token: Optional[str] = Cookie(default=None),
     db: AsyncSession = Depends(get_db),
 ) -> Member:
     """
     Decode the JWT and return the authenticated Member.
+
+    Reads from the httpOnly 'access_token' cookie first, then falls back to
+    the Authorization: Bearer header for backward compatibility.
 
     Raises 401 if the token is missing, invalid, or the user is inactive.
     """
@@ -31,6 +32,19 @@ async def get_current_user(
         detail="Authentification requise",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+    # 1. Try cookie
+    token = access_token
+
+    # 2. Fall back to Authorization header
+    if not token:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[len("Bearer "):]
+
+    if not token:
+        raise credentials_exception
+
     try:
         payload = decode_access_token(token)
         user_id: Optional[str] = payload.get("sub")
