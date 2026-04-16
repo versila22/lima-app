@@ -43,8 +43,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept"],
+    expose_headers=["Content-Length"],
 )
 app.add_middleware(ActivityTrackerMiddleware)
 
@@ -65,9 +66,11 @@ app.include_router(admin.router, prefix="/api/admin")
 # ---------------------------------------------------------------------------
 # Static files (member photos)
 # ---------------------------------------------------------------------------
-_photos_dir = "/static/photos"
+_static_root = os.environ.get("STATIC_DIR", os.path.join(os.path.dirname(__file__), "..", "..", "static"))
+_static_root = os.path.abspath(_static_root)
+_photos_dir = os.path.join(_static_root, "photos")
 os.makedirs(_photos_dir, exist_ok=True)
-app.mount("/static", StaticFiles(directory="/static"), name="static")
+app.mount("/static", StaticFiles(directory=_static_root), name="static")
 
 
 # ---------------------------------------------------------------------------
