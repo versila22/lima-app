@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import type { SeasonRead } from "@/types";
+import { MemberDetailDrawer } from "@/components/MemberDetailDrawer";
 
 // ---- Helpers ----
 const STATUS_LABELS: Record<string, string> = {
@@ -75,6 +76,9 @@ export default function Members() {
 
   const [search, setSearch] = useState("");
   const [importOpen, setImportOpen] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<MemberSummary | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
   const adherentsRef = useRef<HTMLInputElement>(null);
   const jouteursRef = useRef<HTMLInputElement>(null);
 
@@ -115,11 +119,13 @@ export default function Members() {
       toast.success(
         `Import terminé : ${report.created} créés, ${report.updated} mis à jour`
       );
-      if (report.errors.length > 0) {
-        toast.warning(`${report.errors.length} erreur(s) lors de l'import`);
+      setImportErrors(report.errors ?? []);
+      if ((report.errors ?? []).length > 0) {
+        toast.warning(`${(report.errors ?? []).length} erreur(s) lors de l'import`);
+      } else {
+        setImportOpen(false);
       }
       queryClient.invalidateQueries({ queryKey: ["members"] });
-      setImportOpen(false);
     },
     onError: (err) => {
       toast.error(err.detail ?? "Erreur lors de l'import");
@@ -202,6 +208,26 @@ export default function Members() {
                   />
                 </div>
               </div>
+              {importErrors.length > 0 && (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-1">
+                  <p className="text-xs font-medium text-destructive">
+                    {importErrors.length} erreur(s) :
+                  </p>
+                  <ul className="text-xs text-muted-foreground space-y-0.5 max-h-32 overflow-y-auto">
+                    {importErrors.map((err, i) => (
+                      <li key={i} className="truncate">• {err}</li>
+                    ))}
+                  </ul>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => { setImportErrors([]); setImportOpen(false); }}
+                  >
+                    Fermer
+                  </Button>
+                </div>
+              )}
               <DialogFooter>
                 <Button
                   variant="outline"
@@ -277,7 +303,14 @@ export default function Members() {
             </TableHeader>
             <TableBody>
               {filtered.map((m) => (
-                <TableRow key={m.id} className="border-border hover:bg-sidebar-accent/30">
+                <TableRow
+                  key={m.id}
+                  className="border-border hover:bg-sidebar-accent/30 cursor-pointer"
+                  onClick={() => {
+                    setSelectedMember(m);
+                    setDrawerOpen(true);
+                  }}
+                >
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8 shrink-0">
@@ -314,6 +347,13 @@ export default function Members() {
           </Table>
         </div>
       )}
+
+      <MemberDetailDrawer
+        member={selectedMember}
+        isAdmin={isAdmin}
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+      />
     </div>
   );
 }
