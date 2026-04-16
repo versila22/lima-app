@@ -4,7 +4,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 
-from jose import jwt
+from jose import JWTError, jwt
 from passlib.context import CryptContext
 
 from app.config import settings
@@ -66,3 +66,61 @@ def decode_access_token(token: str) -> Dict[str, Any]:
 def generate_secure_token(length: int = 32) -> str:
     """Generate a URL-safe random token for activation / password reset."""
     return secrets.token_urlsafe(length)
+
+
+def create_refresh_token(subject: str) -> str:
+    """Create a signed JWT refresh token with long expiry."""
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    payload: Dict[str, Any] = {
+        "sub": subject,
+        "iat": now,
+        "exp": expire,
+        "type": "refresh",
+    }
+    return jwt.encode(payload, settings.REFRESH_JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
+
+
+def decode_refresh_token(token: str) -> Dict[str, Any]:
+    """
+    Decode and validate a refresh token.
+
+    Raises:
+        JWTError: If the token is invalid, expired, or not a refresh token.
+    """
+    payload = jwt.decode(
+        token,
+        settings.REFRESH_JWT_SECRET,
+        algorithms=[settings.JWT_ALGORITHM],
+    )
+    if payload.get("type") != "refresh":
+        raise JWTError("Not a refresh token")
+    return payload
+
+
+def set_auth_cookies(response, access_token: str, refresh_token: str, secure: bool) -> None:
+    """Set httpOnly auth cookies on a FastAPI Response object."""
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=secure,
+        samesite="lax",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        path="/",
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=secure,
+        samesite="lax",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+        path="/auth/refresh",
+    )
+
+
+def clear_auth_cookies(response, secure: bool) -> None:
+    """Expire auth cookies."""
+    response.delete_cookie(key="access_token", path="/", secure=secure, httponly=True, samesite="lax")
+    response.delete_cookie(key="refresh_token", path="/auth/refresh", secure=secure, httponly=True, samesite="lax")
