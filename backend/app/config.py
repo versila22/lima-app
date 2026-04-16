@@ -89,5 +89,9 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     return Settings()
 
+@property
+def sync_database_url(self) -> str:
+    """Return the sync version of the DB URL for Alembic."""
+    return self.DATABASE_URL.replace("postgresql+asyncpg", "postgresql")
 
 settings = get_settings()
