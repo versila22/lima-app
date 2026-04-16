@@ -150,34 +150,8 @@ export const EVENT_TYPE_CONFIG: Record<
 };
 
 const DAYS_FR = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
-const CAST_NOTES_MARKER = "--- CAST_DATA ---";
 const COMMISSION_OPTIONS = ["comadh", "comform", "comcom", "comprog", "comspec", "ca"];
 const MINUTE_OPTIONS = ["00", "15", "30", "45"];
-
-type CastFieldKey =
-  | "player1"
-  | "player2"
-  | "player3"
-  | "player4"
-  | "player5"
-  | "arbitre"
-  | "mc"
-  | "mj"
-  | "dj"
-  | "referent";
-
-type CastFormState = Record<CastFieldKey, string>;
-
-interface CastFieldDefinition {
-  key: CastFieldKey;
-  label: string;
-  kind: "member" | "referent";
-}
-
-interface StructuredCastData {
-  eventType: EventType;
-  assignments: Partial<Record<CastFieldKey, string>>;
-}
 
 // Monday-first weekday index (0=Mon … 6=Sun)
 function weekdayIndex(date: Date): number {
@@ -201,124 +175,18 @@ const DETAIL_ROLE_LABELS: Record<string, { label: string; emoji: string }> = {
   COACH: { label: "Coach", emoji: "🏋️" },
 };
 
-const EMPTY_CAST_FORM: CastFormState = {
-  player1: "",
-  player2: "",
-  player3: "",
-  player4: "",
-  player5: "",
-  arbitre: "",
-  mc: "",
-  mj: "",
-  dj: "",
-  referent: "",
-};
-
 function getDefaultDateTime(): Date {
   const now = new Date();
   return setMilliseconds(setSeconds(setMinutes(now, 0), 0), 0);
 }
 
-function getCastFields(eventType: EventType, isAway: boolean = false): CastFieldDefinition[] {
-  if (eventType === "match") {
-    const baseFields: CastFieldDefinition[] = [
-      { key: "player1", label: "Joueur 1", kind: "member" },
-      { key: "player2", label: "Joueur 2", kind: "member" },
-      { key: "player3", label: "Joueur 3", kind: "member" },
-      { key: "player4", label: "Joueur 4", kind: "member" },
-      { key: "player5", label: "Joueur 5", kind: "member" },
-    ];
-    if (!isAway) {
-      baseFields.push(
-        { key: "arbitre", label: "Arbitre", kind: "member" },
-        { key: "mc", label: "MC", kind: "member" },
-        { key: "dj", label: "DJ", kind: "member" }
-      );
-    }
-    return baseFields;
-  }
-
-  if (eventType === "cabaret") {
-    return [
-      { key: "player1", label: "Joueur 1", kind: "member" },
-      { key: "player2", label: "Joueur 2", kind: "member" },
-      { key: "player3", label: "Joueur 3", kind: "member" },
-      { key: "player4", label: "Joueur 4", kind: "member" },
-      { key: "player5", label: "Joueur 5", kind: "member" },
-      { key: "mj", label: "MJ (Maître de Jeu)", kind: "member" },
-      { key: "dj", label: "DJ", kind: "member" },
-    ];
-  }
-
-  if (eventType === "welsh") {
-    return [
-      { key: "player1", label: "Joueur 1", kind: "member" },
-      { key: "player2", label: "Joueur 2", kind: "member" },
-      { key: "player3", label: "Joueur 3", kind: "member" },
-      { key: "player4", label: "Joueur 4", kind: "member" },
-      { key: "mj", label: "MJ", kind: "member" },
-    ];
-  }
-
-  return [{ key: "referent", label: "Référent", kind: "referent" }];
-}
-
-function parseStructuredNotes(notes?: string | null): {
-  plainNotes: string;
-  cast: CastFormState;
-} {
-  if (!notes) {
-    return { plainNotes: "", cast: { ...EMPTY_CAST_FORM } };
-  }
-
-  const markerIndex = notes.indexOf(CAST_NOTES_MARKER);
-  if (markerIndex === -1) {
-    return { plainNotes: notes.trim(), cast: { ...EMPTY_CAST_FORM } };
-  }
-
-  const plainNotes = notes.slice(0, markerIndex).trim();
-  const rawPayload = notes.slice(markerIndex + CAST_NOTES_MARKER.length).trim();
-
-  try {
-    const parsed = JSON.parse(rawPayload) as StructuredCastData;
-    const nextCast = { ...EMPTY_CAST_FORM };
-
-    Object.entries(parsed.assignments ?? {}).forEach(([key, value]) => {
-      if (key in nextCast && typeof value === "string") {
-        nextCast[key as CastFieldKey] = value;
-      }
-    });
-
-    return { plainNotes, cast: nextCast };
-  } catch {
-    return { plainNotes: notes.trim(), cast: { ...EMPTY_CAST_FORM } };
-  }
-}
-
-function buildStructuredNotes(notes: string, eventType: EventType, cast: CastFormState): string | undefined {
-  const trimmedNotes = notes.trim();
-  const assignments = Object.fromEntries(
-    Object.entries(cast).filter(([, value]) => value.trim().length > 0),
-  ) as Partial<Record<CastFieldKey, string>>;
-
-  if (Object.keys(assignments).length === 0) {
-    return trimmedNotes || undefined;
-  }
-
-  const payload: StructuredCastData = {
-    eventType,
-    assignments,
-  };
-
-  const serialized = JSON.stringify(payload, null, 2);
-  return trimmedNotes
-    ? `${trimmedNotes}\n\n${CAST_NOTES_MARKER}\n${serialized}`
-    : `${CAST_NOTES_MARKER}\n${serialized}`;
-}
+const CAST_NOTES_MARKER = "--- CAST_DATA ---";
 
 function formatEventNotes(notes?: string | null): string | null {
-  const plainNotes = parseStructuredNotes(notes).plainNotes;
-  return plainNotes || null;
+  if (!notes) return null;
+  const markerIndex = notes.indexOf(CAST_NOTES_MARKER);
+  if (markerIndex === -1) return notes.trim() || null;
+  return notes.slice(0, markerIndex).trim() || null;
 }
 
 function parseDateTimeValue(value?: string | null): Date | undefined {
@@ -645,59 +513,6 @@ function ReferentField({
   );
 }
 
-function CastFieldsSection({
-  eventType,
-  isAway = false,
-  cast,
-  onChange,
-  members,
-  membersLoading,
-}: {
-  eventType: EventType;
-  isAway?: boolean;
-  cast: CastFormState;
-  onChange: (key: CastFieldKey, value: string) => void;
-  members: MemberSummary[];
-  membersLoading: boolean;
-}) {
-  const fields = getCastFields(eventType, isAway);
-
-  return (
-    <div className="space-y-3 rounded-lg border border-border/60 bg-background/30 p-4">
-      <div>
-        <h3 className="text-sm font-semibold text-foreground">Distribution & responsabilités</h3>
-        <p className="text-xs text-muted-foreground">
-          Tous les champs sont optionnels.
-        </p>
-      </div>
-
-      {membersLoading ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Chargement des membres...
-        </div>
-      ) : eventType === "match" || eventType === "cabaret" ? (
-        <div className="grid gap-3 md:grid-cols-2">
-          {fields.map((field) => (
-            <MemberCombobox
-              key={field.key}
-              label={field.label}
-              value={cast[field.key]}
-              onChange={(value) => onChange(field.key, value)}
-              members={members}
-            />
-          ))}
-        </div>
-      ) : (
-        <ReferentField
-          value={cast.referent}
-          onChange={(value) => onChange("referent", value)}
-          members={members}
-        />
-      )}
-    </div>
-  );
-}
-
 // ---- Event Detail Drawer (mobile-friendly bottom sheet) ----
 function EventDetailDrawer({
   event,
@@ -846,27 +661,21 @@ function EditEventDialog({
   onOpenChange: (v: boolean) => void;
 }) {
   const queryClient = useQueryClient();
-  const { data: members = [], isLoading: membersLoading } = useMembers();
-
-  const parsedNotes = useMemo(() => parseStructuredNotes(event.notes), [event.notes]);
 
   const [title, setTitle] = useState(event.title);
   const [eventType, setEventType] = useState<EventType>(event.event_type);
   const [isAway, setIsAway] = useState<boolean>(event.is_away || false);
   const [startAt, setStartAt] = useState<string | undefined>(event.start_at);
   const [endAt, setEndAt] = useState<string | undefined>(event.end_at ?? undefined);
-  const [notes, setNotes] = useState(parsedNotes.plainNotes);
-  const [cast, setCast] = useState<CastFormState>(parsedNotes.cast);
+  const [notes, setNotes] = useState(formatEventNotes(event.notes) ?? "");
 
   useEffect(() => {
-    const nextParsed = parseStructuredNotes(event.notes);
     setTitle(event.title);
     setEventType(event.event_type);
     setIsAway(event.is_away || false);
     setStartAt(event.start_at);
     setEndAt(event.end_at ?? undefined);
-    setNotes(nextParsed.plainNotes);
-    setCast(nextParsed.cast);
+    setNotes(formatEventNotes(event.notes) ?? "");
   }, [event]);
 
   const updateMutation = useMutation<EventRead, ApiError, EventUpdate>({
@@ -891,7 +700,7 @@ function EditEventDialog({
       is_away: isAway,
       start_at: startAt,
       end_at: endAt || undefined,
-      notes: buildStructuredNotes(notes, eventType, cast),
+      notes: notes || undefined,
     });
   };
 
@@ -938,15 +747,6 @@ function EditEventDialog({
               <Label htmlFor="edit-is-away">Déplacement (match à l'extérieur)</Label>
             </div>
           )}
-
-          <CastFieldsSection
-            eventType={eventType}
-            isAway={isAway}
-            cast={cast}
-            onChange={(key, value) => setCast((prev) => ({ ...prev, [key]: value }))}
-            members={members}
-            membersLoading={membersLoading}
-          />
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <DateTimeField
@@ -1003,14 +803,12 @@ function AddEventDialog({
   currentSeasonId: string;
 }) {
   const queryClient = useQueryClient();
-  const { data: members = [], isLoading: membersLoading } = useMembers();
   const [title, setTitle] = useState("");
   const [eventType, setEventType] = useState<EventType>("training_show");
   const [isAway, setIsAway] = useState<boolean>(false);
   const [startAt, setStartAt] = useState<string | undefined>(() => combineDateAndTime(getDefaultDateTime(), format(getDefaultDateTime(), "HH"), "00"));
   const [endAt, setEndAt] = useState<string | undefined>(undefined);
   const [notes, setNotes] = useState("");
-  const [cast, setCast] = useState<CastFormState>({ ...EMPTY_CAST_FORM });
 
   useEffect(() => {
     if (open) {
@@ -1026,7 +824,6 @@ function AddEventDialog({
     setStartAt(combineDateAndTime(defaultDate, format(defaultDate, "HH"), "00"));
     setEndAt(undefined);
     setNotes("");
-    setCast({ ...EMPTY_CAST_FORM });
   };
 
   const createMutation = useMutation<EventRead, ApiError, EventCreate>({
@@ -1052,7 +849,7 @@ function AddEventDialog({
       event_type: eventType,
       start_at: startAt,
       end_at: endAt || undefined,
-      notes: buildStructuredNotes(notes, eventType, cast),
+      notes: notes || undefined,
     });
   };
 
@@ -1099,14 +896,6 @@ function AddEventDialog({
               </SelectContent>
             </Select>
           </div>
-
-          <CastFieldsSection
-            eventType={eventType}
-            cast={cast}
-            onChange={(key, value) => setCast((prev) => ({ ...prev, [key]: value }))}
-            members={members}
-            membersLoading={membersLoading}
-          />
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <DateTimeField
