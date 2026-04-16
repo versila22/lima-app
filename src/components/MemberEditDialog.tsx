@@ -6,9 +6,8 @@ import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
-import { updateMember, updateMemberRole } from "@/lib/api";
+import { updateMember, updateMemberRole, ApiError } from "@/lib/api";
 import type { MemberProfileRead } from "@/types";
-import { ApiError } from "@/lib/api";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -73,6 +72,7 @@ export function MemberEditDialog({
         last_name: member.last_name,
         email: member.email,
         phone: member.phone ?? "",
+        // MemberProfileRead doesn't have address/postal_code/city fields, so we use empty defaults
         address: "",
         postal_code: "",
         city: "",
@@ -204,7 +204,7 @@ export function MemberEditDialog({
             <Label htmlFor="edit-role">Rôle applicatif</Label>
             <Select
               value={currentRole}
-              onValueChange={(v) => setValue("app_role", v as "admin" | "member")}
+              onValueChange={(v) => setValue("app_role", v as "admin" | "member", { shouldDirty: true })}
             >
               <SelectTrigger id="edit-role" className="bg-background/50">
                 <SelectValue />
