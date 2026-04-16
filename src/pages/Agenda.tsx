@@ -180,11 +180,9 @@ function getDefaultDateTime(): Date {
   return setMilliseconds(setSeconds(setMinutes(now, 0), 0), 0);
 }
 
-const CAST_NOTES_MARKER = "--- CAST_DATA ---";
-
 function formatEventNotes(notes?: string | null): string | null {
   if (!notes) return null;
-  const markerIndex = notes.indexOf(CAST_NOTES_MARKER);
+  const markerIndex = notes.indexOf("--- CAST_DATA ---");
   if (markerIndex === -1) return notes.trim() || null;
   return notes.slice(0, markerIndex).trim() || null;
 }
