@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CalendarDays,
+  LayoutList,
   Plus,
   Loader2,
   Pencil,
@@ -1153,6 +1154,83 @@ function AddEventDialog({
   );
 }
 
+// ---- List View ----
+interface AgendaListViewProps {
+  events: EventRead[];
+  onEventClick: (event: EventRead) => void;
+}
+
+function AgendaListView({ events, onEventClick }: AgendaListViewProps) {
+  const sorted = [...events].sort(
+    (a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime()
+  );
+
+  // Group by "MMMM yyyy"
+  const groups: { label: string; items: EventRead[] }[] = [];
+  for (const ev of sorted) {
+    const label = format(parseISO(ev.start_at), "MMMM yyyy", { locale: fr });
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) {
+      last.items.push(ev);
+    } else {
+      groups.push({ label, items: [ev] });
+    }
+  }
+
+  if (groups.length === 0) {
+    return (
+      <p className="text-center text-muted-foreground py-16 text-sm">
+        Aucun événement pour cette saison.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {groups.map((group) => (
+        <section key={group.label}>
+          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-3 capitalize">
+            {group.label}
+          </h2>
+          <div className="space-y-1.5">
+            {group.items.map((ev) => {
+              const cfg = EVENT_TYPE_CONFIG[ev.event_type] ?? EVENT_TYPE_CONFIG.other;
+              const startDate = parseISO(ev.start_at);
+              return (
+                <button
+                  key={ev.id}
+                  type="button"
+                  onClick={() => onEventClick(ev)}
+                  className={`w-full flex items-center gap-3 text-left px-3 py-2 rounded-lg border ${cfg.color} hover:opacity-80 transition-opacity`}
+                >
+                  <div className="shrink-0 text-center min-w-[2.5rem]">
+                    <p className="text-xs font-semibold leading-none">
+                      {format(startDate, "d", { locale: fr })}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground capitalize">
+                      {format(startDate, "EEE", { locale: fr })}
+                    </p>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">{ev.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {format(startDate, "HH:mm")}
+                      {ev.is_away && ev.away_city ? ` · Déplacement — ${ev.away_city}` : ""}
+                    </p>
+                  </div>
+                  <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded border ${cfg.color}`}>
+                    {cfg.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
 // ---- Main Page ----
 export default function Agenda() {
   const { user } = useAuth();
@@ -1164,6 +1242,7 @@ export default function Agenda() {
   const [addOpen, setAddOpen] = useState(false);
   const [editEvent, setEditEvent] = useState<EventRead | null>(null);
   const [deleteEvent, setDeleteEvent] = useState<EventRead | null>(null);
+  const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
 
   const deleteMutation = useMutation<void, ApiError, string>({
     mutationFn: (id) => api.delete(`/events/${id}`),
@@ -1212,24 +1291,49 @@ export default function Agenda() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Month navigation */}
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          <span className="min-w-[160px] text-center font-semibold capitalize">
-            {format(currentMonth, "MMMM yyyy", { locale: fr })}
-          </span>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setCurrentMonth((m) => addMonths(m, 1))}
-          >
-            <ChevronRight className="w-4 h-4" />
-          </Button>
+          {/* View toggle */}
+          <div className="flex rounded-lg border border-border overflow-hidden">
+            <Button
+              variant={viewMode === "calendar" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("calendar")}
+              className="rounded-none px-3"
+              aria-label="Vue calendrier"
+            >
+              <CalendarDays className="w-4 h-4" />
+            </Button>
+            <Button
+              variant={viewMode === "list" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("list")}
+              className="rounded-none px-3"
+              aria-label="Vue liste"
+            >
+              <LayoutList className="w-4 h-4" />
+            </Button>
+          </div>
+
+          {viewMode === "calendar" && (
+            <>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <span className="min-w-[160px] text-center font-semibold capitalize">
+                {format(currentMonth, "MMMM yyyy", { locale: fr })}
+              </span>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setCurrentMonth((m) => addMonths(m, 1))}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </>
+          )}
 
           {isAdmin && currentSeason && (
             <Button
@@ -1260,6 +1364,11 @@ export default function Agenda() {
         <div className="flex items-center justify-center py-16">
           <Loader2 className="w-6 h-6 animate-spin text-primary" />
         </div>
+      ) : viewMode === "list" ? (
+        <AgendaListView
+          events={events}
+          onEventClick={setSelectedEvent}
+        />
       ) : (
         /* Calendar grid */
         <div className="overflow-x-auto">
