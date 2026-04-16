@@ -4,6 +4,7 @@ import {
   CalendarDays,
   ChevronDown,
   ChevronRight,
+  Clock,
   Loader2,
   MapPin,
 } from "lucide-react";
@@ -99,9 +100,10 @@ function PlanningCard({ event, muted = false }: { event: PlanningEvent; muted?: 
                 {roleConfig.emoji} {roleConfig.label}
               </Badge>
               {event.alignment_status === "draft" && (
-                <Badge variant="outline" className="bg-orange-500/15 text-orange-200 border-orange-500/30">
-                  ⚠️ Grille non publiée
-                </Badge>
+                <span className="inline-flex items-center gap-1 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded px-2 py-0.5">
+                  <Clock className="w-3 h-3" />
+                  Brouillon
+                </span>
               )}
             </div>
 
