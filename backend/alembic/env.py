@@ -21,7 +21,10 @@ import app.models  # noqa: E402, F401 — registers all models
 config = context.config
 
 # Override sqlalchemy.url from settings (sync driver for Alembic)
-config.set_main_option("sqlalchemy.url", settings.sync_database_url)
+#config.set_main_option("sqlalchemy.url", settings.sync_database_url)
+
+db_url = settings.DATABASE_URL.replace("postgresql+asyncpg", "postgresql")
+config.set_main_option("sqlalchemy.url", f"{db_url}?sslmode=require")
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
