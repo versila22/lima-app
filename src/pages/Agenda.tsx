@@ -886,7 +886,6 @@ function EditEventDialog({
       title,
       event_type: eventType,
       is_away: isAway,
-      is_away: isAway,
       start_at: startAt,
       end_at: endAt || undefined,
       notes: buildStructuredNotes(notes, eventType, cast),
@@ -937,20 +936,8 @@ function EditEventDialog({
             </div>
           )}
 
-          {eventType === "match" && (
-            <div className="flex items-center space-x-2 border rounded-lg p-3 bg-background/30">
-              <Switch
-                id="add-is-away"
-                checked={isAway}
-                onCheckedChange={setIsAway}
-              />
-              <Label htmlFor="add-is-away">Déplacement (match à l'extérieur)</Label>
-            </div>
-          )}
-
           <CastFieldsSection
             eventType={eventType}
-            isAway={isAway}
             isAway={isAway}
             cast={cast}
             onChange={(key, value) => setCast((prev) => ({ ...prev, [key]: value }))}
