@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    # Refresh token — use a different secret to allow independent rotation
+    REFRESH_JWT_SECRET: str = DEFAULT_JWT_SECRET
 
     # App
     APP_ENV: str = "development"
@@ -50,11 +52,17 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_jwt_secret(self) -> "Settings":
-        if self.JWT_SECRET == DEFAULT_JWT_SECRET and self.APP_ENV != "development":
-            raise ValueError(
-                "JWT_SECRET uses the insecure default value. "
-                "Set JWT_SECRET in the environment before starting in non-development mode."
-            )
+        if self.APP_ENV != "development":
+            if self.JWT_SECRET == DEFAULT_JWT_SECRET:
+                raise ValueError(
+                    "JWT_SECRET uses the insecure default value. "
+                    "Set JWT_SECRET in the environment before starting in non-development mode."
+                )
+            if self.REFRESH_JWT_SECRET == DEFAULT_JWT_SECRET:
+                raise ValueError(
+                    "REFRESH_JWT_SECRET uses the insecure default value. "
+                    "Set REFRESH_JWT_SECRET in the environment before starting in non-development mode."
+                )
         return self
 
     @field_validator("CORS_ORIGINS", mode="before")
