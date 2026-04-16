@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarClock,
@@ -161,8 +161,8 @@ export default function MonProfil() {
     },
   });
 
-  const displayedHistory = useMemo(() => (profile?.season_history ?? []).slice(0, 5), [profile?.season_history]);
-  const hiddenHistoryCount = Math.max(((profile?.season_history ?? []).length) - displayedHistory.length, 0);
+  const fullHistory = profile?.season_history ?? [];
+  const hiddenHistoryCount = Math.max(fullHistory.length - 3, 0);
 
   const hasCurrentSeasonInfo =
     !!profile?.player_status || !!profile?.asso_role || ((profile?.commissions ?? []).length) > 0;
@@ -404,7 +404,7 @@ export default function MonProfil() {
           <CardDescription>Vos 5 dernières saisons, avec affichage détaillé à la demande.</CardDescription>
         </CardHeader>
         <CardContent>
-          {displayedHistory.length === 0 ? (
+          {fullHistory.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border/70 bg-background/30 p-6 text-sm text-muted-foreground">
               Aucun historique de saison disponible.
             </div>
@@ -420,7 +420,7 @@ export default function MonProfil() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {displayedHistory.slice(0, historyOpen ? displayedHistory.length : Math.min(3, displayedHistory.length)).map((entry) => (
+                    {fullHistory.slice(0, historyOpen ? fullHistory.length : 3).map((entry) => (
                       <TableRow key={entry.season_id} className="border-border hover:bg-sidebar-accent/30">
                         <TableCell className="font-medium">{entry.season_name}</TableCell>
                         <TableCell>
@@ -435,7 +435,7 @@ export default function MonProfil() {
                 </Table>
               </div>
 
-              {displayedHistory.length > 3 && (
+              {hiddenHistoryCount > 0 && (
                 <CollapsibleTrigger asChild>
                   <Button variant="ghost" className="mt-3">
                     {historyOpen ? (
@@ -446,7 +446,7 @@ export default function MonProfil() {
                     ) : (
                       <>
                         <ChevronRight className="h-4 w-4" />
-                        Voir {displayedHistory.length - 3} saison(s) de plus
+                        Voir {hiddenHistoryCount} saison(s) de plus
                       </>
                     )}
                   </Button>
