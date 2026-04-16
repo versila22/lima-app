@@ -1505,9 +1505,40 @@ export default function Agenda() {
                       );
                     })}
                     {dayEvents.length > 3 && (
-                      <p className="text-xs text-muted-foreground px-1">
-                        +{dayEvents.length - 3} autre(s)
-                      </p>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className="text-xs text-muted-foreground px-1 hover:text-foreground transition-colors w-full text-left"
+                          >
+                            +{dayEvents.length - 3} autre(s)
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          className="w-56 p-2 bg-popover border-border z-50"
+                          side="right"
+                          align="start"
+                        >
+                          <p className="text-xs font-medium text-muted-foreground mb-2">
+                            Tous les événements
+                          </p>
+                          <div className="space-y-1">
+                            {dayEvents.map((ev) => {
+                              const cfg = EVENT_TYPE_CONFIG[ev.event_type] ?? EVENT_TYPE_CONFIG.other;
+                              return (
+                                <button
+                                  key={ev.id}
+                                  type="button"
+                                  onClick={() => setSelectedEvent(ev)}
+                                  className={`w-full text-left px-1.5 py-0.5 rounded text-xs truncate border ${cfg.color} hover:opacity-80 transition-opacity`}
+                                >
+                                  {ev.title}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     )}
                   </div>
                 </div>
