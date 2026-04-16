@@ -3,7 +3,9 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-# VITE_API_URL intentionally NOT set — api.ts defaults to Railway backend URL
+# Use the local backend url
+ARG VITE_API_URL=https://api-production-e15b.up.railway.app
+ENV VITE_API_URL=$VITE_API_URL
 RUN npm run build
 
 FROM nginx:alpine
