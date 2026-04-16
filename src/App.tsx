@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ApiError } from "@/lib/api";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
@@ -28,7 +29,10 @@ const MonProfil = lazy(() => import("./pages/MonProfil"));
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
+      retry: (failureCount, error) => {
+        if (error instanceof ApiError && error.status < 500) return false;
+        return failureCount < 1;
+      },
       staleTime: 30_000,
     },
   },
