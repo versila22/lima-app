@@ -50,10 +50,10 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_jwt_secret(self) -> "Settings":
-        if self.JWT_SECRET == DEFAULT_JWT_SECRET and not self.DEBUG:
+        if self.JWT_SECRET == DEFAULT_JWT_SECRET and self.APP_ENV != "development":
             raise ValueError(
                 "JWT_SECRET uses the insecure default value. "
-                "Set JWT_SECRET in the environment before starting outside debug mode."
+                "Set JWT_SECRET in the environment before starting in non-development mode."
             )
         return self
 
