@@ -14,7 +14,7 @@ import type {
 // ============================================================
 
 const _env_url = import.meta.env.VITE_API_URL as string | undefined;
-const BASE_URL = _env_url && _env_url.length > 0
+export const API_BASE_URL = _env_url && _env_url.length > 0
   ? _env_url
   : "https://api-production-e15b.up.railway.app";
 
@@ -55,7 +55,7 @@ async function request<T>(
   path: string,
   { body, params, headers: extraHeaders, ...rest }: RequestOptions = {}
 ): Promise<T> {
-  const fullUrl = BASE_URL ? `${BASE_URL}${path}` : path;
+  const fullUrl = API_BASE_URL ? `${API_BASE_URL}${path}` : path;
   const url = new URL(fullUrl, window.location.origin);
 
   if (params) {

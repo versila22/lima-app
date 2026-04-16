@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Search, Upload, Loader2, Users } from "lucide-react";
 
-import { api, ApiError } from "@/lib/api";
+import { api, ApiError, API_BASE_URL } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import type { MemberSummary, ImportMemberReport } from "@/types";
 
@@ -50,6 +50,12 @@ const ROLE_LABELS: Record<string, string> = {
   admin: "Admin",
   member: "Membre",
 };
+
+function getPhotoUrl(url?: string | null) {
+  if (!url) return undefined;
+  if (url.startsWith("http")) return url;
+  return `${API_BASE_URL}${url}`;
+}
 
 function StatusBadge({ status }: { status: string }) {
   return (
@@ -276,7 +282,7 @@ export default function Members() {
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8 shrink-0">
                         <AvatarImage
-                          src={m.photo_url ? m.photo_url : undefined}
+                          src={getPhotoUrl(m.photo_url)}
                           alt={`${m.first_name} ${m.last_name}`}
                         />
                         <AvatarFallback className="text-xs bg-primary/20 text-primary">

@@ -14,7 +14,7 @@ import {
 import { toast } from "sonner";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { api, type ApiError, fetchMyProfile } from "@/lib/api";
+import { api, type ApiError, fetchMyProfile, API_BASE_URL } from "@/lib/api";
 import type { MemberProfileRead, MemberUpdate, PlayerStatus } from "@/types";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -79,6 +79,12 @@ function getInitials(firstName?: string | null, lastName?: string | null) {
 
 function getFullName(profile: Pick<MemberProfileRead, "first_name" | "last_name">) {
   return `${profile.first_name} ${profile.last_name}`.trim() || "Profil membre";
+}
+
+function getPhotoUrl(url?: string | null) {
+  if (!url) return undefined;
+  if (url.startsWith("http")) return url;
+  return `${API_BASE_URL}${url}`;
 }
 
 function PlayerStatusBadge({ status }: { status: PlayerStatus | null | undefined }) {
@@ -225,7 +231,7 @@ export default function MonProfil() {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
               <Avatar className="h-24 w-24 border border-primary/20 shadow-lg">
                 <AvatarImage
-                  src={profile.photo_url ? profile.photo_url : undefined}
+                  src={getPhotoUrl(profile.photo_url)}
                   alt={getFullName(profile)}
                 />
                 <AvatarFallback className="bg-gradient-to-br from-cabaret-purple/80 to-cabaret-gold/80 text-2xl font-bold text-background">
