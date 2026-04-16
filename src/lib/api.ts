@@ -14,9 +14,14 @@ import type {
 // ============================================================
 
 const _env_url = import.meta.env.VITE_API_URL as string | undefined;
+
+if (!_env_url && import.meta.env.PROD) {
+  throw new Error("VITE_API_URL must be set for production builds.");
+}
+
 export const API_BASE_URL = _env_url && _env_url.length > 0
   ? _env_url
-  : "https://api-production-e15b.up.railway.app";
+  : "http://localhost:8000";
 
 const TOKEN_KEY = "lima_token";
 
