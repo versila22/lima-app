@@ -23,20 +23,10 @@ export const API_BASE_URL = _env_url && _env_url.length > 0
   ? _env_url
   : "http://localhost:8000";
 
-const TOKEN_KEY = "lima_token";
-
-// ---- Token helpers ----
-export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
-}
-
-export function setToken(token: string): void {
-  localStorage.setItem(TOKEN_KEY, token);
-}
-
-export function removeToken(): void {
-  localStorage.removeItem(TOKEN_KEY);
-}
+// Token management moved to httpOnly cookies — no client-side token storage.
+// A 401 interceptor in _doRequest() handles silent refresh via POST /auth/refresh.
+let _isRefreshing = false;
+let _refreshQueue: Array<() => void> = [];
 
 // ---- Core request helper ----
 interface RequestOptions extends Omit<RequestInit, "body"> {
@@ -58,10 +48,19 @@ export class ApiError extends Error {
 async function request<T>(
   method: string,
   path: string,
-  { body, params, headers: extraHeaders, ...rest }: RequestOptions = {}
+  options: RequestOptions = {}
+): Promise<T> {
+  return _doRequest<T>(method, path, options, false);
+}
+
+async function _doRequest<T>(
+  method: string,
+  path: string,
+  { body, params, headers: extraHeaders, ...rest }: RequestOptions,
+  isRetry: boolean
 ): Promise<T> {
   const fullUrl = API_BASE_URL ? `${API_BASE_URL}${path}` : path;
-  const url = new URL(fullUrl, window.location.origin);
+  const url = new URL(fullUrl);
 
   if (params) {
     Object.entries(params).forEach(([k, v]) => {
@@ -71,19 +70,13 @@ async function request<T>(
     });
   }
 
-  const token = getToken();
   const headers: Record<string, string> = {
     ...(extraHeaders as Record<string, string>),
   };
 
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
   let bodyInit: BodyInit | undefined;
   if (body instanceof FormData) {
     bodyInit = body;
-    // Don't set Content-Type; browser sets it with boundary
   } else if (body !== undefined) {
     headers["Content-Type"] = "application/json";
     bodyInit = JSON.stringify(body);
@@ -93,8 +86,18 @@ async function request<T>(
     method,
     headers,
     body: bodyInit,
+    credentials: "include",
     ...rest,
   });
+
+  if (response.status === 401 && !isRetry) {
+    const refreshed = await _tryRefresh();
+    if (refreshed) {
+      return _doRequest<T>(method, path, { body, params, headers: extraHeaders, ...rest }, true);
+    }
+    window.dispatchEvent(new CustomEvent("auth:logout"));
+    throw new ApiError(401, "Session expirée");
+  }
 
   if (!response.ok) {
     let detail = `HTTP ${response.status}`;
@@ -107,12 +110,38 @@ async function request<T>(
     throw new ApiError(response.status, detail);
   }
 
-  // 204 No Content
   if (response.status === 204) {
     return undefined as unknown as T;
   }
 
   return response.json() as Promise<T>;
+}
+
+async function _tryRefresh(): Promise<boolean> {
+  if (_isRefreshing) {
+    return new Promise((resolve) => {
+      _refreshQueue.push(() => resolve(true));
+    });
+  }
+  _isRefreshing = true;
+  try {
+    const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      method: "POST",
+      credentials: "include",
+    });
+    if (!res.ok) {
+      _refreshQueue = [];
+      return false;
+    }
+    _refreshQueue.forEach((cb) => cb());
+    _refreshQueue = [];
+    return true;
+  } catch {
+    _refreshQueue = [];
+    return false;
+  } finally {
+    _isRefreshing = false;
+  }
 }
 
 // ---- HTTP verb helpers ----
@@ -302,16 +331,15 @@ export async function fetchMyProfile(): Promise<MemberProfileRead> {
 }
 
 export async function uploadMemberPhoto(memberId: string, file: File): Promise<{ photo_url: string }> {
-  const token = getToken();
   const formData = new FormData();
   formData.append("file", file);
 
   const fullUrl = API_BASE_URL ? `${API_BASE_URL}/members/${memberId}/photo` : `/members/${memberId}/photo`;
-  
+
   const res = await fetch(fullUrl, {
     method: "POST",
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData,
+    credentials: "include",
   });
   
   if (!res.ok) {
