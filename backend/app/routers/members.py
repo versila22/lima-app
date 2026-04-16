@@ -350,6 +350,23 @@ async def deactivate_member(
     await db.commit()
 
 
+@router.patch("/{member_id}/reactivate", response_model=MemberRead)
+async def reactivate_member(
+    member_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: Member = Depends(require_admin),
+):
+    """Reactivate a previously deactivated member (admin only)."""
+    result = await db.execute(select(Member).where(Member.id == member_id))
+    member = result.scalar_one_or_none()
+    if member is None:
+        raise HTTPException(status_code=404, detail="Membre introuvable")
+    member.is_active = True
+    await db.flush()
+    await db.commit()
+    return await _get_member_for_response(db, member.id)
+
+
 @router.post("/{member_id}/resend-activation", status_code=status.HTTP_200_OK)
 async def resend_activation(
     member_id: UUID,
