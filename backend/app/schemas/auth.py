@@ -52,3 +52,8 @@ class ChangePasswordRequest(BaseModel):
         if len(v) < 8:
             raise ValueError("Le mot de passe doit contenir au moins 8 caractères")
         return v
+
+
+class RefreshResponse(BaseModel):
+    """Returned by POST /auth/refresh — confirms token rotation."""
+    detail: str = "Token refreshed"
