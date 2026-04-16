@@ -14,6 +14,7 @@ import {
   Facebook,
   LogOut,
   X,
+  LayoutGrid,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
@@ -37,6 +38,7 @@ const menuItems = [
   { icon: User, label: "Mon Profil", path: "/mon-profil" },
   { icon: CalendarDays, label: "Mon Planning", path: "/mon-planning" },
   { icon: Users, label: "Membres", path: "/membres" },
+  { icon: LayoutGrid, label: "Alignements", path: "/alignements", adminOnly: true },
   { icon: BarChart3, label: "Statistiques", path: "/stats", adminOnly: true },
   { icon: Settings, label: "Paramètres", path: "/settings", adminOnly: true },
 ];

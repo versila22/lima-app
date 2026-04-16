@@ -14,6 +14,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/mon-profil": "Mon Profil",
   "/mon-planning": "Mon Planning",
   "/membres": "Membres",
+  "/alignements": "Alignements",
   "/stats": "Statistiques",
   "/settings": "Paramètres",
 };

@@ -26,6 +26,8 @@ const Stats = lazy(() => import("./pages/Stats"));
 const Settings = lazy(() => import("./pages/Settings"));
 const MonPlanning = lazy(() => import("./pages/MonPlanning"));
 const MonProfil = lazy(() => import("./pages/MonProfil"));
+const Alignements = lazy(() => import("./pages/Alignements"));
+const AlignementEditor = lazy(() => import("./pages/AlignementEditor"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -115,6 +117,22 @@ function AppRoutes() {
           <Route path="/mon-profil" element={<MonProfil />} />
           <Route path="/mon-planning" element={<MonPlanning />} />
           <Route path="/membres" element={<Members />} />
+          <Route
+            path="/alignements"
+            element={
+              <ProtectedRoute adminOnly>
+                <Alignements />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/alignements/:id"
+            element={
+              <ProtectedRoute adminOnly>
+                <AlignementEditor />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/stats"
             element={
