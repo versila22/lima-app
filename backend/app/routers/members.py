@@ -294,11 +294,11 @@ async def update_member(
     return await _get_member_for_response(db, member.id)
 
 
-@router.post("/{member_id}/photo", status_code=status.HTTP_200_OK)
 import boto3
 from botocore.exceptions import ClientError
 from fastapi.concurrency import run_in_threadpool
 
+@router.post("/{member_id}/photo", status_code=status.HTTP_200_OK)
 async def upload_member_photo(
     member_id: UUID,
     file: UploadFile = File(...),
