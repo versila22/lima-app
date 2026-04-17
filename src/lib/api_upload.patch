@@ -1,0 +1,18 @@
+--- src/lib/api.ts
++++ src/lib/api.ts
+@@ -194,6 +194,15 @@
+   return api.put<MemberProfileRead>("/auth/me", data);
+ }
+ 
++export async function uploadMyPhoto(memberId: string, file: File): Promise<{ photo_url: string }> {
++  const formData = new FormData();
++  formData.append("file", file);
++  return api.post<{ photo_url: string }>(`/members/${memberId}/photo`, formData, {
++    // Let the browser set Content-Type with the boundary
++    headers: {},
++  });
++}
++
+ // ============================================================
+ // Saisons
+ // ============================================================
