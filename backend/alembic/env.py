@@ -56,17 +56,22 @@ def do_run_migrations(connection: Connection) -> None:
         context.run_migrations()
 
 
-async def run_async_migrations() -> None:
-    """Run migrations using an async engine (online mode)."""
-    connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
+async def run_async_migrations():
+    """Run migrations in 'online' mode for an async engine."""
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from app.config import settings
+
+    # This is the fix: create the engine manually to pass SSL arguments
+    # required by Railway's internal network.
+    connectable = create_async_engine(
+        settings.DATABASE_URL,
         poolclass=pool.NullPool,
-        # Override to async URL for the engine
-        url=settings.DATABASE_URL,
+        connect_args={"ssl": "require"},
     )
+
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
+
     await connectable.dispose()
 
 
