@@ -51,6 +51,13 @@ class Settings(BaseSettings):
     # Server
     PORT: int = 8000
 
+    # Storage (Cloudflare R2 / S3)
+    S3_ENDPOINT_URL: str | None = None
+    S3_ACCESS_KEY_ID: str | None = None
+    S3_SECRET_ACCESS_KEY: str | None = None
+    S3_BUCKET_NAME: str | None = None
+    S3_PUBLIC_URL: str | None = None
+
     @model_validator(mode="after")
     def validate_jwt_secret(self) -> "Settings":
         if self.APP_ENV != "development":

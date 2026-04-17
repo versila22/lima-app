@@ -295,40 +295,61 @@ async def update_member(
 
 
 @router.post("/{member_id}/photo", status_code=status.HTTP_200_OK)
+import boto3
+from botocore.exceptions import ClientError
+from fastapi.concurrency import run_in_threadpool
+
 async def upload_member_photo(
     member_id: UUID,
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     current_user: Member = Depends(get_current_user),
 ):
-    """Upload a profile photo for a member. Admin or self. Stores in /static/photos/."""
+    """Upload a profile photo for a member to Cloudflare R2. Admin or self."""
     if not current_user.is_admin and current_user.id != member_id:
         raise HTTPException(status_code=403, detail="Accès réservé à votre profil")
-    import os, shutil, uuid as uuid_lib
 
     result = await db.execute(select(Member).where(Member.id == member_id))
     member = result.scalar_one_or_none()
     if member is None:
         raise HTTPException(status_code=404, detail="Membre introuvable")
 
-    # Validate file type
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Le fichier doit être une image")
 
-    # Save to /static/photos/
-    photos_dir = "/static/photos"
-    os.makedirs(photos_dir, exist_ok=True)
-
+    import os
     ext = os.path.splitext(file.filename or "photo.jpg")[1] or ".jpg"
-    filename = f"{member_id}{ext}"
-    dest = os.path.join(photos_dir, filename)
+    filename = f"photos/{member_id}{ext}"
+    
+    if not settings.S3_BUCKET_NAME:
+        raise HTTPException(status_code=500, detail="Stockage S3 non configuré")
 
-    with open(dest, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+    s3_client = boto3.client(
+        's3',
+        endpoint_url=settings.S3_ENDPOINT_URL,
+        aws_access_key_id=settings.S3_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.S3_SECRET_ACCESS_KEY,
+        region_name="auto"
+    )
 
-    photo_url = f"/static/photos/{filename}"
+    file_bytes = await file.read()
+
+    def s3_upload():
+        s3_client.put_object(
+            Bucket=settings.S3_BUCKET_NAME,
+            Key=filename,
+            Body=file_bytes,
+            ContentType=file.content_type
+        )
+
+    try:
+        await run_in_threadpool(s3_upload)
+    except ClientError as e:
+        print(f"S3 Upload Error: {e}")
+        raise HTTPException(status_code=500, detail="Erreur lors de l'upload de l'image")
+
+    photo_url = f"{settings.S3_PUBLIC_URL}/{filename}"
     member.photo_url = photo_url
-    await db.flush()
     await db.commit()
 
     return {"photo_url": photo_url}

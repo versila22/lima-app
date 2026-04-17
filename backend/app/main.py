@@ -66,11 +66,12 @@ app.include_router(admin.router, prefix="/api/admin")
 # ---------------------------------------------------------------------------
 # Static files (member photos)
 # ---------------------------------------------------------------------------
-_static_root = os.environ.get("STATIC_DIR", os.path.join(os.path.dirname(__file__), "..", "..", "static"))
-_static_root = os.path.abspath(_static_root)
-_photos_dir = os.path.join(_static_root, "photos")
-os.makedirs(_photos_dir, exist_ok=True)
-app.mount("/static", StaticFiles(directory=_static_root), name="static")
+# Storage is now delegated to S3/R2. Local static serving disabled.
+# _static_root = os.environ.get("STATIC_DIR", os.path.join(os.path.dirname(__file__), "..", "..", "static"))
+# _static_root = os.path.abspath(_static_root)
+# _photos_dir = os.path.join(_static_root, "photos")
+# os.makedirs(_photos_dir, exist_ok=True)
+# app.mount("/static", StaticFiles(directory=_static_root), name="static")
 
 
 # ---------------------------------------------------------------------------
