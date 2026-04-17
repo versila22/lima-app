@@ -57,16 +57,22 @@ def do_run_migrations(connection: Connection) -> None:
 
 
 async def run_async_migrations():
-    """Run migrations in 'online' mode for an async engine."""
+    """Run migrations in 'online' mode, with a permissive SSL context for Railway."""
+    import ssl
     from sqlalchemy.ext.asyncio import create_async_engine
     from app.config import settings
+    from sqlalchemy.pool import NullPool
 
-    # This is the fix: create the engine manually to pass SSL arguments
-    # required by Railway's internal network.
+    # Create a permissive SSL context that doesn't verify the cert.
+    # This is often necessary for internal network connections with self-signed certs.
+    ssl_context = ssl.create_default_context()
+    ssl_context.check_hostname = False
+    ssl_context.verify_mode = ssl.CERT_NONE
+
     connectable = create_async_engine(
         settings.DATABASE_URL,
-        poolclass=pool.NullPool,
-        connect_args={"ssl": "require"},
+        poolclass=NullPool,
+        connect_args={"ssl": ssl_context},
     )
 
     async with connectable.connect() as connection:
