@@ -96,11 +96,4 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     return Settings()
 
-@property
-def sync_database_url(self) -> str:
-    """Return the sync version of the DB URL for Alembic, forcing SSL."""
-    sync_url = self.DATABASE_URL.replace("postgresql+asyncpg", "postgresql")
-    # Railway's internal network requires SSL for its PG instances
-    return f"{sync_url}?sslmode=require"
-
 settings = get_settings()
