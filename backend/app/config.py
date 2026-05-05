@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 DEFAULT_JWT_SECRET = "insecure_dev_secret_change_me"
-DEFAULT_CORS_ORIGINS = "http://localhost:3000,http://localhost:5173"
+DEFAULT_CORS_ORIGINS = "http://localhost:3000,http://localhost:5173,http://localhost:8080"
 
 
 class Settings(BaseSettings):

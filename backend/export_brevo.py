@@ -10,7 +10,7 @@ async def main():
         result = await conn.execute(text("SELECT email, first_name, last_name, app_role FROM members WHERE is_active = true"))
         members = result.fetchall()
         
-    with open("/data/.openclaw/workspace/lima-backend/brevo_contacts.csv", "w", newline="", encoding="utf-8") as f:
+    with open("/data/.openclaw/workspace/lima-app/brevo_contacts.csv", "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["EMAIL", "FIRSTNAME", "LASTNAME", "ROLE"])
         for m in members:

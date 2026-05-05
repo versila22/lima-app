@@ -57,8 +57,8 @@ FastAPI (Railway) ─── PostgreSQL 16 (Railway)
 
 ```bash
 # Clone
-git clone https://github.com/versila22/lima-backend.git
-cd lima-backend
+git clone https://github.com/versila22/lima-app.git
+cd lima-app
 
 # Setup venv
 python -m venv .venv

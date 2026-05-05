@@ -108,7 +108,7 @@ def set_auth_cookies(response, access_token: str, refresh_token: str, secure: bo
         value=access_token,
         httponly=True,
         secure=secure,
-        samesite="lax",
+        samesite="none" if secure else "lax",
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         path="/",
     )
@@ -117,7 +117,7 @@ def set_auth_cookies(response, access_token: str, refresh_token: str, secure: bo
         value=refresh_token,
         httponly=True,
         secure=secure,
-        samesite="lax",
+        samesite="none" if secure else "lax",
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
         path="/auth/refresh",  # must match the auth router prefix + /refresh
     )
@@ -125,5 +125,5 @@ def set_auth_cookies(response, access_token: str, refresh_token: str, secure: bo
 
 def clear_auth_cookies(response, secure: bool) -> None:
     """Expire auth cookies."""
-    response.delete_cookie(key="access_token", path="/", secure=secure, httponly=True, samesite="lax")
-    response.delete_cookie(key="refresh_token", path="/auth/refresh", secure=secure, httponly=True, samesite="lax")  # must match the auth router prefix + /refresh
+    response.delete_cookie(key="access_token", path="/", secure=secure, httponly=True, samesite="none" if secure else "lax")
+    response.delete_cookie(key="refresh_token", path="/auth/refresh", secure=secure, httponly=True, samesite="none" if secure else "lax")  # must match the auth router prefix + /refresh

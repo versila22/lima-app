@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: lima-backend
+    container_name: lima-api
     restart: unless-stopped
     env_file:
       - .env
