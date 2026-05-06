@@ -87,9 +87,12 @@ class Settings(BaseSettings):
     @property
     def sync_database_url(self) -> str:
         """Synchronous URL for Alembic migrations."""
-        return self.DATABASE_URL.replace(
-            "postgresql+asyncpg://", "postgresql+psycopg2://"
-        )
+        # Alembic requires a synchronous driver. psycopg2 is more stable for this.
+        # We also need to explicitly add sslmode=require for Railway's proxy.
+        db_url = self.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
+        if 'sslmode' not in db_url:
+            return f"{db_url}?sslmode=require"
+        return db_url
 
 
 @lru_cache()
