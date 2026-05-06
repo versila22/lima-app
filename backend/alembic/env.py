@@ -58,25 +58,21 @@ def do_run_migrations(connection: Connection) -> None:
 
 async def run_async_migrations():
     """Run migrations in 'online' mode."""
-    import ssl
     from sqlalchemy.ext.asyncio import create_async_engine
     from app.config import settings
     from sqlalchemy.pool import NullPool
 
-    # We need to enforce standard SSL context because Railway requires SSL
-    ssl_context = ssl.create_default_context()
-    ssl_context.check_hostname = False
-    ssl_context.verify_mode = ssl.CERT_NONE
-
-    # Ensure URL forces sslmode
+    # When connecting to Railway externally or internally via asyncpg, SSL is NOT needed
+    # internally since Railway handles routing inside its private network unencrypted.
+    # We must explicitly disable SSL check or pass None for SSL context if asyncpg attempts to enforce it.
+    
     db_url = settings.DATABASE_URL
-    if "?" not in db_url:
-        db_url += "?ssl=true"
-
+    if "?ssl=" in db_url:
+        db_url = db_url.split("?")[0]
+        
     connectable = create_async_engine(
         db_url,
         poolclass=NullPool,
-        connect_args={"ssl": ssl_context},
     )
 
     async with connectable.connect() as connection:
