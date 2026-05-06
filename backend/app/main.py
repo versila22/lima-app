@@ -33,8 +33,13 @@ from app.run_migrations import run_migrations
 async def lifespan(app: FastAPI):
     # On startup
     print("INFO:     Starting up and running migrations...")
-    run_migrations()
-    print("INFO:     Migrations finished.")
+    try:
+        run_migrations()
+        print("INFO:     Migrations finished successfully.")
+    except Exception as e:
+        print(f"FATAL:    Migrations failed: {e}")
+        # We raise the exception to ensure the deployment fails with a clear error log
+        raise
     yield
     # On shutdown
     print("INFO:     Shutting down.")
