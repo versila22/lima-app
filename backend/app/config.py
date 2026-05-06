@@ -91,7 +91,7 @@ class Settings(BaseSettings):
         # to avoid driver conflicts.
         
         # Start with the async URL, as it's the source of truth from Railway
-        db_url = self.DATABASE_URL
+        db_url = str(self.DATABASE_URL)
         
         # Replace the async driver with the sync driver
         if "postgresql+asyncpg://" in db_url:
