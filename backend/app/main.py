@@ -26,12 +26,27 @@ from app.routers import (
     venues,
 )
 
+from contextlib import asynccontextmanager
+from app.run_migrations import run_migrations
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # On startup
+    print("INFO:     Starting up and running migrations...")
+    run_migrations()
+    print("INFO:     Migrations finished.")
+    yield
+    # On shutdown
+    print("INFO:     Shutting down.")
+
+
 app = FastAPI(
     title="LIMA API",
     description="API backend de la Ligue d'Improvisation du Maine-et-Loire",
     version="0.1.0",
     docs_url="/docs" if settings.is_development else None,
     redoc_url="/redoc" if settings.is_development else None,
+    lifespan=lifespan,
 )
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
