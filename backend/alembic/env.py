@@ -1,39 +1,30 @@
-"""Alembic migration environment — supports async SQLAlchemy."""
-
-import asyncio
+"""Alembic migration environment for synchronous operations."""
+import os
+import sys
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import pool
-from sqlalchemy.engine import Connection
-from sqlalchemy.ext.asyncio import async_engine_from_config
+from sqlalchemy import engine_from_config, pool
 
-# Load all models so Alembic autogenerate can detect them
-import sys
-import os
-
+# Load app models
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-
-from app.config import settings  # noqa: E402
-from app.database import Base  # noqa: E402
-import app.models  # noqa: E402, F401 — registers all models
+from app.config import settings
+from app.database import Base
+import app.models  # noqa: F401
 
 config = context.config
 
-# Override sqlalchemy.url from settings (sync driver for Alembic)
-#config.set_main_option("sqlalchemy.url", settings.sync_database_url)
-
-db_url = settings.DATABASE_URL.replace("postgresql+asyncpg", "postgresql")
-config.set_main_option("sqlalchemy.url", f"{db_url}?sslmode=require")
+# Use the synchronous database URL for Alembic
+# This is crucial for stability in environments like Railway
+config.set_main_option("sqlalchemy.url", settings.sync_database_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
 
-
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode (no real DB connection)."""
+    """Run migrations in 'offline' mode."""
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
@@ -45,45 +36,20 @@ def run_migrations_offline() -> None:
     with context.begin_transaction():
         context.run_migrations()
 
-
-def do_run_migrations(connection: Connection) -> None:
-    context.configure(
-        connection=connection,
-        target_metadata=target_metadata,
-        compare_type=True,
-    )
-    with context.begin_transaction():
-        context.run_migrations()
-
-
-async def run_async_migrations():
-    """Run migrations in 'online' mode."""
-    from sqlalchemy.ext.asyncio import create_async_engine
-    from app.config import settings
-    from sqlalchemy.pool import NullPool
-
-    # When connecting to Railway externally or internally via asyncpg, SSL is NOT needed
-    # internally since Railway handles routing inside its private network unencrypted.
-    # We must explicitly disable SSL check or pass None for SSL context if asyncpg attempts to enforce it.
-    
-    db_url = settings.DATABASE_URL
-    if "?ssl=" in db_url:
-        db_url = db_url.split("?")[0]
-        
-    connectable = create_async_engine(
-        db_url,
-        poolclass=NullPool,
-    )
-
-    async with connectable.connect() as connection:
-        await connection.run_sync(do_run_migrations)
-
-    await connectable.dispose()
-
-
 def run_migrations_online() -> None:
-    asyncio.run(run_async_migrations())
+    """Run migrations in 'online' mode using a synchronous engine."""
+    connectable = engine_from_config(
+        config.get_section(config.config_ini_section),
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
+    )
 
+    with connectable.connect() as connection:
+        context.configure(
+            connection=connection, target_metadata=target_metadata, compare_type=True
+        )
+        with context.begin_transaction():
+            context.run_migrations()
 
 if context.is_offline_mode():
     run_migrations_offline()
