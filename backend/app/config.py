@@ -85,6 +85,20 @@ class Settings(BaseSettings):
         return self.APP_ENV == "development"
 
     @property
+    def async_database_url(self) -> str:
+        """Normalized async database URL for the application."""
+        url = self.DATABASE_URL
+        if url.startswith("postgresql://"):
+            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        elif url.startswith("postgres://"): # Railway can use this format
+            url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+        
+        # asyncpg doesn't support sslmode in the query string
+        if "?sslmode=" in url:
+            url = url.split("?sslmode=")[0]
+        return url
+
+    @property
     def sync_database_url(self) -> str:
         """Synchronous URL for Alembic migrations."""
         # This property must be completely separate from the main DATABASE_URL
