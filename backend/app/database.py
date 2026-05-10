@@ -1,5 +1,6 @@
 """SQLAlchemy async engine and session management."""
 
+import ssl
 from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import (
@@ -11,13 +12,19 @@ from sqlalchemy.orm import DeclarativeBase
 
 from app.config import settings
 
+# Railway PostgreSQL uses an internal CA not in the system trust store.
+# We require encryption (sslmode=require equivalent) but skip cert verification.
+_ssl_ctx = ssl.create_default_context()
+_ssl_ctx.check_hostname = False
+_ssl_ctx.verify_mode = ssl.CERT_NONE
+
 engine = create_async_engine(
     settings.async_database_url,
     echo=settings.DEBUG,
     pool_pre_ping=True,
     pool_size=10,
     max_overflow=20,
-    connect_args={"ssl": True},
+    connect_args={"ssl": _ssl_ctx},
 )
 
 AsyncSessionLocal = async_sessionmaker(
