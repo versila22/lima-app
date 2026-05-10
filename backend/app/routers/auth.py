@@ -124,7 +124,11 @@ async def login(
     Sets httpOnly access_token and refresh_token cookies.
     Also returns the access token in the body for backward compatibility.
     """
-    member = await auth_service.authenticate_member(db, data.email, data.password)
+    try:
+        member = await auth_service.authenticate_member(db, data.email, data.password)
+    except Exception as _exc:
+        import traceback
+        raise HTTPException(status_code=500, detail=f"[DIAG] {type(_exc).__name__}: {_exc}\n{traceback.format_exc()}")
     if member is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
