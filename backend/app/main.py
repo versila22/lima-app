@@ -30,8 +30,21 @@ from contextlib import asynccontextmanager
 from app.run_migrations import run_migrations
 
 
+_SEED_MEMBERS = [
+    {"email": "admin@lima-impro.fr",        "first_name": "Alexandre", "last_name": "Bertrand", "phone": "06 11 22 33 44", "app_role": "admin",   "password": "Admin1234!", "player_status": "M", "player_fee": "160.00", "asso_role": "co_president"},
+    {"email": "marie.leroy@exemple.fr",     "first_name": "Marie",     "last_name": "Leroy",    "phone": "06 22 33 44 55", "app_role": "member",  "password": "Password1!", "player_status": "M", "player_fee": "160.00", "asso_role": "co_treasurer"},
+    {"email": "thomas.martin@exemple.fr",   "first_name": "Thomas",    "last_name": "Martin",   "phone": "06 33 44 55 66", "app_role": "member",  "password": "Password1!", "player_status": "C", "player_fee": "75.00",  "asso_role": None},
+    {"email": "sophie.dubois@exemple.fr",   "first_name": "Sophie",    "last_name": "Dubois",   "phone": "06 44 55 66 77", "app_role": "member",  "password": "Password1!", "player_status": "M", "player_fee": "160.00", "asso_role": "secretary"},
+    {"email": "lucas.petit@exemple.fr",     "first_name": "Lucas",     "last_name": "Petit",    "phone": "06 55 66 77 88", "app_role": "member",  "password": "Password1!", "player_status": "L", "player_fee": "40.00",  "asso_role": None},
+    {"email": "claire.moreau@exemple.fr",   "first_name": "Claire",    "last_name": "Moreau",   "phone": "06 66 77 88 99", "app_role": "member",  "password": "Password1!", "player_status": "C", "player_fee": "75.00",  "asso_role": "ca_member"},
+    {"email": "julien.bernard@exemple.fr",  "first_name": "Julien",    "last_name": "Bernard",  "phone": "06 77 88 99 00", "app_role": "member",  "password": "Password1!", "player_status": "M", "player_fee": "160.00", "asso_role": "coach"},
+    {"email": "emma.richard@exemple.fr",    "first_name": "Emma",      "last_name": "Richard",  "phone": "06 88 99 00 11", "app_role": "member",  "password": "Password1!", "player_status": "A", "player_fee": None,      "asso_role": None},
+    {"email": "paul.durand@exemple.fr",     "first_name": "Paul",      "last_name": "Durand",   "phone": "06 99 00 11 22", "app_role": "member",  "password": "Password1!", "player_status": "M", "player_fee": "160.00", "asso_role": None},
+]
+
+
 async def _ensure_seed_data() -> None:
-    """Create admin user and season if the DB is freshly migrated (no members)."""
+    """Create all seed members and the current season if the DB is freshly migrated."""
     from decimal import Decimal
     from datetime import date
     from sqlalchemy import select
@@ -43,44 +56,44 @@ async def _ensure_seed_data() -> None:
 
     async with AsyncSessionLocal() as db:
         try:
-            result = await db.execute(select(Member).where(Member.email == "admin@lima-impro.fr"))
-            if result.scalar_one_or_none() is not None:
-                return  # already seeded
+            existing = (await db.execute(select(Member.email))).scalars().all()
+            existing_emails = set(existing)
+            to_create = [m for m in _SEED_MEMBERS if m["email"] not in existing_emails]
+            if not to_create:
+                return  # already fully seeded
 
-            print("INFO:     Seeding initial data...")
+            print(f"INFO:     Seeding {len(to_create)} member(s)...")
 
-            season = Season(
-                name="2025-2026",
-                start_date=date(2025, 9, 1),
-                end_date=date(2026, 8, 31),
-                is_current=True,
-            )
-            db.add(season)
-            await db.flush()
+            # Ensure the current season exists
+            season = (await db.execute(select(Season).where(Season.is_current.is_(True)))).scalar_one_or_none()
+            if season is None:
+                season = Season(name="2025-2026", start_date=date(2025, 9, 1), end_date=date(2026, 8, 31), is_current=True)
+                db.add(season)
+                await db.flush()
 
-            admin = Member(
-                email="admin@lima-impro.fr",
-                first_name="Alexandre",
-                last_name="Bertrand",
-                phone="06 11 22 33 44",
-                app_role="admin",
-                password_hash=hash_password("Admin1234!"),
-                is_active=True,
-            )
-            db.add(admin)
-            await db.flush()
-
-            db.add(MemberSeason(
-                member_id=admin.id,
-                season_id=season.id,
-                player_status="M",
-                membership_fee=Decimal("20.00"),
-                player_fee=Decimal("160.00"),
-                asso_role="co_president",
-            ))
+            for m in to_create:
+                member = Member(
+                    email=m["email"],
+                    first_name=m["first_name"],
+                    last_name=m["last_name"],
+                    phone=m["phone"],
+                    app_role=m["app_role"],
+                    password_hash=hash_password(m["password"]),
+                    is_active=True,
+                )
+                db.add(member)
+                await db.flush()
+                db.add(MemberSeason(
+                    member_id=member.id,
+                    season_id=season.id,
+                    player_status=m["player_status"],
+                    membership_fee=Decimal("20.00"),
+                    player_fee=Decimal(m["player_fee"]) if m["player_fee"] else None,
+                    asso_role=m["asso_role"],
+                ))
 
             await db.commit()
-            print("INFO:     Seed data created (admin@lima-impro.fr / Admin1234!).")
+            print(f"INFO:     Seeded {len(to_create)} member(s) successfully.")
         except Exception:
             await db.rollback()
             import traceback
