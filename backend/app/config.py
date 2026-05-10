@@ -101,21 +101,17 @@ class Settings(BaseSettings):
     @property
     def sync_database_url(self) -> str:
         """Synchronous URL for Alembic migrations."""
-        # This property must be completely separate from the main DATABASE_URL
-        # to avoid driver conflicts.
-        
-        # Start with the async URL, as it's the source of truth from Railway
         db_url = str(self.DATABASE_URL)
-        
-        # Replace the async driver with the sync driver
-        if "postgresql+asyncpg://" in db_url:
-            db_url = db_url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
-        elif "postgresql://" in db_url:
-            db_url = db_url.replace("postgresql://", "postgresql+psycopg2://")
 
-        # Ensure sslmode=require is present for the synchronous connection
-        if 'sslmode' not in db_url:
-            if '?' in db_url:
+        if "postgresql+asyncpg://" in db_url:
+            db_url = db_url.replace("postgresql+asyncpg://", "postgresql+psycopg2://", 1)
+        elif db_url.startswith("postgresql://"):
+            db_url = db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+        elif db_url.startswith("postgres://"):  # Railway shorthand format
+            db_url = db_url.replace("postgres://", "postgresql+psycopg2://", 1)
+
+        if "sslmode" not in db_url:
+            if "?" in db_url:
                 return f"{db_url}&sslmode=require"
             return f"{db_url}?sslmode=require"
         return db_url
