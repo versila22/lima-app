@@ -101,3 +101,16 @@ app.include_router(admin.router, prefix="/api/admin")
 async def health_check():
     """Returns 200 OK when the service is running."""
     return {"status": "ok", "version": "0.1.0"}
+
+
+@app.get("/health/db", tags=["health"])
+async def health_check_db():
+    """Test asyncpg DB connectivity — returns error detail on failure."""
+    from sqlalchemy import text
+    from app.database import engine
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        return {"status": "ok", "db": "connected"}
+    except Exception as exc:
+        return {"status": "error", "db": str(exc)}
