@@ -110,10 +110,6 @@ class Settings(BaseSettings):
         elif db_url.startswith("postgres://"):  # Railway shorthand format
             db_url = db_url.replace("postgres://", "postgresql+psycopg2://", 1)
 
-        if "sslmode" not in db_url:
-            if "?" in db_url:
-                return f"{db_url}&sslmode=require"
-            return f"{db_url}?sslmode=require"
         return db_url
 
 
