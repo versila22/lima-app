@@ -29,6 +29,64 @@ from app.routers import (
 from contextlib import asynccontextmanager
 from app.run_migrations import run_migrations
 
+
+async def _ensure_seed_data() -> None:
+    """Create admin user and season if the DB is freshly migrated (no members)."""
+    from decimal import Decimal
+    from datetime import date
+    from sqlalchemy import select
+    from app.database import AsyncSessionLocal
+    from app.models.member import Member
+    from app.models.season import Season
+    from app.models.member_season import MemberSeason
+    from app.utils.security import hash_password
+
+    async with AsyncSessionLocal() as db:
+        try:
+            result = await db.execute(select(Member).where(Member.email == "admin@lima-impro.fr"))
+            if result.scalar_one_or_none() is not None:
+                return  # already seeded
+
+            print("INFO:     Seeding initial data...")
+
+            season = Season(
+                name="2025-2026",
+                start_date=date(2025, 9, 1),
+                end_date=date(2026, 8, 31),
+                is_current=True,
+            )
+            db.add(season)
+            await db.flush()
+
+            admin = Member(
+                email="admin@lima-impro.fr",
+                first_name="Alexandre",
+                last_name="Bertrand",
+                phone="06 11 22 33 44",
+                app_role="admin",
+                password_hash=hash_password("Admin1234!"),
+                is_active=True,
+            )
+            db.add(admin)
+            await db.flush()
+
+            db.add(MemberSeason(
+                member_id=admin.id,
+                season_id=season.id,
+                player_status="M",
+                membership_fee=Decimal("20.00"),
+                player_fee=Decimal("160.00"),
+                asso_role="co_president",
+            ))
+
+            await db.commit()
+            print("INFO:     Seed data created (admin@lima-impro.fr / Admin1234!).")
+        except Exception:
+            await db.rollback()
+            import traceback
+            print(f"WARN:     Seed data failed (non-fatal): {traceback.format_exc()}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # On startup
@@ -40,6 +98,9 @@ async def lifespan(app: FastAPI):
         import traceback
         print(f"WARN:     Migrations failed (continuing anyway for diagnostics): {e}")
         print(traceback.format_exc())
+
+    await _ensure_seed_data()
+
     yield
     # On shutdown
     print("INFO:     Shutting down.")
