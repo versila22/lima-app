@@ -80,6 +80,13 @@ class Settings(BaseSettings):
             return [origin.strip() for origin in v.split(",") if origin.strip()]
         return v
 
+    @model_validator(mode="after")
+    def inject_frontend_url_into_cors(self) -> "Settings":
+        """Ensure FRONTEND_URL is always in CORS_ORIGINS (handles missing env var on Railway)."""
+        if self.FRONTEND_URL and self.FRONTEND_URL not in self.CORS_ORIGINS:
+            self.CORS_ORIGINS = list(self.CORS_ORIGINS) + [self.FRONTEND_URL]
+        return self
+
     @property
     def is_development(self) -> bool:
         return self.APP_ENV == "development"
