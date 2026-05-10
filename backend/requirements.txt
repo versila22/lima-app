@@ -8,6 +8,7 @@ pydantic==2.7.1
 pydantic-settings==2.2.1
 python-jose[cryptography]==3.5.0
 passlib[bcrypt]==1.7.4
+bcrypt==4.3.0  # pin: passlib 1.7.4 is incompatible with bcrypt >=5.0 (removed __about__ + no-truncate hard raise). See pyca/bcrypt#1079.
 python-multipart==0.0.26
 openpyxl==3.1.2
 python-dotenv==1.0.1
