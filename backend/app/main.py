@@ -37,9 +37,9 @@ async def lifespan(app: FastAPI):
         run_migrations()
         print("INFO:     Migrations finished successfully.")
     except Exception as e:
-        print(f"FATAL:    Migrations failed: {e}")
-        # We raise the exception to ensure the deployment fails with a clear error log
-        raise
+        import traceback
+        print(f"WARN:     Migrations failed (continuing anyway for diagnostics): {e}")
+        print(traceback.format_exc())
     yield
     # On shutdown
     print("INFO:     Shutting down.")
@@ -114,3 +114,18 @@ async def health_check_db():
         return {"status": "ok", "db": "connected"}
     except Exception as exc:
         return {"status": "error", "db": str(exc)}
+
+
+@app.get("/health/migrations", tags=["health"])
+def health_check_migrations():
+    """Test psycopg2 sync DB connectivity (used by Alembic migrations)."""
+    from app.config import settings
+    try:
+        import psycopg2
+        url = settings.sync_database_url
+        conn = psycopg2.connect(url.replace("postgresql+psycopg2://", "postgresql://", 1))
+        conn.close()
+        return {"status": "ok", "sync_url_prefix": url[:50]}
+    except Exception as exc:
+        from app.config import settings as s
+        return {"status": "error", "sync_url_prefix": s.sync_database_url[:50], "error": str(exc)}
