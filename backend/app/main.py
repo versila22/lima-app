@@ -118,14 +118,17 @@ async def health_check_db():
 
 @app.get("/health/migrations", tags=["health"])
 def health_check_migrations():
-    """Test psycopg2 sync DB connectivity (used by Alembic migrations)."""
+    """Run Alembic migrations and return result — shows exact migration error."""
     from app.config import settings
+    from app.run_migrations import run_migrations
+    import traceback
     try:
-        import psycopg2
-        url = settings.sync_database_url
-        conn = psycopg2.connect(url.replace("postgresql+psycopg2://", "postgresql://", 1))
-        conn.close()
-        return {"status": "ok", "sync_url_prefix": url[:50]}
+        run_migrations()
+        return {"status": "ok", "sync_url_prefix": settings.sync_database_url[:60]}
     except Exception as exc:
-        from app.config import settings as s
-        return {"status": "error", "sync_url_prefix": s.sync_database_url[:50], "error": str(exc)}
+        return {
+            "status": "error",
+            "sync_url_prefix": settings.sync_database_url[:60],
+            "error": str(exc),
+            "traceback": traceback.format_exc()[-2000:],
+        }
