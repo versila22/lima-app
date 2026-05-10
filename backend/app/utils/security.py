@@ -127,3 +127,14 @@ def clear_auth_cookies(response, secure: bool) -> None:
     """Expire auth cookies."""
     response.delete_cookie(key="access_token", path="/", secure=secure, httponly=True, samesite="none" if secure else "lax")
     response.delete_cookie(key="refresh_token", path="/auth/refresh", secure=secure, httponly=True, samesite="none" if secure else "lax")  # must match the auth router prefix + /refresh
+
+
+def cookie_secure(request) -> bool:
+    """Return True when the request arrived over HTTPS.
+
+    Railway (and most reverse proxies) set x-forwarded-proto even when
+    APP_ENV is not 'production', so we check the header first.
+    """
+    if request.headers.get("x-forwarded-proto") == "https":
+        return True
+    return str(request.url).startswith("https://")

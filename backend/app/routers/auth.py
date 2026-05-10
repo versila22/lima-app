@@ -30,6 +30,7 @@ from app.services import auth_service
 from app.services.email_service import send_password_reset_email
 from app.utils.deps import get_current_user
 from app.utils.security import (
+    cookie_secure,
     create_access_token,
     create_refresh_token,
     clear_auth_cookies,
@@ -124,11 +125,7 @@ async def login(
     Sets httpOnly access_token and refresh_token cookies.
     Also returns the access token in the body for backward compatibility.
     """
-    try:
-        member = await auth_service.authenticate_member(db, data.email, data.password)
-    except Exception as _exc:
-        import traceback
-        raise HTTPException(status_code=500, detail=f"[DIAG] {type(_exc).__name__}: {_exc}\n{traceback.format_exc()}")
+    member = await auth_service.authenticate_member(db, data.email, data.password)
     if member is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -146,8 +143,7 @@ async def login(
         extra_claims={"role": member.app_role},
     )
     refresh_token = create_refresh_token(subject=str(member.id))
-    secure = not settings.is_development
-    set_auth_cookies(response, access_token, refresh_token, secure=secure)
+    set_auth_cookies(response, access_token, refresh_token, secure=cookie_secure(request))
 
     return TokenResponse(
         access_token=access_token,
@@ -157,6 +153,7 @@ async def login(
 
 @router.post("/refresh", response_model=RefreshResponse)
 async def refresh_token(
+    request: Request,
     response: Response,
     refresh_token: Optional[str] = Cookie(default=None),
     db: AsyncSession = Depends(get_db),
@@ -193,17 +190,15 @@ async def refresh_token(
         extra_claims={"role": member.app_role},
     )
     new_refresh = create_refresh_token(subject=str(member.id))
-    secure = not settings.is_development
-    set_auth_cookies(response, new_access, new_refresh, secure=secure)
+    set_auth_cookies(response, new_access, new_refresh, secure=cookie_secure(request))
 
     return RefreshResponse()
 
 
 @router.post("/logout", status_code=status.HTTP_200_OK)
-async def logout(response: Response):
+async def logout(request: Request, response: Response):
     """Clear auth cookies and end the session."""
-    secure = not settings.is_development
-    clear_auth_cookies(response, secure=secure)
+    clear_auth_cookies(response, secure=cookie_secure(request))
     return {"detail": "Déconnecté avec succès"}
 
 
