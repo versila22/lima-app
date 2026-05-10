@@ -105,15 +105,24 @@ async def health_check():
 
 @app.get("/health/db", tags=["health"])
 async def health_check_db():
-    """Test asyncpg DB connectivity — returns error detail on failure."""
+    """Test asyncpg DB connectivity — returns URL prefix and table list."""
     from sqlalchemy import text
     from app.database import engine
+    from app.config import settings
     try:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
-        return {"status": "ok", "db": "connected"}
+            result = await conn.execute(text(
+                "SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename"
+            ))
+            tables = [row[0] for row in result.fetchall()]
+        return {
+            "status": "ok",
+            "async_url_prefix": settings.async_database_url[:60],
+            "tables": tables,
+        }
     except Exception as exc:
-        return {"status": "error", "db": str(exc)}
+        return {"status": "error", "async_url_prefix": settings.async_database_url[:60], "db": str(exc)}
 
 
 @app.get("/health/migrations", tags=["health"])
