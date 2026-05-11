@@ -11,8 +11,7 @@ Calendar Excel:
 
 import io
 import logging
-import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from typing import Dict, List, Optional, Tuple
 from uuid import UUID
@@ -20,7 +19,6 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.models.event import Event
 from app.models.member import Member
 from app.models.member_season import MemberSeason
@@ -28,7 +26,9 @@ from app.models.season import Season
 from app.models.venue import Venue
 from app.schemas.event import CalendarImportReport
 from app.schemas.member import ImportMemberReport, MemberSummary
-from app.services.email_service import send_activation_email
+from app.utils.security import hash_password
+
+DEFAULT_IMPORT_PASSWORD = "Lima2526!"
 
 logger = logging.getLogger(__name__)
 
@@ -235,8 +235,10 @@ async def import_csv_helloasso(
                     address=adh.get("address"),
                     postal_code=adh.get("postal_code"),
                     city=adh.get("city"),
-                    activation_token=secrets.token_urlsafe(32),
-                    activation_expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=7),
+                    password_hash=hash_password(DEFAULT_IMPORT_PASSWORD),
+                    is_active=True,
+                    activation_token=None,
+                    activation_expires_at=None,
                 )
                 db.add(member)
                 await db.flush()  # Get ID
@@ -275,14 +277,6 @@ async def import_csv_helloasso(
                 ms.player_fee = player_fee
                 if helloasso_ref:
                     ms.helloasso_ref = helloasso_ref
-
-            if is_new_member and settings.SMTP_HOST and member.activation_token:
-                await send_activation_email(
-                    to=member.email,
-                    first_name=member.first_name,
-                    token=member.activation_token,
-                    base_url=settings.FRONTEND_URL,
-                )
 
             report.members.append(
                 MemberSummary(
