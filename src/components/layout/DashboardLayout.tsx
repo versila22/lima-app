@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
-import { Menu } from "lucide-react";
+import { Menu, Sun, Moon } from "lucide-react";
+import { useTheme } from "next-themes";
 
 import { AppSidebar } from "./AppSidebar";
 import { MobileBottomNav } from "./MobileBottomNav";
@@ -25,6 +26,7 @@ export function DashboardLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const pageTitle = PAGE_TITLES[location.pathname] ?? "LIMA";
+  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
     if (!isMobile) {
@@ -58,21 +60,29 @@ export function DashboardLayout() {
             !isMobile && (collapsed ? "md:ml-16" : "md:ml-64")
           )}
         >
-          <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur md:hidden">
+          <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur">
             <Button
               type="button"
               variant="outline"
               size="icon"
-              className="shrink-0"
+              className="shrink-0 md:hidden"
               onClick={() => setMobileOpen(true)}
               aria-label="Ouvrir le menu"
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <div>
+            <div className="md:hidden">
               <p className="text-sm font-semibold">{pageTitle}</p>
               <p className="text-xs text-muted-foreground">LIMA</p>
             </div>
+            <div className="flex-1" />
+            <button
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              aria-label="Basculer le thème"
+              className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
           </div>
 
           <div className="h-full px-4 py-4 md:p-6" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>

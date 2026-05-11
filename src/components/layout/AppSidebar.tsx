@@ -15,12 +15,8 @@ import {
   LogOut,
   X,
   LayoutGrid,
-  Sun,
-  Moon,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useTheme } from "next-themes";
-
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -57,8 +53,6 @@ export function AppSidebar({
   const navigate = useNavigate();
   const { user, logout, isAuthenticated } = useAuth();
   const isAdmin = user?.app_role === "admin";
-  const { theme, setTheme } = useTheme();
-
   const handleLogout = () => {
     logout();
     onMobileOpenChange?.(false);
@@ -234,24 +228,6 @@ export function AppSidebar({
             </a>
           </TooltipTrigger>
           <TooltipContent side="right">Facebook</TooltipContent>
-        </Tooltip>
-        <Tooltip delayDuration={0}>
-          <TooltipTrigger asChild>
-            <button
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              aria-label="Basculer le thème"
-              className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
-            >
-              {theme === "dark" ? (
-                <Sun className="w-5 h-5" />
-              ) : (
-                <Moon className="w-5 h-5" />
-              )}
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="right">
-            {theme === "dark" ? "Mode clair" : "Mode sombre"}
-          </TooltipContent>
         </Tooltip>
       </div>
 
