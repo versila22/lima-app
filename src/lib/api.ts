@@ -343,27 +343,27 @@ export async function fetchMyProfile(): Promise<MemberProfileRead> {
   return api.get<MemberProfileRead>("/auth/me");
 }
 
-export async function uploadMemberPhoto(memberId: string, file: File): Promise<{ photo_url: string }> {
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const fullUrl = API_BASE_URL ? `${API_BASE_URL}/members/${memberId}/photo` : `/members/${memberId}/photo`;
-
-  const res = await fetch(fullUrl, {
-    method: "POST",
-    body: formData,
-    credentials: "include",
+function resizeToDataUrl(file: File, maxPx = 300, quality = 0.82): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = reject;
+    img.src = url;
   });
+}
 
-  if (!res.ok) {
-    let detail = "Erreur lors de l'upload";
-    try {
-      const errorData = await res.json();
-      if (errorData.detail) detail = errorData.detail;
-    } catch (e) {}
-    throw new ApiError(res.status, detail);
-  }
-  return res.json();
+export async function uploadMemberPhoto(memberId: string, file: File): Promise<{ photo_url: string }> {
+  const dataUrl = await resizeToDataUrl(file);
+  return api.post<{ photo_url: string }>(`/members/${memberId}/photo-data`, { data: dataUrl });
 }
 
 // ---- Members CRUD helpers ----

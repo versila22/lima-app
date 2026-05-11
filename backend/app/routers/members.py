@@ -303,6 +303,33 @@ async def update_member(
 import boto3
 from botocore.exceptions import ClientError
 from fastapi.concurrency import run_in_threadpool
+from pydantic import BaseModel as _BaseModel
+
+
+class PhotoDataPayload(_BaseModel):
+    data: str  # data:image/jpeg;base64,...
+
+
+@router.post("/{member_id}/photo-data", status_code=status.HTTP_200_OK)
+async def upload_member_photo_data(
+    member_id: UUID,
+    payload: PhotoDataPayload,
+    db: AsyncSession = Depends(get_db),
+    current_user: Member = Depends(get_current_user),
+):
+    """Store a base64-encoded profile photo (max ~300×300 JPEG sent by client)."""
+    if not current_user.is_admin and current_user.id != member_id:
+        raise HTTPException(status_code=403, detail="Accès réservé à votre profil")
+    if not payload.data.startswith("data:image/"):
+        raise HTTPException(status_code=400, detail="Format invalide — data URI attendu")
+    result = await db.execute(select(Member).where(Member.id == member_id))
+    member = result.scalar_one_or_none()
+    if member is None:
+        raise HTTPException(status_code=404, detail="Membre introuvable")
+    member.photo_url = payload.data
+    await db.commit()
+    return {"photo_url": payload.data}
+
 
 @router.post("/{member_id}/photo", status_code=status.HTTP_200_OK)
 async def upload_member_photo(
