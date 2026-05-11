@@ -22,24 +22,32 @@ def _utcnow_naive() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
 
 
+class AuthenticationError(Exception):
+    """Raised when login credentials are invalid."""
+    def __init__(self, reason: str) -> None:
+        self.reason = reason  # "email_not_found" | "wrong_password" | "account_not_activated"
+        super().__init__(reason)
+
+
 async def authenticate_member(
     db: AsyncSession, email: str, password: str
-) -> Optional[Member]:
+) -> Member:
     """
     Validate email/password credentials.
 
-    Returns the Member on success, None on failure.
+    Returns the Member on success.
+    Raises AuthenticationError with a specific reason on failure.
     """
     result = await db.execute(
         select(Member).where(Member.email == email.lower().strip())
     )
     member = result.scalar_one_or_none()
     if member is None:
-        return None
+        raise AuthenticationError("email_not_found")
     if member.password_hash is None:
-        return None
+        raise AuthenticationError("account_not_activated")
     if not verify_password(password, member.password_hash):
-        return None
+        raise AuthenticationError("wrong_password")
     return member
 
 

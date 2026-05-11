@@ -2,107 +2,122 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Cabaret Theme - Dark mode with purple and gold accents */
+/* LIMA — Charte graphique : Rouge #E02020 + Noir #1A1A1A + Blanc */
 
 @layer base {
+  /* ── Mode clair (défaut) ─────────────────────────────────────── */
   :root {
-    --background: 240 10% 6%;
-    --foreground: 0 0% 95%;
+    --background: 0 0% 100%;
+    --foreground: 0 0% 10%;
 
-    --card: 240 10% 10%;
-    --card-foreground: 0 0% 95%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
 
-    --popover: 240 10% 10%;
-    --popover-foreground: 0 0% 95%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
 
-    --primary: 259 67% 75%;
-    --primary-foreground: 240 10% 6%;
+    --primary: 0 76% 50%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 10% 15%;
-    --secondary-foreground: 0 0% 95%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 10%;
 
-    --muted: 240 10% 15%;
-    --muted-foreground: 240 5% 55%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
 
-    --accent: 37 90% 55%;
-    --accent-foreground: 240 10% 6%;
+    --accent: 0 0% 93%;
+    --accent-foreground: 0 0% 10%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 0 84% 45%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 240 10% 20%;
-    --input: 240 10% 20%;
-    --ring: 259 67% 75%;
+    --border: 0 0% 88%;
+    --input: 0 0% 88%;
+    --ring: 0 76% 50%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 240 10% 8%;
-    --sidebar-foreground: 0 0% 90%;
-    --sidebar-primary: 259 67% 75%;
-    --sidebar-primary-foreground: 240 10% 6%;
-    --sidebar-accent: 240 10% 15%;
-    --sidebar-accent-foreground: 0 0% 95%;
-    --sidebar-border: 240 10% 18%;
-    --sidebar-ring: 259 67% 75%;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 0 0% 25%;
+    --sidebar-primary: 0 76% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 93%;
+    --sidebar-accent-foreground: 0 0% 10%;
+    --sidebar-border: 0 0% 88%;
+    --sidebar-ring: 0 76% 50%;
 
-    /* Custom cabaret colors */
-    --cabaret-purple: 259 67% 75%;
-    --cabaret-purple-glow: 259 80% 65%;
-    --cabaret-gold: 37 90% 55%;
-    --cabaret-gold-glow: 45 100% 60%;
-    
+    /* Palette LIMA */
+    --lima-red: 0 76% 50%;
+    --lima-red-dark: 0 65% 35%;
+
+    /* Tokens cabaret remappés vers les couleurs LIMA */
+    --cabaret-purple: 0 76% 50%;
+    --cabaret-purple-glow: 0 76% 62%;
+    --cabaret-gold: 15 82% 52%;
+    --cabaret-gold-glow: 15 82% 64%;
+
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(259 67% 75%), hsl(37 90% 55%));
-    --gradient-subtle: linear-gradient(135deg, hsl(240 10% 12%), hsl(240 10% 8%));
+    --gradient-primary: linear-gradient(135deg, hsl(0 76% 50%), hsl(0 65% 35%));
+    --gradient-subtle: linear-gradient(135deg, hsl(0 0% 97%), hsl(0 0% 93%));
   }
 
+  /* ── Mode sombre ─────────────────────────────────────────────── */
   .dark {
-    --background: 240 10% 6%;
+    --background: 0 0% 7%;
     --foreground: 0 0% 95%;
 
-    --card: 240 10% 10%;
+    --card: 0 0% 11%;
     --card-foreground: 0 0% 95%;
 
-    --popover: 240 10% 10%;
+    --popover: 0 0% 11%;
     --popover-foreground: 0 0% 95%;
 
-    --primary: 259 67% 75%;
-    --primary-foreground: 240 10% 6%;
+    --primary: 0 80% 60%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 10% 15%;
-    --secondary-foreground: 0 0% 95%;
+    --secondary: 0 0% 14%;
+    --secondary-foreground: 0 0% 90%;
 
-    --muted: 240 10% 15%;
-    --muted-foreground: 240 5% 55%;
+    --muted: 0 0% 14%;
+    --muted-foreground: 0 0% 55%;
 
-    --accent: 37 90% 55%;
-    --accent-foreground: 240 10% 6%;
+    --accent: 0 0% 14%;
+    --accent-foreground: 0 0% 90%;
 
-    --destructive: 0 62% 30%;
+    --destructive: 0 62% 45%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 240 10% 20%;
-    --input: 240 10% 20%;
-    --ring: 259 67% 75%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 0 80% 60%;
 
-    --sidebar-background: 240 10% 8%;
+    --sidebar-background: 0 0% 9%;
     --sidebar-foreground: 0 0% 90%;
-    --sidebar-primary: 259 67% 75%;
-    --sidebar-primary-foreground: 240 10% 6%;
-    --sidebar-accent: 240 10% 15%;
-    --sidebar-accent-foreground: 0 0% 95%;
-    --sidebar-border: 240 10% 18%;
-    --sidebar-ring: 259 67% 75%;
+    --sidebar-primary: 0 80% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 14%;
+    --sidebar-accent-foreground: 0 0% 90%;
+    --sidebar-border: 0 0% 17%;
+    --sidebar-ring: 0 80% 60%;
+
+    /* Palette LIMA sombre */
+    --lima-red: 0 80% 60%;
+    --lima-red-dark: 0 65% 42%;
+
+    /* Tokens cabaret remappés vers les couleurs LIMA sombres */
+    --cabaret-purple: 0 80% 60%;
+    --cabaret-purple-glow: 0 80% 70%;
+    --cabaret-gold: 15 82% 58%;
+    --cabaret-gold-glow: 15 82% 68%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(0 80% 60%), hsl(0 65% 42%));
+    --gradient-subtle: linear-gradient(135deg, hsl(0 0% 13%), hsl(0 0% 9%));
   }
 }
 
 @layer base {
   * {
     @apply border-border;
-  }
-
-  html {
-    @apply dark;
   }
 
   body {
@@ -113,15 +128,11 @@
 
 @layer utilities {
   .glow-primary {
-    box-shadow: 0 0 20px -5px hsl(var(--cabaret-purple) / 0.5);
+    box-shadow: 0 0 20px -5px hsl(var(--lima-red) / 0.4);
   }
-  
-  .glow-accent {
-    box-shadow: 0 0 20px -5px hsl(var(--cabaret-gold) / 0.5);
-  }
-  
+
   .gradient-text {
-    background: linear-gradient(135deg, hsl(var(--cabaret-purple)), hsl(var(--cabaret-gold)));
+    background: linear-gradient(135deg, hsl(var(--lima-red)), hsl(var(--lima-red-dark)));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;

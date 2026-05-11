@@ -27,6 +27,7 @@ from app.schemas.auth import (
 )
 from app.schemas.member import MemberProfileRead, MemberProfileUpdate, MemberRead, SeasonHistoryEntry
 from app.services import auth_service
+from app.services.auth_service import AuthenticationError
 from app.services.email_service import send_password_reset_email
 from app.utils.deps import get_current_user
 from app.utils.security import (
@@ -125,11 +126,17 @@ async def login(
     Sets httpOnly access_token and refresh_token cookies.
     Also returns the access token in the body for backward compatibility.
     """
-    member = await auth_service.authenticate_member(db, data.email, data.password)
-    if member is None:
+    _AUTH_MESSAGES = {
+        "email_not_found":       "Aucun compte trouvé pour cet email.",
+        "wrong_password":        "Mot de passe incorrect.",
+        "account_not_activated": "Ce compte n'a pas encore été activé.",
+    }
+    try:
+        member = await auth_service.authenticate_member(db, data.email, data.password)
+    except AuthenticationError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email ou mot de passe incorrect",
+            detail=_AUTH_MESSAGES.get(exc.reason, "Identifiants invalides."),
             headers={"WWW-Authenticate": "Bearer"},
         )
     if not member.is_active:

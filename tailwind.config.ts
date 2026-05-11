@@ -58,10 +58,10 @@ export default {
           ring: "hsl(var(--sidebar-ring))",
         },
         cabaret: {
-          purple: "hsl(var(--cabaret-purple))",
-          "purple-glow": "hsl(var(--cabaret-purple-glow))",
-          gold: "hsl(var(--cabaret-gold))",
-          "gold-glow": "hsl(var(--cabaret-gold-glow))",
+          purple: "hsl(var(--cabaret-purple) / <alpha-value>)",
+          "purple-glow": "hsl(var(--cabaret-purple-glow) / <alpha-value>)",
+          gold: "hsl(var(--cabaret-gold) / <alpha-value>)",
+          "gold-glow": "hsl(var(--cabaret-gold-glow) / <alpha-value>)",
         },
       },
       borderRadius: {

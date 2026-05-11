@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { ApiError } from "@/lib/api";
@@ -17,6 +17,7 @@ export default function Login() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -83,17 +84,28 @@ export default function Login() {
 
             <div className="space-y-2">
               <Label htmlFor="password">Mot de passe</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isLoading}
-                required
-                className="bg-background/50 h-11 text-base"
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={isLoading}
+                  required
+                  className="bg-background/50 h-11 text-base pr-11"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  tabIndex={-1}
+                  aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
 
             <Button
