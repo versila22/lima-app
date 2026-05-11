@@ -281,7 +281,7 @@ export interface CommissionRead {
 
 // ---------- Alignment ----------
 export type AlignmentStatus = "draft" | "published";
-export type AssignmentRole = "JR" | "DJ" | "MJ_MC" | "AR" | "COACH";
+export type AssignmentRole = "JR" | "DJ" | "MJ_MC" | "AR" | "COACH" | "BENEVOLE";
 
 export interface AlignmentRead {
   id: string;

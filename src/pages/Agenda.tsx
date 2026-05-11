@@ -177,6 +177,7 @@ const DETAIL_ROLE_LABELS: Record<string, { label: string; emoji: string }> = {
   DJ: { label: "DJ", emoji: "🎵" },
   AR: { label: "Arbitre", emoji: "⚖️" },
   COACH: { label: "Coach", emoji: "🏋️" },
+  BENEVOLE: { label: "Bénévole", emoji: "🙋" },
 };
 
 function getDefaultDateTime(): Date {
@@ -557,7 +558,7 @@ function EventDetailDrawer({
   }, {});
 
   // Display order
-  const roleOrder = ["JR", "MJ_MC", "DJ", "AR", "COACH"];
+  const roleOrder = ["JR", "MJ_MC", "DJ", "AR", "COACH", "BENEVOLE"];
   const visibleNotes = formatEventNotes(event.notes);
 
   return (

@@ -10,7 +10,7 @@ from app.schemas.event import EventRead
 
 
 AlignmentStatus = Literal["draft", "published"]
-AssignmentRole = Literal["JR", "DJ", "MJ_MC", "AR", "COACH"]
+AssignmentRole = Literal["JR", "DJ", "MJ_MC", "AR", "COACH", "BENEVOLE"]
 
 
 class AlignmentBase(BaseModel):

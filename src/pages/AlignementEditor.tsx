@@ -59,6 +59,7 @@ const ROLE_LABELS: Record<AssignmentRole, string> = {
   MJ_MC: "MJ/MC",
   AR: "Arbitre",
   COACH: "Coach",
+  BENEVOLE: "Bénévole",
 };
 
 const ROLE_CLASSES: Record<AssignmentRole, string> = {
@@ -67,6 +68,7 @@ const ROLE_CLASSES: Record<AssignmentRole, string> = {
   MJ_MC: "border-sky-500/40 text-sky-300",
   AR: "border-amber-500/40 text-amber-300",
   COACH: "border-emerald-500/40 text-emerald-300",
+  BENEVOLE: "border-rose-500/40 text-rose-300",
 };
 
 function formatEventDate(isoString: string) {
