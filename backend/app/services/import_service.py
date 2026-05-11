@@ -50,12 +50,15 @@ EVENT_TYPE_KEYWORDS: List[Tuple[str, str]] = [
     ("assemblée", "ag"),
 ]
 
-# HelloAsso player_status deduced from player_fee range
+# HelloAsso player_status deduced from player_fee range (fallback only)
 PLAYER_FEE_STATUS: List[Tuple[float, float, str]] = [
     (70.0, 90.0, "C"),    # Cabaret ~75€
     (150.0, 180.0, "M"),  # Match ~160€
     (0.01, 70.0, "L"),    # Loisir < 70€
 ]
+
+# Direct mapping from "Groupe de Jeu" column (takes priority over fee ranges)
+GROUPE_STATUS: dict = {"Cabaret": "C", "Match": "M", "Loisir": "L"}
 
 
 # ---------------------------------------------------------------------------
@@ -123,20 +126,29 @@ async def import_csv_helloasso(
             adherents[email] = {
                 "email": email,
                 "first_name": _normalize_name(
+                    row.get("Prénom adhérent", "") or row.get("Prénom payeur", "") or
                     row.get("Prénom", "") or row.get("Prenom", "") or row.get("first_name", "")
                 ),
                 "last_name": _normalize_name(
+                    row.get("Nom adhérent", "") or row.get("Nom payeur", "") or
                     row.get("Nom", "") or row.get("last_name", "")
                 ),
-                "phone": (row.get("Téléphone", "") or row.get("telephone", "") or "").strip() or None,
+                "phone": (
+                    row.get("Numéro de téléphone", "") or row.get("Téléphone", "") or
+                    row.get("telephone", "") or ""
+                ).strip() or None,
                 "membership_fee": _parse_decimal(
-                    row.get("Montant", "") or row.get("montant", "") or "0"
+                    row.get("Montant tarif", "") or row.get("Montant", "") or
+                    row.get("montant", "") or "0"
                 ),
                 "helloasso_ref": (
-                    row.get("N° commande", "") or row.get("ref", "") or ""
+                    row.get("Référence commande", "") or row.get("N° commande", "") or
+                    row.get("ref", "") or ""
                 ).strip() or None,
                 "address": (row.get("Adresse", "") or "").strip() or None,
-                "postal_code": (row.get("Code postal", "") or "").strip() or None,
+                "postal_code": (
+                    row.get("Code Postal", "") or row.get("Code postal", "") or ""
+                ).strip() or None,
                 "city": (row.get("Ville", "") or "").strip() or None,
             }
     except Exception as exc:
@@ -155,10 +167,23 @@ async def import_csv_helloasso(
                 continue
             joueurs[email] = {
                 "player_fee": _parse_decimal(
-                    row.get("Montant", "") or row.get("montant", "") or "0"
+                    row.get("Montant tarif", "") or row.get("Montant", "") or
+                    row.get("montant", "") or "0"
                 ),
                 "helloasso_ref": (
-                    row.get("N° commande", "") or row.get("ref", "") or ""
+                    row.get("Référence commande", "") or row.get("N° commande", "") or
+                    row.get("ref", "") or ""
+                ).strip() or None,
+                "groupe": row.get("Groupe de Jeu", "").strip(),
+                # fallback name fields for members only in cotisation CSV
+                "first_name": _normalize_name(
+                    row.get("Prénom adhérent", "") or row.get("Prénom", "") or ""
+                ),
+                "last_name": _normalize_name(
+                    row.get("Nom adhérent", "") or row.get("Nom", "") or ""
+                ),
+                "phone": (
+                    row.get("Numéro de téléphone", "") or row.get("Téléphone", "") or ""
                 ).strip() or None,
             }
     except Exception as exc:
@@ -179,16 +204,17 @@ async def import_csv_helloasso(
         adh = adherents.get(email, {})
         jou = joueurs.get(email, {})
 
-        # Merge data
-        first_name = adh.get("first_name") or ""
-        last_name = adh.get("last_name") or ""
+        # Merge data (adherents takes priority; joueurs fills gaps)
+        first_name = adh.get("first_name") or jou.get("first_name") or ""
+        last_name = adh.get("last_name") or jou.get("last_name") or ""
         if not first_name or not last_name:
             report.errors.append(f"Données incomplètes pour {email}")
             continue
 
         player_fee = jou.get("player_fee")
         membership_fee = adh.get("membership_fee")
-        player_status = _deduce_player_status(player_fee)
+        groupe = jou.get("groupe", "")
+        player_status = GROUPE_STATUS.get(groupe) or _deduce_player_status(player_fee)
         helloasso_ref = jou.get("helloasso_ref") or adh.get("helloasso_ref")
 
         try:
@@ -199,12 +225,13 @@ async def import_csv_helloasso(
             member = existing.scalar_one_or_none()
             is_new_member = member is None
 
+            phone = adh.get("phone") or jou.get("phone")
             if member is None:
                 member = Member(
                     email=email,
                     first_name=first_name,
                     last_name=last_name,
-                    phone=adh.get("phone"),
+                    phone=phone,
                     address=adh.get("address"),
                     postal_code=adh.get("postal_code"),
                     city=adh.get("city"),
@@ -218,8 +245,8 @@ async def import_csv_helloasso(
                 # Only update personal info if not already set
                 member.first_name = first_name or member.first_name
                 member.last_name = last_name or member.last_name
-                if adh.get("phone") and not member.phone:
-                    member.phone = adh["phone"]
+                if phone and not member.phone:
+                    member.phone = phone
                 if adh.get("address") and not member.address:
                     member.address = adh["address"]
                 report.updated += 1

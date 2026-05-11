@@ -98,7 +98,7 @@ async function _doRequest<T>(
     ...rest,
   });
 
-  if (response.status === 401 && !isRetry) {
+  if (response.status === 401 && !isRetry && path !== "/auth/login") {
     const refreshed = await _tryRefresh();
     if (refreshed) {
       return _doRequest<T>(method, path, { body, params, headers: extraHeaders, ...rest }, true);
