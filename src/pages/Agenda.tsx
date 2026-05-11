@@ -170,13 +170,6 @@ interface CastMember {
 
 const REIMBURSEMENT_URL = "https://form.jotform.com/251113498983061";
 
-const REIMBURSEMENT_EVENT_TYPES = new Set(["other", "ag", "formation"]);
-
-function showsReimbursementLink(event: EventRead): boolean {
-  if (REIMBURSEMENT_EVENT_TYPES.has(event.event_type)) return true;
-  if (event.event_type === "match" && !event.is_away) return true;
-  return false;
-}
 
 const DETAIL_ROLE_LABELS: Record<string, { label: string; emoji: string }> = {
   JR: { label: "Joueur", emoji: "🎭" },
@@ -647,19 +640,17 @@ function EventDetailDrawer({
               </a>
             </div>
           )}
-          {showsReimbursementLink(event) && (
-            <div className="pt-2 border-t border-border">
-              <a
-                href={REIMBURSEMENT_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-colors"
-              >
-                <ExternalLink className="w-4 h-4 shrink-0" />
-                Demander un remboursement au trésorier
-              </a>
-            </div>
-          )}
+          <div className="pt-2 border-t border-border">
+            <a
+              href={REIMBURSEMENT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-colors"
+            >
+              <ExternalLink className="w-4 h-4 shrink-0" />
+              Demander un remboursement au trésorier
+            </a>
+          </div>
           </div>
         </div>
 
