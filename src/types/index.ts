@@ -351,6 +351,19 @@ export interface MemberPlanning {
   total_shows: number;
 }
 
+export interface MemberStats {
+  total_shows: number;
+  by_type: Record<string, number>;
+  by_role: Record<string, number>;
+}
+
+// ---------- Pinned News ----------
+export interface PinnedNewsItem {
+  id: string;
+  title: string;
+  url?: string | null;
+}
+
 // ---------- Admin Analytics ----------
 export interface EndpointStat {
   path: string;

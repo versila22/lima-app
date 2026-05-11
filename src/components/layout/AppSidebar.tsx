@@ -32,6 +32,7 @@ interface AppSidebarProps {
 }
 
 const menuItems = [
+  { icon: Home, label: "Accueil", path: "/" },
   { icon: Sparkles, label: "Organisateur Cabaret", path: "/cabaret" },
   { icon: Calendar, label: "Agenda", path: "/agenda" },
   { icon: User, label: "Mon Profil", path: "/mon-profil" },

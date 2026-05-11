@@ -547,3 +547,46 @@ async def get_member_planning(
 ):
     """Return a member's planning: upcoming and past show assignments."""
     return await _build_member_planning(db, member_id)
+
+
+@router.get("/me/stats")
+async def get_my_stats(
+    db: AsyncSession = Depends(get_db),
+    current_user: Member = Depends(get_current_user),
+):
+    """Return show participation stats for the current member (all time)."""
+    return await _build_member_stats(db, current_user.id)
+
+
+@router.get("/{member_id}/stats")
+async def get_member_stats(
+    member_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: Member = Depends(get_current_user),
+):
+    """Return show participation stats for a member (all time)."""
+    return await _build_member_stats(db, member_id)
+
+
+async def _build_member_stats(db: AsyncSession, member_id: UUID) -> dict:
+    stmt = (
+        select(AlignmentAssignment.role, Event.event_type)
+        .join(Event, AlignmentAssignment.event_id == Event.id)
+        .join(Alignment, AlignmentAssignment.alignment_id == Alignment.id)
+        .where(AlignmentAssignment.member_id == member_id)
+        .where(Alignment.status == "published")
+    )
+    result = await db.execute(stmt)
+    rows = result.all()
+
+    by_type: dict[str, int] = {}
+    by_role: dict[str, int] = {}
+    for role, event_type in rows:
+        by_type[event_type] = by_type.get(event_type, 0) + 1
+        by_role[role] = by_role.get(role, 0) + 1
+
+    return {
+        "total_shows": len(rows),
+        "by_type": by_type,
+        "by_role": by_role,
+    }

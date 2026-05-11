@@ -16,7 +16,8 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, type ApiError, fetchMyProfile, API_BASE_URL, uploadMemberPhoto } from "@/lib/api";
 import { Camera } from "lucide-react";
-import type { MemberProfileRead, MemberUpdate, PlayerStatus } from "@/types";
+import type { MemberProfileRead, MemberStats, MemberUpdate, PlayerStatus } from "@/types";
+import { EVENT_TYPE_CONFIG } from "./Agenda";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -137,6 +138,11 @@ export default function MonProfil() {
   const { data: profile, isLoading, error } = useQuery<MemberProfileRead>({
     queryKey: ["my-profile"],
     queryFn: fetchMyProfile,
+  });
+
+  const { data: stats } = useQuery<MemberStats>({
+    queryKey: ["my-stats"],
+    queryFn: () => api.get<MemberStats>("/members/me/stats"),
   });
 
   useEffect(() => {
@@ -465,6 +471,50 @@ export default function MonProfil() {
           )}
         </CardContent>
       </Card>
+
+      {stats && stats.total_shows > 0 && (
+        <Card className="border-border/70 bg-card/80 backdrop-blur-sm">
+          <CardHeader>
+            <CardTitle>Statistiques de participation</CardTitle>
+            <CardDescription>
+              {stats.total_shows} prestation{stats.total_shows > 1 ? "s" : ""} dans les alignements publiés.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {Object.keys(stats.by_type).length > 0 && (
+              <div>
+                <p className="text-sm font-medium mb-2">Par type d'événement</p>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(stats.by_type)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([type, count]) => {
+                      const cfg = EVENT_TYPE_CONFIG[(type as keyof typeof EVENT_TYPE_CONFIG) ?? "other"] ?? EVENT_TYPE_CONFIG.other;
+                      return (
+                        <span key={type} className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium ${cfg.color}`}>
+                          {cfg.label} — {count}
+                        </span>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+            {Object.keys(stats.by_role).length > 0 && (
+              <div>
+                <p className="text-sm font-medium mb-2">Par rôle</p>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(stats.by_role)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([role, count]) => (
+                      <span key={role} className="inline-flex items-center gap-1 rounded-md border border-border/70 bg-muted/40 px-2.5 py-1 text-xs font-medium">
+                        {role} — {count}
+                      </span>
+                    ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

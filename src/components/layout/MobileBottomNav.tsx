@@ -4,7 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 const items = [
-  { icon: Home, label: "Accueil", path: "/cabaret" },
+  { icon: Home, label: "Accueil", path: "/" },
   { icon: Calendar, label: "Agenda", path: "/agenda" },
   { icon: CalendarDays, label: "Planning", path: "/mon-planning" },
   { icon: User, label: "Profil", path: "/mon-profil" },
