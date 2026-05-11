@@ -193,9 +193,18 @@ function getDefaultDateTime(): Date {
 
 function formatEventNotes(notes?: string | null): string | null {
   if (!notes) return null;
-  const markerIndex = notes.indexOf("--- CAST_DATA ---");
-  if (markerIndex === -1) return notes.trim() || null;
-  return notes.slice(0, markerIndex).trim() || null;
+  let text = notes;
+  const markerIndex = text.indexOf("--- CAST_DATA ---");
+  if (markerIndex !== -1) text = text.slice(0, markerIndex);
+  // Strip helloasso: line so it doesn't appear in the notes display
+  text = text.replace(/^helloasso:\s*https?:\/\/\S+\s*/gim, "");
+  return text.trim() || null;
+}
+
+function parseHelloAssoUrl(notes?: string | null): string | null {
+  if (!notes) return null;
+  const match = notes.match(/^helloasso:\s*(https?:\/\/\S+)/im);
+  return match ? match[1] : null;
 }
 
 function parseDateTimeValue(value?: string | null): Date | undefined {
@@ -539,6 +548,7 @@ function EventDetailDrawer({
   onDelete: (event: EventRead) => void;
 }) {
   const cfg = EVENT_TYPE_CONFIG[event.event_type] ?? EVENT_TYPE_CONFIG.other;
+  const helloAssoUrl = parseHelloAssoUrl(event.notes);
 
   const { data: cast = [], isLoading: castLoading } = useQuery<CastMember[]>({
     queryKey: ["event-cast", event.id],
@@ -624,6 +634,19 @@ function EventDetailDrawer({
                 })}
               </div>
             ) : null}
+          {helloAssoUrl && (
+            <div className="pt-2 border-t border-border">
+              <a
+                href={helloAssoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-colors font-medium"
+              >
+                <ExternalLink className="w-4 h-4 shrink-0" />
+                S'inscrire sur HelloAsso
+              </a>
+            </div>
+          )}
           {showsReimbursementLink(event) && (
             <div className="pt-2 border-t border-border">
               <a
@@ -1182,10 +1205,11 @@ export default function Agenda() {
             </Select>
           )}
 
-          {isAdmin && activeSeason && (
+          {isAdmin && (
             <Button
               onClick={() => setAddOpen(true)}
-              className="ml-2 bg-gradient-to-r from-cabaret-purple to-cabaret-gold text-background"
+              disabled={!activeSeason}
+              className="ml-2 bg-gradient-to-r from-cabaret-purple to-cabaret-gold text-background disabled:opacity-50"
             >
               <Plus className="w-4 h-4 mr-1" />
               Ajouter
