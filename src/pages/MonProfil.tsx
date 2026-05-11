@@ -84,7 +84,7 @@ function getFullName(profile: Pick<MemberProfileRead, "first_name" | "last_name"
 
 function getPhotoUrl(url?: string | null) {
   if (!url) return undefined;
-  if (url.startsWith("http")) return url;
+  if (url.startsWith("http") || url.startsWith("data:")) return url;
   return `${API_BASE_URL}${url}`;
 }
 
