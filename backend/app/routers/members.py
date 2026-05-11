@@ -485,23 +485,16 @@ async def import_members(
     return report
 
 
-@router.get("/me/planning", response_model=MemberPlanning)
-async def get_my_planning(
-    current_user: Member = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Return the current member's planning: upcoming and past show assignments."""
+async def _build_member_planning(db: AsyncSession, member_id: UUID) -> MemberPlanning:
     from datetime import timezone
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     three_months_ago = now - timedelta(days=90)
 
-    # Query all assignments for this member with event + alignment data
-    # Note: alignment_assignments.event_id is a direct FK to events (no alignment_event join needed)
     stmt = (
         select(AlignmentAssignment, Alignment, Event)
         .join(Alignment, AlignmentAssignment.alignment_id == Alignment.id)
         .join(Event, AlignmentAssignment.event_id == Event.id)
-        .where(AlignmentAssignment.member_id == current_user.id)
+        .where(AlignmentAssignment.member_id == member_id)
         .where(Event.start_at >= three_months_ago)
         .order_by(Event.start_at.asc())
     )
@@ -512,7 +505,6 @@ async def get_my_planning(
     past: list[PlanningEvent] = []
 
     for assignment, alignment, event in rows:
-        # Get venue name
         venue_name = None
         if event.venue_id:
             venue = await db.get(Venue, event.venue_id)
@@ -535,9 +527,23 @@ async def get_my_planning(
             past.append(pe)
 
     past.sort(key=lambda e: e.start_at, reverse=True)
+    return MemberPlanning(upcoming=upcoming, past=past, total_shows=len(rows))
 
-    return MemberPlanning(
-        upcoming=upcoming,
-        past=past,
-        total_shows=len(rows),
-    )
+
+@router.get("/me/planning", response_model=MemberPlanning)
+async def get_my_planning(
+    current_user: Member = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the current member's planning: upcoming and past show assignments."""
+    return await _build_member_planning(db, current_user.id)
+
+
+@router.get("/{member_id}/planning", response_model=MemberPlanning)
+async def get_member_planning(
+    member_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: Member = Depends(get_current_user),
+):
+    """Return a member's planning: upcoming and past show assignments."""
+    return await _build_member_planning(db, member_id)

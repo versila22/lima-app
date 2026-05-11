@@ -372,6 +372,10 @@ export function getMemberProfile(id: string): Promise<MemberProfileRead> {
   return api.get<MemberProfileRead>(`/members/${id}/profile`);
 }
 
+export function getMemberPlanning(id: string): Promise<MemberPlanning> {
+  return api.get<MemberPlanning>(`/members/${id}/planning`);
+}
+
 export function updateMember(id: string, data: MemberUpdate): Promise<MemberRead> {
   return api.put<MemberRead>(`/members/${id}`, data);
 }
