@@ -54,7 +54,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 function getPhotoUrl(url?: string | null) {
   if (!url) return undefined;
-  if (url.startsWith("http")) return url;
+  if (url.startsWith("http") || url.startsWith("data:")) return url;
   return `${API_BASE_URL}${url}`;
 }
 

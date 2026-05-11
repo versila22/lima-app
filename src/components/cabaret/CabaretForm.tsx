@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Sparkles, MapPin, User, Palette, Users, Clock, AlertTriangle, Music, Theater, Gavel, UsersRound } from "lucide-react";
+import { Sparkles, MapPin, User, Palette, Users, Clock, AlertTriangle, Music, Theater, Gavel, UsersRound, CalendarPlus, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +24,7 @@ export interface CabaretFormData {
   venueContact: string;
   showType: string;
   theme: string;
+  startAt?: string;
   // For cabaret/autre: single group
   playerCount: number;
   playerNames: string[];
@@ -44,6 +45,8 @@ interface CabaretFormProps {
   onGenerate: (data: CabaretFormData) => void;
   isGenerating: boolean;
   initialData?: CabaretFormData | null;
+  onAddToCalendar?: (data: CabaretFormData) => void;
+  isAddingToCalendar?: boolean;
 }
 
 const createEmptyTeams = (teamCount: number, playersPerTeam: number): TeamData[] => {
@@ -63,6 +66,7 @@ const getDefaultFormData = (showType: string): CabaretFormData => {
     constraints: "",
     djNames: [],
     arbitreName: "",
+    startAt: "",
   };
 
   switch (showType) {
@@ -104,7 +108,7 @@ const getDefaultFormData = (showType: string): CabaretFormData => {
   }
 };
 
-export function CabaretForm({ onGenerate, isGenerating, initialData }: CabaretFormProps) {
+export function CabaretForm({ onGenerate, isGenerating, initialData, onAddToCalendar, isAddingToCalendar }: CabaretFormProps) {
   const [formData, setFormData] = useState<CabaretFormData>(() => {
     if (initialData) {
       return {
@@ -558,6 +562,41 @@ export function CabaretForm({ onGenerate, isGenerating, initialData }: CabaretFo
               className="bg-background/50 border-border min-h-[80px]"
             />
           </div>
+
+          {/* Date du spectacle */}
+          <div className="space-y-2">
+            <Label htmlFor="startAt" className="flex items-center gap-2">
+              <CalendarPlus className="w-4 h-4 text-primary" />
+              Date du spectacle
+            </Label>
+            <Input
+              id="startAt"
+              type="date"
+              value={formData.startAt?.slice(0, 10) ?? ""}
+              onChange={(e) =>
+                updateField("startAt", e.target.value ? `${e.target.value}T20:00:00` : "")
+              }
+              className="bg-background/50 border-border"
+            />
+          </div>
+
+          {/* Add to calendar */}
+          {onAddToCalendar && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!formData.venueName || !formData.startAt || isAddingToCalendar}
+              onClick={() => onAddToCalendar(formData)}
+              className="w-full border-primary/40 text-primary hover:bg-primary/10"
+            >
+              {isAddingToCalendar ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <CalendarPlus className="w-4 h-4 mr-2" />
+              )}
+              Ajouter à l'agenda LIMA
+            </Button>
+          )}
 
           {/* Submit Button */}
           <Button
