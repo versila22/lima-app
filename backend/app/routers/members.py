@@ -1,6 +1,9 @@
 """Members router — admin management + CSV import."""
 
+import logging
 from datetime import datetime, timedelta
+
+logger = logging.getLogger(__name__)
 from typing import List, Optional
 from uuid import UUID
 
@@ -248,12 +251,15 @@ async def create_member(
 
     # Generate activation token
     token = await auth_service.generate_activation_token(db, member)
-    await send_activation_email(
-        to=member.email,
-        first_name=member.first_name,
-        token=token,
-        base_url=settings.FRONTEND_URL,
-    )
+    try:
+        await send_activation_email(
+            to=member.email,
+            first_name=member.first_name,
+            token=token,
+            base_url=settings.FRONTEND_URL,
+        )
+    except Exception as exc:
+        logger.warning("Could not send activation email to %s: %s", member.email, exc)
 
     return await _get_member_for_response(db, member.id)
 

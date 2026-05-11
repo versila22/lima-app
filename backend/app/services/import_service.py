@@ -236,7 +236,7 @@ async def import_csv_helloasso(
                     postal_code=adh.get("postal_code"),
                     city=adh.get("city"),
                     activation_token=secrets.token_urlsafe(32),
-                    activation_expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+                    activation_expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=7),
                 )
                 db.add(member)
                 await db.flush()  # Get ID
