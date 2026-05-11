@@ -25,6 +25,7 @@ class AlignmentCreate(AlignmentBase):
 
 
 class AlignmentUpdate(BaseModel):
+    season_id: Optional[uuid.UUID] = None
     name: Optional[str] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None

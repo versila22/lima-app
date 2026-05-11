@@ -32,6 +32,7 @@ class EventCreate(EventBase):
 
 
 class EventUpdate(BaseModel):
+    season_id: Optional[uuid.UUID] = None
     venue_id: Optional[uuid.UUID] = None
     title: Optional[str] = None
     event_type: Optional[EventType] = None
