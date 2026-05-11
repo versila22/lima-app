@@ -1047,19 +1047,22 @@ export default function Agenda() {
     onError: (err) => toast.error(err.detail ?? "Erreur lors de la suppression"),
   });
 
-  // Fetch current season
-  const { data: seasons } = useQuery<SeasonRead[]>({
+  // Fetch seasons
+  const { data: seasons = [] } = useQuery<SeasonRead[]>({
     queryKey: ["seasons"],
     queryFn: () => api.get<SeasonRead[]>("/seasons"),
   });
-  const currentSeason = seasons?.find((s) => s.is_current);
+  const defaultSeason = seasons.find((s) => s.is_current) ?? seasons[0];
+  const [selectedSeasonId, setSelectedSeasonId] = useState<string | null>(null);
 
-  // Fetch events
+  const activeSeason = seasons.find((s) => s.id === (selectedSeasonId ?? defaultSeason?.id)) ?? defaultSeason;
+
+  // Fetch events for the selected season
   const { data: events = [], isLoading } = useQuery<EventRead[]>({
-    queryKey: ["events", currentSeason?.id],
+    queryKey: ["events", activeSeason?.id],
     queryFn: () =>
-      api.get<EventRead[]>("/events", currentSeason ? { season_id: currentSeason.id } : {}),
-    enabled: !!currentSeason,
+      api.get<EventRead[]>("/events", activeSeason ? { season_id: activeSeason.id } : {}),
+    enabled: !!activeSeason,
   });
 
   const filteredEvents = useMemo(
@@ -1137,7 +1140,25 @@ export default function Agenda() {
             </>
           )}
 
-          {isAdmin && currentSeason && (
+          {seasons.length > 1 && (
+            <Select
+              value={selectedSeasonId ?? defaultSeason?.id ?? ""}
+              onValueChange={(v) => setSelectedSeasonId(v)}
+            >
+              <SelectTrigger className="h-8 w-auto text-xs bg-background/50 border-border">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {seasons.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}{s.is_current ? " (en cours)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          {isAdmin && activeSeason && (
             <Button
               onClick={() => setAddOpen(true)}
               className="ml-2 bg-gradient-to-r from-cabaret-purple to-cabaret-gold text-background"
@@ -1354,11 +1375,11 @@ export default function Agenda() {
       )}
 
       {/* Add event dialog */}
-      {isAdmin && currentSeason && (
+      {isAdmin && activeSeason && (
         <AddEventDialog
           open={addOpen}
           onOpenChange={setAddOpen}
-          currentSeasonId={currentSeason.id}
+          currentSeasonId={activeSeason.id}
         />
       )}
 
