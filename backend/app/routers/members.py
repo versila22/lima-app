@@ -117,7 +117,7 @@ async def _build_member_profile(db: AsyncSession, member_id: UUID) -> MemberProf
 @router.get("", response_model=List[MemberSummary])
 async def list_members(
     season_id: Optional[UUID] = Query(None, description="Filtrer par saison"),
-    is_active: Optional[bool] = Query(None),
+    is_active: Optional[bool] = Query(True),
     db: AsyncSession = Depends(get_db),
     _: Member = Depends(get_current_user),
 ):
