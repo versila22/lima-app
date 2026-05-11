@@ -24,6 +24,7 @@ class EventBase(BaseModel):
     away_city: Optional[str] = None
     away_opponent: Optional[str] = None
     notes: Optional[str] = None
+    match_report: Optional[str] = None
     visibility: EventVisibility = "all"
 
 
@@ -42,6 +43,7 @@ class EventUpdate(BaseModel):
     away_city: Optional[str] = None
     away_opponent: Optional[str] = None
     notes: Optional[str] = None
+    match_report: Optional[str] = None
     visibility: Optional[EventVisibility] = None
 
 

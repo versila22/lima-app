@@ -45,6 +45,7 @@ class Event(Base):
     away_opponent: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
 
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    match_report: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Visibility: all | match | cabaret | loisir | admin
     visibility: Mapped[str] = mapped_column(String(20), default="all")
