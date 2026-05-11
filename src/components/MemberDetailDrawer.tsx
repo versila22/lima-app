@@ -27,7 +27,7 @@ import { MemberEditDialog } from "./MemberEditDialog";
 
 function getPhotoUrl(url?: string | null) {
   if (!url) return undefined;
-  if (url.startsWith("http")) return url;
+  if (url.startsWith("http") || url.startsWith("data:")) return url;
   return `${API_BASE_URL}${url}`;
 }
 
@@ -47,7 +47,7 @@ export function MemberDetailDrawer({
   const queryClient = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
 
-  const { data: profile, isLoading } = useQuery<MemberProfileRead>({
+  const { data: profile, isLoading, isError } = useQuery<MemberProfileRead>({
     queryKey: ["member-profile", member?.id],
     queryFn: () => getMemberProfile(member!.id),
     enabled: open && !!member,
@@ -102,6 +102,10 @@ export function MemberDetailDrawer({
           {isLoading ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          ) : isError ? (
+            <div className="text-center py-16 text-destructive text-sm">
+              Impossible de charger le profil.
             </div>
           ) : profile ? (
             <div className="space-y-6">

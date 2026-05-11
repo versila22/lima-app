@@ -180,14 +180,8 @@ async def get_member_profile(
 ):
     """Retrieve the enriched profile of a member.
 
-    A member can view their own profile; admins can view any member.
+    Any authenticated member can view any profile.
     """
-    if not current_user.is_admin and current_user.id != member_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Accès réservé à votre profil",
-        )
-
     result = await db.execute(select(Member.id).where(Member.id == member_id))
     if result.scalar_one_or_none() is None:
         raise HTTPException(status_code=404, detail="Membre introuvable")
