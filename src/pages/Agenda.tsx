@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useLocation } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -1217,6 +1217,7 @@ export default function Agenda() {
   const { user } = useAuth();
   const isAdmin = user?.app_role === "admin";
   const queryClient = useQueryClient();
+  const location = useLocation();
 
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState<EventRead | null>(null);
@@ -1256,6 +1257,14 @@ export default function Agenda() {
       api.get<EventRead[]>("/events", activeSeason ? { season_id: activeSeason.id } : {}),
     enabled: !!activeSeason,
   });
+
+  // Auto-open event drawer when navigating from Home page
+  useEffect(() => {
+    const openEventId = location.state?.openEventId;
+    if (!openEventId || events.length === 0) return;
+    const ev = events.find((e) => e.id === openEventId);
+    if (ev) setSelectedEvent(ev);
+  }, [location.state, events]);
 
   const filteredEvents = useMemo(
     () =>

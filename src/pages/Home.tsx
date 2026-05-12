@@ -234,9 +234,11 @@ function UpcomingEventsSection() {
             const startDate = parseISO(ev.start_at);
             const days = differenceInCalendarDays(startDate, now);
             return (
-              <div
+              <Link
                 key={ev.id}
-                className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 ${cfg.color}`}
+                to="/agenda"
+                state={{ openEventId: ev.id }}
+                className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 hover:opacity-80 transition-opacity ${cfg.color}`}
               >
                 <div className="shrink-0 w-10 text-center">
                   <p className="text-sm font-bold leading-none">{format(startDate, "d")}</p>
@@ -254,7 +256,7 @@ function UpcomingEventsSection() {
                 <span className="shrink-0 text-xs text-muted-foreground">
                   {days === 0 ? "Aujourd'hui" : days === 1 ? "Demain" : `J-${days}`}
                 </span>
-              </div>
+              </Link>
             );
           })}
         </div>
@@ -293,9 +295,11 @@ function MyPlanningSection() {
           const startDate = parseISO(ev.start_at);
           const days = differenceInCalendarDays(startDate, new Date());
           return (
-            <div
+            <Link
               key={i}
-              className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 ${cfg.color}`}
+              to="/agenda"
+              state={{ openEventId: ev.event_id }}
+              className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 hover:opacity-80 transition-opacity ${cfg.color}`}
             >
               <div className="shrink-0 w-10 text-center">
                 <p className="text-sm font-bold leading-none">{format(startDate, "d")}</p>
@@ -310,7 +314,7 @@ function MyPlanningSection() {
               <span className="shrink-0 text-xs text-muted-foreground">
                 {days === 0 ? "Aujourd'hui" : days === 1 ? "Demain" : `J-${days}`}
               </span>
-            </div>
+            </Link>
           );
         })}
       </div>
