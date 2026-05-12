@@ -490,89 +490,91 @@ async def _build_member_planning(db: AsyncSession, member_id: UUID) -> MemberPla
     now = datetime.now(timezone.utc)
     three_months_ago = now - timedelta(days=90)
 
-    align_stmt = (
-        select(AlignmentAssignment, Alignment, Event)
-        .join(Alignment, AlignmentAssignment.alignment_id == Alignment.id)
-        .join(Event, AlignmentAssignment.event_id == Event.id)
-        .where(AlignmentAssignment.member_id == member_id)
-        .where(Event.start_at >= three_months_ago)
-        .order_by(Event.start_at.asc())
-    )
-    align_rows = (await db.execute(align_stmt)).all()
-
-    reg_stmt = (
-        select(EventRegistration, Event)
-        .join(Event, EventRegistration.event_id == Event.id)
-        .where(EventRegistration.member_id == member_id)
-        .where(Event.start_at >= three_months_ago)
-        .order_by(Event.start_at.asc())
-    )
-    reg_rows = (await db.execute(reg_stmt)).all()
-
-    # Venue cache to avoid duplicate fetches
-    venue_cache: dict[UUID, Optional[str]] = {}
-
-    async def venue_name_for(event: Event) -> Optional[str]:
-        if not event.venue_id:
-            return None
-        if event.venue_id not in venue_cache:
-            venue = await db.get(Venue, event.venue_id)
-            venue_cache[event.venue_id] = venue.name if venue else None
-        return venue_cache[event.venue_id]
-
-    upcoming: list[PlanningEvent] = []
-    past: list[PlanningEvent] = []
-    assigned_event_ids: set[UUID] = set()
-
-    for assignment, alignment, event in align_rows:
-        assigned_event_ids.add(event.id)
-        pe = PlanningEvent(
-            event_id=event.id,
-            title=event.title,
-            event_type=event.event_type,
-            start_at=event.start_at,
-            end_at=event.end_at,
-            venue_name=await venue_name_for(event),
-            source="alignment",
-            role=assignment.role,
-            alignment_name=alignment.name,
-            alignment_status=alignment.status,
+    try:
+        align_stmt = (
+            select(AlignmentAssignment, Alignment, Event)
+            .join(Alignment, AlignmentAssignment.alignment_id == Alignment.id)
+            .join(Event, AlignmentAssignment.event_id == Event.id)
+            .where(AlignmentAssignment.member_id == member_id)
+            .where(Event.start_at >= three_months_ago)
+            .order_by(Event.start_at.asc())
         )
-        if event.start_at >= now:
-            upcoming.append(pe)
-        else:
-            past.append(pe)
+        align_rows = (await db.execute(align_stmt)).all()
 
-    for _registration, event in reg_rows:
-        # If the member is also assigned to an alignment for this event, the
-        # alignment entry already covers it — skip the registration to avoid duplicates.
-        if event.id in assigned_event_ids:
-            continue
-        pe = PlanningEvent(
-            event_id=event.id,
-            title=event.title,
-            event_type=event.event_type,
-            start_at=event.start_at,
-            end_at=event.end_at,
-            venue_name=await venue_name_for(event),
-            source="registration",
+        # Registrations: pull the Event objects via join (no need to keep the registration row)
+        reg_event_stmt = (
+            select(Event)
+            .join(EventRegistration, EventRegistration.event_id == Event.id)
+            .where(EventRegistration.member_id == member_id)
+            .where(Event.start_at >= three_months_ago)
+            .order_by(Event.start_at.asc())
         )
-        if event.start_at >= now:
-            upcoming.append(pe)
-        else:
-            past.append(pe)
+        reg_events = (await db.execute(reg_event_stmt)).scalars().all()
 
-    upcoming.sort(key=lambda e: e.start_at)
-    past.sort(key=lambda e: e.start_at, reverse=True)
+        venue_cache: dict[UUID, Optional[str]] = {}
 
-    total_shows = len(align_rows)
-    total_attendances = sum(1 for _, ev in reg_rows if ev.id not in assigned_event_ids)
-    return MemberPlanning(
-        upcoming=upcoming,
-        past=past,
-        total_shows=total_shows,
-        total_attendances=total_attendances,
-    )
+        async def venue_name_for(event: Event) -> Optional[str]:
+            if not event.venue_id:
+                return None
+            if event.venue_id not in venue_cache:
+                venue = await db.get(Venue, event.venue_id)
+                venue_cache[event.venue_id] = venue.name if venue else None
+            return venue_cache[event.venue_id]
+
+        upcoming: list[PlanningEvent] = []
+        past: list[PlanningEvent] = []
+        assigned_event_ids: set[UUID] = set()
+
+        for assignment, alignment, event in align_rows:
+            assigned_event_ids.add(event.id)
+            pe = PlanningEvent(
+                event_id=event.id,
+                title=event.title,
+                event_type=event.event_type,
+                start_at=event.start_at,
+                end_at=event.end_at,
+                venue_name=await venue_name_for(event),
+                source="alignment",
+                role=assignment.role,
+                alignment_name=alignment.name,
+                alignment_status=alignment.status,
+            )
+            if event.start_at >= now:
+                upcoming.append(pe)
+            else:
+                past.append(pe)
+
+        attendance_count = 0
+        for event in reg_events:
+            if event.id in assigned_event_ids:
+                continue
+            attendance_count += 1
+            pe = PlanningEvent(
+                event_id=event.id,
+                title=event.title,
+                event_type=event.event_type,
+                start_at=event.start_at,
+                end_at=event.end_at,
+                venue_name=await venue_name_for(event),
+                source="registration",
+            )
+            if event.start_at >= now:
+                upcoming.append(pe)
+            else:
+                past.append(pe)
+
+        upcoming.sort(key=lambda e: e.start_at)
+        past.sort(key=lambda e: e.start_at, reverse=True)
+
+        return MemberPlanning(
+            upcoming=upcoming,
+            past=past,
+            total_shows=len(align_rows),
+            total_attendances=attendance_count,
+        )
+    except Exception:
+        logger.exception("Failed to build planning for member %s", member_id)
+        raise
 
 
 @router.get("/me/planning", response_model=MemberPlanning)
