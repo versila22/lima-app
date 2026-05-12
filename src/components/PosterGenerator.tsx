@@ -84,308 +84,208 @@ function PosterLayout({
   const dj = cast.filter((c) => c.role === "DJ");
   const players = cast.filter((c) => c.role === "JR");
   const hasCast = cast.length > 0;
-
-  const titleSize = isStory
-    ? Math.min(72, Math.max(48, Math.floor(width / (event.title.length * 0.55))))
-    : Math.min(60, Math.max(36, Math.floor(width / (event.title.length * 0.52))));
+  const hasPhoto = !!bgDataUrl;
 
   const dateStr = format(parseISO(event.start_at), "EEEE d MMMM yyyy — HH:mm", { locale: fr });
   const dateStrCap = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
 
-  // accent color based on event type
+  // Vivid gradient palette per event type
+  const BG: Record<string, [string, string, string]> = {
+    cabaret:   ["#ff5500", "#d41010", "#6a0000"],
+    match:     ["#e82020", "#a30000", "#4a0000"],
+    welsh:     ["#f59e0b", "#d97706", "#7c3500"],
+    formation: ["#8b5cf6", "#6d28d9", "#2e1065"],
+  };
+  const [c1, c2, c3] = BG[event.event_type] ?? ["#e95220", "#c01010", "#5a0000"];
+  const bgGradient = `linear-gradient(155deg, ${c1} 0%, ${c2} 48%, ${c3} 100%)`;
+
+  // accent for date / badge text
   const accentColor =
-    event.event_type === "cabaret" ? "#e95220" :
-    event.event_type === "formation" ? "#a855f7" :
-    event.event_type === "match" ? "#e01f1f" :
-    event.event_type === "welsh" ? "#f59e0b" : "#e95220";
+    event.event_type === "cabaret"   ? "#ffb347" :
+    event.event_type === "match"     ? "#ff8080" :
+    event.event_type === "welsh"     ? "#fde68a" :
+    event.event_type === "formation" ? "#c4b5fd" : "#ffb347";
+
+  // Photo hero: takes top 44% (square) or 42% (story) when available
+  const photoRatio = isStory ? 0.42 : 0.44;
+  const photoZoneH = hasPhoto ? Math.floor(photoRatio * height) : 0;
+
+  // Title: bigger, uppercase-friendly
+  const titleSize = isStory
+    ? Math.min(88, Math.max(52, Math.floor(width / (event.title.length * 0.48))))
+    : Math.min(72, Math.max(40, Math.floor(width / (event.title.length * 0.46))));
+
+  const pad = isStory ? 56 : 44;
+  const headerH = isStory ? 100 : 80;
 
   return (
-    <div
-      style={{
-        width,
-        height,
-        position: "relative",
-        overflow: "hidden",
-        fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
-        background: bgDataUrl ? "transparent" : "#0d0d14",
-      }}
-    >
-      {/* Background photo */}
-      {bgDataUrl ? (
-        <div
-          style={{
+    <div style={{ width, height, position: "relative", overflow: "hidden", fontFamily: "'Inter', system-ui, sans-serif" }}>
+
+      {/* ── 1. Vivid gradient base ── */}
+      <div style={{ position: "absolute", inset: 0, background: bgGradient }} />
+
+      {/* ── 2. Spotlight from top-centre ── */}
+      <div style={{
+        position: "absolute", inset: 0,
+        background: "radial-gradient(ellipse 90% 55% at 50% -5%, rgba(255,220,130,0.22) 0%, transparent 60%)",
+      }} />
+
+      {/* ── 3. Event photo: hero zone at top ── */}
+      {hasPhoto && (
+        <>
+          <div style={{
             position: "absolute",
-            inset: -6,
+            top: 0, left: 0, right: 0,
+            height: photoZoneH,
             backgroundImage: `url(${bgDataUrl})`,
             backgroundSize: "cover",
-            backgroundPosition: "center",
-            filter: "blur(3px) brightness(0.6)",
-          }}
-        />
-      ) : (
-        <div
-          style={{
+            backgroundPosition: "center top",
+          }} />
+          {/* fade photo → gradient */}
+          <div style={{
             position: "absolute",
-            inset: 0,
-            background: "linear-gradient(135deg, #12001a 0%, #1a0005 50%, #1a0800 100%)",
-          }}
-        />
+            top: photoZoneH - Math.floor(height * 0.14),
+            left: 0, right: 0,
+            height: Math.floor(height * 0.16),
+            background: `linear-gradient(to bottom, transparent, ${c3})`,
+          }} />
+        </>
       )}
 
-      {/* Dark overlay so text stays readable */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          background:
-            "linear-gradient(to bottom, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.62) 50%, rgba(0,0,0,0.88) 100%)",
-        }}
-      />
+      {/* ── 4. Bottom darkening so text pops ── */}
+      <div style={{
+        position: "absolute", inset: 0,
+        background: hasPhoto
+          ? `linear-gradient(to bottom, transparent ${Math.floor(photoRatio * 70)}%, rgba(0,0,0,0.45) 100%)`
+          : "linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.35) 100%)",
+      }} />
 
-      {/* Accent color strip at top */}
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 5,
-          background: `linear-gradient(to right, #e01f1f, ${accentColor})`,
-        }}
-      />
+      {/* ── 5. Content ── */}
+      <div style={{ position: "relative", zIndex: 1, width, height, display: "flex", flexDirection: "column" }}>
 
-      {/* Content */}
-      <div
-        style={{
-          position: "relative",
-          zIndex: 1,
-          height: "100%",
+        {/* Header row: logo pill + event badge */}
+        <div style={{
+          flexShrink: 0,
+          height: headerH,
           display: "flex",
-          flexDirection: "column",
-          padding: isStory ? 56 : 44,
-        }}
-      >
-        {/* Header: Logo + association */}
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <img
-            src={limaLogo}
-            alt="LIMA"
-            style={{
-              width: isStory ? 72 : 56,
-              height: isStory ? 72 : 56,
-              borderRadius: 10,
-              objectFit: "contain",
-              background: "white",
-            }}
-          />
-          <div>
-            <div
-              style={{
-                color: "white",
-                fontSize: isStory ? 22 : 17,
-                fontWeight: 800,
-                letterSpacing: "0.12em",
-                textTransform: "uppercase",
-              }}
-            >
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: `0 ${pad}px`,
+        }}>
+          {/* Logo pill */}
+          <div style={{
+            display: "flex", alignItems: "center", gap: 10,
+            background: "rgba(0,0,0,0.30)",
+            borderRadius: 50,
+            padding: isStory ? "8px 18px 8px 8px" : "6px 14px 6px 6px",
+            border: "1px solid rgba(255,255,255,0.15)",
+          }}>
+            <img src={limaLogo} alt="LIMA" style={{
+              width: isStory ? 42 : 34, height: isStory ? 42 : 34,
+              borderRadius: "50%", objectFit: "contain", background: "white",
+            }} />
+            <span style={{ color: "white", fontSize: isStory ? 17 : 13, fontWeight: 800, letterSpacing: "0.1em" }}>
               LIMA IMPRO
-            </div>
-            <div
-              style={{
-                color: "rgba(255,255,255,0.55)",
-                fontSize: isStory ? 14 : 11,
-                letterSpacing: "0.08em",
-              }}
-            >
-              Ligue d'Improvisation du Maine-et-Loire
-            </div>
+            </span>
+          </div>
+
+          {/* Event type badge */}
+          <div style={{
+            background: "white",
+            color: c2,
+            borderRadius: 6,
+            padding: isStory ? "7px 18px" : "5px 14px",
+            fontSize: isStory ? 15 : 12,
+            fontWeight: 800,
+            letterSpacing: "0.13em",
+            textTransform: "uppercase",
+          }}>
+            {cfg.label}
           </div>
         </div>
 
-        {/* Main section */}
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            paddingTop: isStory ? 60 : 32,
-            paddingBottom: isStory ? 40 : 24,
-          }}
-        >
-          {/* Event type badge */}
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              background: `${accentColor}22`,
-              border: `1.5px solid ${accentColor}66`,
-              borderRadius: 6,
-              padding: isStory ? "8px 20px" : "6px 14px",
-              color: accentColor,
-              fontSize: isStory ? 16 : 13,
-              fontWeight: 700,
-              letterSpacing: "0.15em",
-              textTransform: "uppercase",
-              marginBottom: isStory ? 28 : 20,
-              width: "fit-content",
-            }}
-          >
-            {cfg.label}
-          </div>
+        {/* Spacer: pushes content below the photo zone */}
+        <div style={{ flexShrink: 0, height: Math.max(0, photoZoneH - headerH) }} />
 
+        {/* Content zone: title → date → divider → cast + QR */}
+        <div style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "flex-end",
+          padding: `0 ${pad}px ${pad}px`,
+        }}>
           {/* Title */}
-          <div
-            style={{
-              color: "white",
-              fontSize: titleSize,
-              fontWeight: 900,
-              lineHeight: 1.05,
-              marginBottom: isStory ? 32 : 22,
-              letterSpacing: "-0.02em",
-            }}
-          >
+          <div style={{
+            color: "white",
+            fontSize: titleSize,
+            fontWeight: 900,
+            lineHeight: 1.0,
+            letterSpacing: "-0.025em",
+            textTransform: "uppercase",
+            textShadow: "0 3px 24px rgba(0,0,0,0.5)",
+            marginBottom: isStory ? 18 : 12,
+          }}>
             {event.title}
           </div>
 
-          {/* Date */}
-          <div
-            style={{
-              color: accentColor,
-              fontSize: isStory ? 24 : 18,
-              fontWeight: 700,
-              marginBottom: 10,
-              letterSpacing: "0.01em",
-            }}
-          >
+          {/* Date pill */}
+          <div style={{
+            display: "inline-flex",
+            alignItems: "center",
+            background: "rgba(255,255,255,0.13)",
+            border: "1px solid rgba(255,255,255,0.28)",
+            borderRadius: 50,
+            padding: isStory ? "10px 26px" : "8px 20px",
+            color: accentColor,
+            fontSize: isStory ? 22 : 17,
+            fontWeight: 700,
+            width: "fit-content",
+            marginBottom: hasCast ? (isStory ? 28 : 18) : 0,
+          }}>
             {dateStrCap}
           </div>
 
-          {/* Venue */}
-          {event.away_city && (
-            <div
-              style={{
-                color: "rgba(255,255,255,0.65)",
-                fontSize: isStory ? 18 : 14,
-                fontWeight: 500,
-              }}
-            >
-              {event.away_city}
-              {event.away_opponent ? ` — contre ${event.away_opponent}` : ""}
-            </div>
+          {/* Divider */}
+          {hasCast && (
+            <div style={{ height: 1, background: "rgba(255,255,255,0.18)", marginBottom: isStory ? 20 : 14 }} />
           )}
-        </div>
 
-        {/* Bottom: casting + QR */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-end",
-          }}
-        >
-          {/* Casting */}
-          {hasCast ? (
+          {/* Cast + QR */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
             <div style={{ flex: 1, marginRight: 20 }}>
               {mj.length > 0 && (
-                <div style={{ marginBottom: 6 }}>
-                  <span
-                    style={{
-                      color: "rgba(255,255,255,0.45)",
-                      fontSize: isStory ? 13 : 10,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.12em",
-                      marginRight: 8,
-                    }}
-                  >
-                    Meneur·se
-                  </span>
-                  <span
-                    style={{
-                      color: "rgba(255,255,255,0.9)",
-                      fontSize: isStory ? 16 : 13,
-                      fontWeight: 600,
-                    }}
-                  >
+                <div style={{ marginBottom: isStory ? 8 : 5 }}>
+                  <span style={{ color: "rgba(255,255,255,0.5)", fontSize: isStory ? 11 : 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", marginRight: 8 }}>Meneur·se</span>
+                  <span style={{ color: "white", fontSize: isStory ? 18 : 14, fontWeight: 700 }}>
                     {mj.map((m) => `${m.first_name} ${m.last_name}`).join(", ")}
                   </span>
                 </div>
               )}
               {dj.length > 0 && (
-                <div style={{ marginBottom: 6 }}>
-                  <span
-                    style={{
-                      color: "rgba(255,255,255,0.45)",
-                      fontSize: isStory ? 13 : 10,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.12em",
-                      marginRight: 8,
-                    }}
-                  >
-                    DJ
-                  </span>
-                  <span
-                    style={{
-                      color: "rgba(255,255,255,0.9)",
-                      fontSize: isStory ? 16 : 13,
-                      fontWeight: 600,
-                    }}
-                  >
+                <div style={{ marginBottom: isStory ? 8 : 5 }}>
+                  <span style={{ color: "rgba(255,255,255,0.5)", fontSize: isStory ? 11 : 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", marginRight: 8 }}>DJ</span>
+                  <span style={{ color: "white", fontSize: isStory ? 18 : 14, fontWeight: 700 }}>
                     {dj.map((m) => `${m.first_name} ${m.last_name}`).join(", ")}
                   </span>
                 </div>
               )}
               {players.length > 0 && (
                 <div>
-                  <span
-                    style={{
-                      color: "rgba(255,255,255,0.45)",
-                      fontSize: isStory ? 13 : 10,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.12em",
-                      marginRight: 8,
-                    }}
-                  >
-                    Joueurs
-                  </span>
-                  <span
-                    style={{
-                      color: "rgba(255,255,255,0.85)",
-                      fontSize: isStory ? 15 : 12,
-                    }}
-                  >
-                    {players
-                      .map((m) => `${m.first_name} ${m.last_name.charAt(0)}.`)
-                      .join(" · ")}
+                  <span style={{ color: "rgba(255,255,255,0.5)", fontSize: isStory ? 11 : 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", marginRight: 8 }}>Joueurs</span>
+                  <span style={{ color: "rgba(255,255,255,0.88)", fontSize: isStory ? 16 : 12 }}>
+                    {players.map((m) => `${m.first_name} ${m.last_name.charAt(0)}.`).join(" · ")}
                   </span>
                 </div>
               )}
             </div>
-          ) : (
-            <div style={{ flex: 1 }} />
-          )}
 
-          {/* QR code */}
-          {qrDataUrl && (
-            <div
-              style={{
-                background: "white",
-                borderRadius: 10,
-                padding: 6,
-                flexShrink: 0,
-              }}
-            >
-              <img
-                src={qrDataUrl}
-                alt="QR code"
-                style={{
-                  width: isStory ? 110 : 84,
-                  height: isStory ? 110 : 84,
-                  display: "block",
-                }}
-              />
-            </div>
-          )}
+            {qrDataUrl && (
+              <div style={{ background: "white", borderRadius: 10, padding: 6, flexShrink: 0 }}>
+                <img src={qrDataUrl} alt="QR" style={{ width: isStory ? 100 : 78, height: isStory ? 100 : 78, display: "block" }} />
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
