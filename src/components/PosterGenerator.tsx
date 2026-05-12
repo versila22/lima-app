@@ -6,8 +6,8 @@ import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Download, Loader2 } from "lucide-react";
 
-import { api } from "@/lib/api";
-import type { EventPhoto, EventRead } from "@/types";
+import { api, listGalleryPhotos } from "@/lib/api";
+import type { EventPhoto, EventRead, GalleryPhoto } from "@/types";
 import { EVENT_TYPE_CONFIG } from "@/pages/Agenda";
 import limaLogo from "@/assets/logo-lima.jpg";
 import bgCabaretPoster from "@/assets/posters/bg-cabaret-poster.jpg";
@@ -317,15 +317,29 @@ export function PosterGenerator({
     enabled: open,
   });
 
+  // Photos from most recent past event of same type at same venue (poster background fallback)
+  const { data: refPhotos = [] } = useQuery<GalleryPhoto[]>({
+    queryKey: ["gallery-photos-ref", event.event_type, event.venue_id ?? "none"],
+    queryFn: () => listGalleryPhotos({
+      event_type: event.event_type,
+      ...(event.venue_id ? { venue_id: event.venue_id } : {}),
+    }),
+    enabled: open,
+    select: (data) => data.filter((p) => p.event_id !== event.id),
+  });
+
   // Pre-fetch background image as dataURL to avoid CORS issues with html-to-image
-  // Priority: event gallery photo → event-type fallback → null (gradient)
+  // Priority: event's own photos → most recent past same-venue/type photo → static fallback
   useEffect(() => {
     if (!open) return;
-    const url = photos.length > 0
+    const photoUrl = photos.length > 0
       ? photos[0].url
-      : FALLBACK_BG[event.event_type] ?? bgFormation;
+      : refPhotos.length > 0
+        ? refPhotos[0].url
+        : null;
+    const url = photoUrl ?? FALLBACK_BG[event.event_type] ?? bgFormation;
     fetchAsDataUrl(url).then(setBgDataUrl);
-  }, [open, photos, event.event_type]);
+  }, [open, photos, refPhotos, event.event_type]);
 
   // Generate QR code dataURL
   useEffect(() => {
@@ -444,7 +458,9 @@ export function PosterGenerator({
 
         {photos.length === 0 && (
           <p className="text-xs text-muted-foreground text-center mt-1">
-            Fond générique LIMA — ajoute des photos à cet événement pour un fond personnalisé.
+            {refPhotos.length > 0
+              ? `Fond basé sur "${refPhotos[0].event_title}" — importe des photos sur cet événement pour personnaliser.`
+              : "Fond générique — importe des photos sur cet événement pour un fond personnalisé."}
           </p>
         )}
       </DialogContent>

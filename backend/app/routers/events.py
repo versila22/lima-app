@@ -46,11 +46,13 @@ class EventCastMember(BaseModel):
 
 @router.get("/photos", response_model=List[GalleryPhotoRead])
 async def list_gallery_photos(
+    event_type: Optional[str] = Query(None),
+    venue_id: Optional[UUID] = Query(None),
     db: AsyncSession = Depends(get_db),
     _: Member = Depends(get_current_user),
 ):
     """Return all event photos with event info, most recent events first."""
-    result = await db.execute(
+    query = (
         select(
             EventPhoto.id,
             EventPhoto.event_id,
@@ -64,6 +66,11 @@ async def list_gallery_photos(
         .join(Event, Event.id == EventPhoto.event_id)
         .order_by(Event.start_at.desc(), EventPhoto.created_at)
     )
+    if event_type:
+        query = query.where(Event.event_type == event_type)
+    if venue_id:
+        query = query.where(Event.venue_id == venue_id)
+    result = await db.execute(query)
     return [
         GalleryPhotoRead(
             id=row.id,

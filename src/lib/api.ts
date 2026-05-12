@@ -385,8 +385,12 @@ export function deleteEventPhoto(eventId: string, photoId: string): Promise<void
   return api.delete<void>(`/events/${eventId}/photos/${photoId}`);
 }
 
-export function listGalleryPhotos(): Promise<GalleryPhoto[]> {
-  return api.get<GalleryPhoto[]>("/events/photos");
+export function listGalleryPhotos(params?: { event_type?: string; venue_id?: string }): Promise<GalleryPhoto[]> {
+  const qs = new URLSearchParams();
+  if (params?.event_type) qs.set("event_type", params.event_type);
+  if (params?.venue_id) qs.set("venue_id", params.venue_id);
+  const q = qs.toString();
+  return api.get<GalleryPhoto[]>(`/events/photos${q ? `?${q}` : ""}`);
 }
 
 // ---- Members CRUD helpers ----
