@@ -5,7 +5,7 @@ import React, {
   useEffect,
   useState,
 } from "react";
-import { api, ApiError } from "@/lib/api";
+import { api, ApiError, setSessionToken, clearSessionToken } from "@/lib/api";
 import type {
   ActivateAccountRequest,
   ApiMessage,
@@ -61,6 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Listen for global logout event (dispatched by 401 interceptor in api.ts)
   useEffect(() => {
     const handler = () => {
+      clearSessionToken();
       setUser(null);
       setIsLoading(false);
     };
@@ -69,8 +70,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    // POST /auth/login sets httpOnly cookies; token in body is ignored
-    await api.post("/auth/login", { email, password });
+    // POST /auth/login sets httpOnly cookies AND returns access_token in body.
+    // Store it in sessionStorage for Safari (which blocks cross-origin httpOnly cookies).
+    const res = await api.post<{ access_token?: string }>("/auth/login", { email, password });
+    if (res?.access_token) {
+      setSessionToken(res.access_token);
+    }
     const me = await api.get<MemberRead>("/auth/me");
     setUser(me);
   }, []);
@@ -81,6 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // Best-effort — clear state regardless
     }
+    clearSessionToken();
     setUser(null);
   }, []);
 

@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     # JWT
     JWT_SECRET: str = DEFAULT_JWT_SECRET
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 480  # 8 hours — allows Safari (no cross-origin cookies) to work for a full session
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     # Refresh token secret — intentionally same as JWT_SECRET in development.
     # Set to a distinct value in staging/production for independent rotation.

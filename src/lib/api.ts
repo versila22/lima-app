@@ -33,10 +33,25 @@ export const API_BASE_URL = _env_url && _env_url.length > 0
   ? _env_url
   : "http://localhost:8000";
 
-// Token management moved to httpOnly cookies — no client-side token storage.
+// Token management: primary via httpOnly cookies; sessionStorage as fallback for Safari
+// (Safari's ITP blocks cross-origin cookies — bearer token stored in sessionStorage works around this).
 // A 401 interceptor in _doRequest() handles silent refresh via POST /auth/refresh.
 let _isRefreshing = false;
 let _refreshQueue: Array<(success: boolean) => void> = [];
+
+const _SESSION_KEY = "lima_access_token";
+
+export function setSessionToken(token: string): void {
+  try { sessionStorage.setItem(_SESSION_KEY, token); } catch { /* quota or security */ }
+}
+
+export function clearSessionToken(): void {
+  try { sessionStorage.removeItem(_SESSION_KEY); } catch { /* ignore */ }
+}
+
+function _getSessionToken(): string | null {
+  try { return sessionStorage.getItem(_SESSION_KEY); } catch { return null; }
+}
 
 // ---- Core request helper ----
 interface RequestOptions extends Omit<RequestInit, "body"> {
@@ -83,6 +98,12 @@ async function _doRequest<T>(
   const headers: Record<string, string> = {
     ...(extraHeaders as Record<string, string>),
   };
+
+  // Add Bearer header from sessionStorage when available (Safari cross-origin cookie workaround)
+  const sessionToken = _getSessionToken();
+  if (sessionToken && !headers["Authorization"]) {
+    headers["Authorization"] = `Bearer ${sessionToken}`;
+  }
 
   let bodyInit: BodyInit | undefined;
   if (body instanceof FormData) {
@@ -140,6 +161,7 @@ async function _tryRefresh(): Promise<boolean> {
       credentials: "include",
     });
     if (!res.ok) {
+      clearSessionToken();
       _refreshQueue.forEach((cb) => cb(false));
       _refreshQueue = [];
       return false;
@@ -148,6 +170,7 @@ async function _tryRefresh(): Promise<boolean> {
     _refreshQueue = [];
     return true;
   } catch {
+    clearSessionToken();
     _refreshQueue.forEach((cb) => cb(false));
     _refreshQueue = [];
     return false;
@@ -219,7 +242,7 @@ function normalizeDailyActiveUsers(value: unknown): DailyActiveUserStat[] {
         const obj = item as Record<string, unknown>;
         return {
           date: String(obj.date ?? obj.day ?? obj.label ?? ""),
-          count: Number(obj.count ?? obj.users ?? obj.value ?? 0),
+          count: Number(obj.count ?? obj.unique_users ?? obj.users ?? obj.value ?? 0),
         };
       }
 
@@ -242,14 +265,15 @@ function normalizeRecentActivity(value: unknown): ActivityLog[] {
     .map((item): ActivityLog | null => {
       if (!item || typeof item !== "object") return null;
       const obj = item as Record<string, unknown>;
-      const firstName = typeof obj.first_name === "string" ? obj.first_name : "";
-      const lastName = typeof obj.last_name === "string" ? obj.last_name : "";
+      const nested = obj.user && typeof obj.user === "object" ? (obj.user as Record<string, unknown>) : null;
+      const firstName = typeof obj.first_name === "string" ? obj.first_name : typeof nested?.first_name === "string" ? nested.first_name : "";
+      const lastName = typeof obj.last_name === "string" ? obj.last_name : typeof nested?.last_name === "string" ? nested.last_name : "";
       const fullName = `${firstName} ${lastName}`.trim();
 
       return {
-        id: typeof obj.id === "string" ? obj.id : undefined,
+        id: typeof obj.id === "string" ? obj.id : typeof obj.id === "number" ? String(obj.id) : undefined,
         user_id: typeof obj.user_id === "string" ? obj.user_id : null,
-        email: typeof obj.email === "string" ? obj.email : null,
+        email: typeof obj.email === "string" ? obj.email : typeof nested?.email === "string" ? nested.email : null,
         name: typeof obj.name === "string" ? obj.name : fullName || null,
         path: String(obj.path ?? obj.endpoint ?? obj.url ?? ""),
         method: typeof obj.method === "string" ? obj.method : null,
@@ -273,15 +297,18 @@ function normalizeLoginAttempts(value: unknown): LoginStats {
   const toAttempt = (item: unknown, successFallback?: boolean): LoginAttempt | null => {
     if (!item || typeof item !== "object") return null;
     const obj = item as Record<string, unknown>;
-    const firstName = typeof obj.first_name === "string" ? obj.first_name : "";
-    const lastName = typeof obj.last_name === "string" ? obj.last_name : "";
+    const nested = obj.user && typeof obj.user === "object" ? (obj.user as Record<string, unknown>) : null;
+    const firstName = typeof obj.first_name === "string" ? obj.first_name : typeof nested?.first_name === "string" ? nested.first_name : "";
+    const lastName = typeof obj.last_name === "string" ? obj.last_name : typeof nested?.last_name === "string" ? nested.last_name : "";
     const fullName = `${firstName} ${lastName}`.trim();
     const inferredSuccess =
       typeof obj.success === "boolean"
         ? obj.success
-        : typeof obj.status === "string"
-          ? obj.status.toLowerCase() === "success"
-          : successFallback ?? false;
+        : typeof obj.status_code === "number"
+          ? obj.status_code < 400
+          : typeof obj.status === "string"
+            ? obj.status.toLowerCase() === "success"
+            : successFallback ?? false;
 
     const createdAt = String(obj.created_at ?? obj.timestamp ?? obj.last_attempt_at ?? obj.date ?? "");
     if (!createdAt) return null;
@@ -289,7 +316,7 @@ function normalizeLoginAttempts(value: unknown): LoginStats {
     return {
       id: typeof obj.id === "string" ? obj.id : undefined,
       user_id: typeof obj.user_id === "string" ? obj.user_id : null,
-      email: typeof obj.email === "string" ? obj.email : null,
+      email: typeof obj.email === "string" ? obj.email : typeof nested?.email === "string" ? nested.email : null,
       name: typeof obj.name === "string" ? obj.name : fullName || null,
       success: inferredSuccess,
       created_at: createdAt,
