@@ -13,6 +13,7 @@ from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.limiting import limiter
 from app.middleware.activity_tracker import ActivityTrackerMiddleware
+from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.routers import (
     admin,
     auth,
@@ -142,6 +143,7 @@ app.add_middleware(
     expose_headers=["Content-Length"],
 )
 app.add_middleware(ActivityTrackerMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 
 # ---------------------------------------------------------------------------
 # Routers
