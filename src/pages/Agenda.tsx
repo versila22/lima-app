@@ -18,6 +18,7 @@ import {
   ImagePlus,
   X as XIcon,
   Images,
+  FileImage,
 } from "lucide-react";
 import {
   format,
@@ -39,6 +40,7 @@ import {
 import { fr } from "date-fns/locale";
 
 import { api, ApiError, uploadEventPhoto, deleteEventPhoto } from "@/lib/api";
+import { PosterGenerator } from "@/components/PosterGenerator";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import type {
@@ -704,6 +706,8 @@ function EventDetailDrawer({
 
   const isTraining = event.event_type === "training_show" || event.event_type === "training_leisure";
   const showParticipation = event.allow_registration || isTraining;
+  const showPoster = isAdmin && ["cabaret", "formation", "match"].includes(event.event_type) && !event.is_away;
+  const [posterOpen, setPosterOpen] = useState(false);
 
   const { data: registrations = [], isLoading: regLoading } = useQuery<RegistrationRead[]>({
     queryKey: ["event-registrations", event.id],
@@ -741,6 +745,7 @@ function EventDetailDrawer({
   const visibleNotes = formatEventNotes(event.notes);
 
   return (
+    <>
     <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
       <DrawerContent className="max-h-[85vh] bg-card border-border">
         <div className="overflow-y-auto px-4 pb-2">
@@ -915,7 +920,7 @@ function EventDetailDrawer({
           </div>
         </div>
 
-        <DrawerFooter className="flex-row gap-2 border-t border-border pt-3">
+        <DrawerFooter className="flex-row gap-2 border-t border-border pt-3 flex-wrap">
           {isAdmin && (
             <>
               <Button
@@ -936,6 +941,17 @@ function EventDetailDrawer({
                 <Trash2 className="w-3.5 h-3.5" />
                 Supprimer
               </Button>
+              {showPoster && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPosterOpen(true)}
+                  className="gap-1.5"
+                >
+                  <FileImage className="w-3.5 h-3.5" />
+                  Affiche
+                </Button>
+              )}
             </>
           )}
           <Button variant="outline" onClick={onClose} className="ml-auto">
@@ -944,6 +960,16 @@ function EventDetailDrawer({
         </DrawerFooter>
       </DrawerContent>
     </Drawer>
+
+    {posterOpen && (
+      <PosterGenerator
+        event={event}
+        cast={cast}
+        open={posterOpen}
+        onClose={() => setPosterOpen(false)}
+      />
+    )}
+    </>
   );
 }
 
