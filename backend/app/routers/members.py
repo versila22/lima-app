@@ -487,7 +487,7 @@ async def import_members(
 
 async def _build_member_planning(db: AsyncSession, member_id: UUID) -> MemberPlanning:
     from datetime import timezone
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(timezone.utc)
     three_months_ago = now - timedelta(days=90)
 
     stmt = (
