@@ -53,15 +53,26 @@ function PageLoader() {
 }
 
 // ---- AuthLogoutHandler ----
+// Only shows "Session expirée" toast when the user *had* an authenticated session.
+// On first load with no prior session, /auth/me 401s — we navigate silently.
 function AuthLogoutHandler() {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const handlingRef = React.useRef(false);
+  const wasAuthedRef = React.useRef(false);
+
+  useEffect(() => {
+    if (isAuthenticated) wasAuthedRef.current = true;
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const handler = () => {
       if (handlingRef.current) return;
       handlingRef.current = true;
-      toast.error("Session expirée, veuillez vous reconnecter.");
+      if (wasAuthedRef.current) {
+        toast.error("Session expirée, veuillez vous reconnecter.");
+        wasAuthedRef.current = false;
+      }
       navigate("/login", { replace: true });
       setTimeout(() => { handlingRef.current = false; }, 2000);
     };
