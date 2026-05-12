@@ -592,14 +592,7 @@ async def get_my_planning(
     db: AsyncSession = Depends(get_db),
 ):
     """Return the current member's planning: upcoming and past show assignments."""
-    try:
-        return await _build_member_planning(db, current_user.id)
-    except Exception as e:
-        import traceback
-        from fastapi import HTTPException
-        tb = traceback.format_exc()
-        logger.error("Planning error: %s\n%s", e, tb)
-        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}\n{tb[-1500:]}")
+    return await _build_member_planning(db, current_user.id)
 
 
 @router.get("/{member_id}/planning", response_model=MemberPlanning)
