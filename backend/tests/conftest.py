@@ -25,7 +25,9 @@ from app.models.show_plan import ShowPlan
 from app.models.venue import Venue
 from app.utils.security import create_access_token, hash_password
 
-TEST_DB_PATH = Path("/data/.openclaw/workspace/lima/backend/tests/test.db")
+# Use a relative path under the tests directory so the test suite runs
+# anywhere (local dev, VPS, GitHub Actions). Resolved against this conftest's location.
+TEST_DB_PATH = Path(__file__).resolve().parent / "test.db"
 TEST_DATABASE_URL = f"sqlite+aiosqlite:///{TEST_DB_PATH}"
 
 engine = create_async_engine(
