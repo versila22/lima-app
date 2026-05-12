@@ -78,6 +78,37 @@ async function request<T>(
   return _doRequest<T>(method, path, options, false);
 }
 
+// FastAPI 422 returns `detail` as an array of {loc, msg, type, ...} objects.
+// Convert it to a readable French string. For string `detail`, returns as-is.
+function _formatApiErrorDetail(detail: unknown): string | undefined {
+  if (detail == null) return undefined;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((item) => {
+        if (typeof item === "string") return item;
+        if (item && typeof item === "object") {
+          const obj = item as Record<string, unknown>;
+          const msg = typeof obj.msg === "string" ? obj.msg : null;
+          const loc = Array.isArray(obj.loc) ? obj.loc.slice(1).join(".") : null;
+          if (msg && loc) return `${loc} : ${msg}`;
+          return msg ?? JSON.stringify(item);
+        }
+        return String(item);
+      })
+      .filter(Boolean);
+    return messages.length > 0 ? messages.join(" ; ") : undefined;
+  }
+  if (typeof detail === "object") {
+    try {
+      return JSON.stringify(detail);
+    } catch {
+      return undefined;
+    }
+  }
+  return String(detail);
+}
+
 async function _doRequest<T>(
   method: string,
   path: string,
@@ -134,7 +165,7 @@ async function _doRequest<T>(
     let detail = `HTTP ${response.status}`;
     try {
       const err = await response.json();
-      detail = err?.detail ?? detail;
+      detail = _formatApiErrorDetail(err?.detail) ?? detail;
     } catch {
       // ignore JSON parse errors
     }
