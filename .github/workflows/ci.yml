@@ -39,7 +39,18 @@ jobs:
           REFRESH_JWT_SECRET: ci-test-refresh
           DEBUG: "true"
           APP_ENV: development
-        run: pytest -v --tb=long --maxfail=5
+        shell: bash
+        run: |
+          set +e
+          pytest -v --tb=long --maxfail=5 2>&1 | tee /tmp/pytest.log
+          EXIT=${PIPESTATUS[0]}
+          {
+            echo '## Pytest output'
+            echo '```'
+            tail -400 /tmp/pytest.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit $EXIT
 
   frontend:
     name: Frontend (vitest + eslint + audit)
