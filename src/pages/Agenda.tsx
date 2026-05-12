@@ -243,7 +243,7 @@ function combineDateAndTime(date: Date | undefined, hour: string, minute: string
     0,
   );
 
-  return format(withTime, "yyyy-MM-dd'T'HH:mm:ss");
+  return withTime.toISOString();
 }
 
 function getInitialDateTimeState(value?: string | null): {
