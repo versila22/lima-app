@@ -10,6 +10,15 @@ import { api } from "@/lib/api";
 import type { EventPhoto, EventRead } from "@/types";
 import { EVENT_TYPE_CONFIG } from "@/pages/Agenda";
 import limaLogo from "@/assets/logo-lima.jpg";
+import bgCabaret from "@/assets/posters/bg-cabaret.jpg";
+import bgMatch from "@/assets/posters/bg-match.jpg";
+import bgFormation from "@/assets/posters/bg-formation.jpg";
+
+const FALLBACK_BG: Record<string, string> = {
+  cabaret: bgCabaret,
+  match: bgMatch,
+  formation: bgFormation,
+};
 
 import { Button } from "@/components/ui/button";
 import {
@@ -411,10 +420,14 @@ export function PosterGenerator({
   });
 
   // Pre-fetch background image as dataURL to avoid CORS issues with html-to-image
+  // Priority: event gallery photo → event-type fallback → null (gradient)
   useEffect(() => {
-    if (!open || photos.length === 0) return;
-    fetchAsDataUrl(photos[0].url).then(setBgDataUrl);
-  }, [open, photos]);
+    if (!open) return;
+    const url = photos.length > 0
+      ? photos[0].url
+      : FALLBACK_BG[event.event_type] ?? bgFormation;
+    fetchAsDataUrl(url).then(setBgDataUrl);
+  }, [open, photos, event.event_type]);
 
   // Generate QR code dataURL
   useEffect(() => {
@@ -531,9 +544,9 @@ export function PosterGenerator({
           </TabsContent>
         </Tabs>
 
-        {!bgDataUrl && photos.length === 0 && (
+        {photos.length === 0 && (
           <p className="text-xs text-muted-foreground text-center mt-1">
-            Ajoute des photos à cet événement pour un fond personnalisé.
+            Fond générique LIMA — ajoute des photos à cet événement pour un fond personnalisé.
           </p>
         )}
       </DialogContent>
