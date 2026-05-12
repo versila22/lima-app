@@ -42,15 +42,17 @@ jobs:
         shell: bash
         run: |
           set +e
-          pytest -v --tb=long --maxfail=5 2>&1 | tee /tmp/pytest.log
+          pytest -v --tb=long --maxfail=5 2>&1 | tee pytest.log
           EXIT=${PIPESTATUS[0]}
-          {
-            echo '## Pytest output'
-            echo '```'
-            tail -400 /tmp/pytest.log
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
           exit $EXIT
+
+      - name: Upload pytest log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-log
+          path: backend/pytest.log
+          retention-days: 7
 
   frontend:
     name: Frontend (vitest + eslint + audit)
