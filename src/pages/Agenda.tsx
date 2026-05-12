@@ -115,49 +115,52 @@ import {
 } from "@/components/ui/command";
 
 // ---- Event type config ----
+// Color classes: strong contrast in light mode (saturated bg + dark text),
+// softer/translucent in dark mode (low-opacity bg + light text). font-medium
+// ensures legibility at small sizes.
 export const EVENT_TYPE_CONFIG: Record<
   EventType,
   { label: string; color: string; dot: string }
 > = {
   training_show: {
     label: "Entraînement spectacle",
-    color: "bg-purple-500/20 text-purple-300 border-purple-500/30",
-    dot: "bg-purple-400",
+    color: "bg-purple-200 text-purple-900 border-purple-500 font-medium dark:bg-purple-500/25 dark:text-purple-100 dark:border-purple-500/60",
+    dot: "bg-purple-500",
   },
   training_leisure: {
     label: "Entraînement loisir",
-    color: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-    dot: "bg-blue-400",
+    color: "bg-blue-200 text-blue-900 border-blue-500 font-medium dark:bg-blue-500/25 dark:text-blue-100 dark:border-blue-500/60",
+    dot: "bg-blue-500",
   },
   match: {
     label: "Match",
-    color: "bg-red-500/20 text-red-300 border-red-500/30",
-    dot: "bg-red-400",
+    color: "bg-red-200 text-red-900 border-red-500 font-medium dark:bg-red-500/25 dark:text-red-100 dark:border-red-500/60",
+    dot: "bg-red-500",
   },
   cabaret: {
     label: "Cabaret",
-    color: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
-    dot: "bg-yellow-400",
+    color: "bg-yellow-200 text-yellow-900 border-yellow-600 font-medium dark:bg-yellow-500/25 dark:text-yellow-100 dark:border-yellow-500/60",
+    dot: "bg-yellow-500",
   },
   welsh: {
     label: "Welsh",
-    color: "bg-amber-500/20 text-amber-300 border-amber-500/30",
-    dot: "bg-amber-400",
+    color: "bg-amber-200 text-amber-900 border-amber-600 font-medium dark:bg-amber-500/25 dark:text-amber-100 dark:border-amber-500/60",
+    dot: "bg-amber-500",
   },
   formation: {
     label: "Formation",
-    color: "bg-green-500/20 text-green-300 border-green-500/30",
-    dot: "bg-green-400",
+    color: "bg-green-200 text-green-900 border-green-600 font-medium dark:bg-green-500/25 dark:text-green-100 dark:border-green-500/60",
+    dot: "bg-green-500",
   },
   ag: {
     label: "AG",
-    color: "bg-orange-500/20 text-orange-300 border-orange-500/30",
-    dot: "bg-orange-400",
+    color: "bg-orange-200 text-orange-900 border-orange-600 font-medium dark:bg-orange-500/25 dark:text-orange-100 dark:border-orange-500/60",
+    dot: "bg-orange-500",
   },
   other: {
     label: "Autre",
-    color: "bg-gray-500/20 text-gray-300 border-gray-500/30",
-    dot: "bg-gray-400",
+    color: "bg-gray-200 text-gray-900 border-gray-500 font-medium dark:bg-gray-500/25 dark:text-gray-100 dark:border-gray-500/60",
+    dot: "bg-gray-500",
   },
 };
 
@@ -1381,24 +1384,24 @@ function AgendaListView({ events, onEventClick }: AgendaListViewProps) {
                   key={ev.id}
                   type="button"
                   onClick={() => onEventClick(ev)}
-                  className={`w-full flex items-center gap-3 text-left px-3 py-2 rounded-lg border ${cfg.color} hover:opacity-80 transition-opacity`}
+                  className={`w-full flex items-center gap-3 text-left px-3 py-2.5 rounded-lg border ${cfg.color} hover:opacity-80 transition-opacity`}
                 >
                   <div className="shrink-0 text-center min-w-[2.5rem]">
-                    <p className="text-xs font-semibold leading-none">
+                    <p className="text-sm sm:text-xs font-semibold leading-none">
                       {format(startDate, "d", { locale: fr })}
                     </p>
-                    <p className="text-[10px] text-muted-foreground capitalize">
+                    <p className="text-xs sm:text-[10px] text-muted-foreground capitalize">
                       {format(startDate, "EEE", { locale: fr })}
                     </p>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate">{ev.title}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-base sm:text-sm font-medium truncate">{ev.title}</p>
+                    <p className="text-sm sm:text-xs text-muted-foreground">
                       {format(startDate, "HH:mm")}
                       {ev.is_away && ev.away_city ? ` · Déplacement — ${ev.away_city}` : ""}
                     </p>
                   </div>
-                  <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded border ${cfg.color}`}>
+                  <span className={`shrink-0 text-xs sm:text-[10px] px-1.5 py-0.5 rounded border ${cfg.color} hidden sm:inline-block`}>
                     {cfg.label}
                   </span>
                 </button>
@@ -1575,8 +1578,8 @@ export default function Agenda() {
       <div className="flex flex-wrap gap-2">
         {(Object.entries(EVENT_TYPE_CONFIG) as [EventType, (typeof EVENT_TYPE_CONFIG)[EventType]][]).map(
           ([type, cfg]) => (
-            <span key={type} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className={`w-2 h-2 rounded-full ${cfg.dot}`} />
+            <span key={type} className="flex items-center gap-1.5 text-sm sm:text-xs text-muted-foreground">
+              <span className={`w-2.5 h-2.5 sm:w-2 sm:h-2 rounded-full ${cfg.dot}`} />
               {cfg.label}
             </span>
           )
@@ -1663,7 +1666,7 @@ export default function Agenda() {
             {DAYS_FR.map((d) => (
               <div
                 key={d}
-                className="py-2 text-center text-xs font-semibold text-muted-foreground"
+                className="py-2 text-center text-sm sm:text-xs font-semibold text-muted-foreground"
               >
                 {d}
               </div>
@@ -1690,7 +1693,7 @@ export default function Agenda() {
                   }`}
                 >
                   <div
-                    className={`w-6 h-6 flex items-center justify-center text-xs font-medium rounded-full mb-1 ${
+                    className={`w-7 h-7 sm:w-6 sm:h-6 flex items-center justify-center text-sm sm:text-xs font-medium rounded-full mb-1 ${
                       isToday
                         ? "bg-primary text-primary-foreground"
                         : "text-muted-foreground"
@@ -1707,7 +1710,7 @@ export default function Agenda() {
                         <button
                           key={ev.id}
                           onClick={() => setSelectedEvent(ev)}
-                          className={`w-full text-left px-1.5 py-0.5 rounded text-xs truncate border ${cfg.color} hover:opacity-80 transition-opacity`}
+                          className={`w-full text-left px-2 py-1 rounded text-sm sm:text-xs truncate border ${cfg.color} hover:opacity-80 transition-opacity`}
                         >
                           {ev.title}
                         </button>
@@ -1739,7 +1742,7 @@ export default function Agenda() {
                                   key={ev.id}
                                   type="button"
                                   onClick={() => setSelectedEvent(ev)}
-                                  className={`w-full text-left px-1.5 py-0.5 rounded text-xs truncate border ${cfg.color} hover:opacity-80 transition-opacity`}
+                                  className={`w-full text-left px-2 py-1 rounded text-sm sm:text-xs truncate border ${cfg.color} hover:opacity-80 transition-opacity`}
                                 >
                                   {ev.title}
                                 </button>
