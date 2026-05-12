@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   CalendarDays,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
   Clock,
@@ -69,11 +70,15 @@ function getNextEventLabel(event?: PlanningEvent) {
 
 function PlanningCard({ event, muted = false }: { event: PlanningEvent; muted?: boolean }) {
   const eventTypeConfig = getEventTypeConfig(event.event_type);
-  const roleConfig = ROLE_CONFIG[event.role as AssignmentRole] ?? {
-    label: event.role,
-    emoji: "👤",
-    className: "bg-muted text-muted-foreground border-border",
-  };
+  const isAttendance = event.source === "registration";
+  const roleConfig =
+    !isAttendance && event.role
+      ? ROLE_CONFIG[event.role as AssignmentRole] ?? {
+          label: event.role,
+          emoji: "👤",
+          className: "bg-muted text-muted-foreground border-border",
+        }
+      : null;
 
   return (
     <Card
@@ -96,10 +101,22 @@ function PlanningCard({ event, muted = false }: { event: PlanningEvent; muted?: 
               <Badge variant="outline" className={eventTypeConfig.color}>
                 {eventTypeConfig.label}
               </Badge>
-              <Badge variant="outline" className={roleConfig.className}>
-                {roleConfig.emoji} {roleConfig.label}
-              </Badge>
-              {event.alignment_status === "draft" && (
+              {isAttendance ? (
+                <Badge
+                  variant="outline"
+                  className="bg-emerald-500/15 text-emerald-200 border-emerald-500/30"
+                >
+                  <CheckCircle2 className="mr-1 h-3 w-3" />
+                  Présent
+                </Badge>
+              ) : (
+                roleConfig && (
+                  <Badge variant="outline" className={roleConfig.className}>
+                    {roleConfig.emoji} {roleConfig.label}
+                  </Badge>
+                )
+              )}
+              {!isAttendance && event.alignment_status === "draft" && (
                 <span className="inline-flex items-center gap-1 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded px-2 py-0.5">
                   <Clock className="w-3 h-3" />
                   Brouillon
@@ -114,9 +131,11 @@ function PlanningCard({ event, muted = false }: { event: PlanningEvent; muted?: 
                   <span>{event.venue_name}</span>
                 </div>
               )}
-              <p className={cn("text-xs", muted && "text-muted-foreground/80")}>
-                Affectation : {event.alignment_name}
-              </p>
+              {!isAttendance && event.alignment_name && (
+                <p className={cn("text-xs", muted && "text-muted-foreground/80")}>
+                  Affectation : {event.alignment_name}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -174,15 +193,21 @@ export default function MonPlanning() {
         </div>
         <div>
           <h1 className="text-2xl font-bold">Mon Planning</h1>
-          <p className="text-sm text-muted-foreground">Vos spectacles à venir et votre historique de jeu.</p>
+          <p className="text-sm text-muted-foreground">Tes spectacles, entraînements et historique.</p>
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-3">
         <Card className="border-border/70 bg-card/80">
           <CardHeader className="pb-2">
             <p className="text-sm text-muted-foreground">Spectacles joués</p>
             <CardTitle className="text-3xl">{data?.total_shows ?? 0}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border-border/70 bg-card/80">
+          <CardHeader className="pb-2">
+            <p className="text-sm text-muted-foreground">Présences</p>
+            <CardTitle className="text-3xl">{data?.total_attendances ?? 0}</CardTitle>
           </CardHeader>
         </Card>
         <Card className="border-border/70 bg-card/80">
@@ -196,19 +221,19 @@ export default function MonPlanning() {
       <section className="space-y-4">
         <div>
           <h2 className="text-xl font-semibold">À venir</h2>
-          <p className="text-sm text-muted-foreground">Vos prochaines affectations publiées ou en préparation.</p>
+          <p className="text-sm text-muted-foreground">Vos prochaines affectations et inscriptions.</p>
         </div>
 
         {upcoming.length === 0 ? (
           <Card className="border-dashed border-border/70 bg-card/50">
             <CardContent className="p-6 text-sm text-muted-foreground">
-              Aucune affectation à venir. Le bureau publiera les grilles prochainement.
+              Aucun événement à venir. Inscris-toi aux entraînements depuis l'agenda.
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-3">
             {upcoming.map((event) => (
-              <PlanningCard key={`${event.event_id}-${event.role}-${event.start_at}`} event={event} />
+              <PlanningCard key={`${event.event_id}-${event.source}-${event.role ?? ""}`} event={event} />
             ))}
           </div>
         )}
@@ -218,8 +243,10 @@ export default function MonPlanning() {
         <Collapsible open={pastOpen} onOpenChange={setPastOpen}>
           <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border border-border/70 bg-card/60 px-4 py-3 text-left transition-colors hover:bg-card/80">
             <div>
-              <h2 className="text-xl font-semibold">{data?.total_shows ?? 0} spectacle(s) joué(s)</h2>
-              <p className="text-sm text-muted-foreground">Historique de vos affectations passées.</p>
+              <h2 className="text-xl font-semibold">Historique</h2>
+              <p className="text-sm text-muted-foreground">
+                {data?.total_shows ?? 0} spectacle(s) joué(s) · {data?.total_attendances ?? 0} présence(s)
+              </p>
             </div>
             {pastOpen ? <ChevronDown className="h-5 w-5 text-muted-foreground" /> : <ChevronRight className="h-5 w-5 text-muted-foreground" />}
           </CollapsibleTrigger>
@@ -233,7 +260,7 @@ export default function MonPlanning() {
             ) : (
               <div className="space-y-3">
                 {past.map((event) => (
-                  <PlanningCard key={`${event.event_id}-${event.role}-${event.start_at}`} event={event} muted />
+                  <PlanningCard key={`${event.event_id}-${event.source}-${event.role ?? ""}`} event={event} muted />
                 ))}
               </div>
             )}

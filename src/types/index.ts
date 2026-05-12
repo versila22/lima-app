@@ -351,15 +351,17 @@ export interface PlanningEvent {
   start_at: string;
   end_at?: string;
   venue_name?: string;
-  role: AssignmentRole;
-  alignment_name: string;
-  alignment_status: AlignmentStatus;
+  source: "alignment" | "registration";
+  role?: AssignmentRole | string | null;
+  alignment_name?: string | null;
+  alignment_status?: AlignmentStatus | null;
 }
 
 export interface MemberPlanning {
   upcoming: PlanningEvent[];
   past: PlanningEvent[];
   total_shows: number;
+  total_attendances: number;
 }
 
 export interface MemberStats {
