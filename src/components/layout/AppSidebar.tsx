@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 import limaLogo from "@/assets/logo-lima.jpg";
+import logoLimaCouleur from "@/assets/posters/logo-lima-couleur.png";
 
 interface AppSidebarProps {
   collapsed: boolean;
@@ -85,15 +86,19 @@ export function AppSidebar({
       <div className="border-b border-sidebar-border p-4">
         <div className="mb-3 flex items-center justify-between gap-2 md:mb-0">
           <div className="flex items-center gap-3 min-w-0">
-            <img
-              src={limaLogo}
-              alt="LIMA"
-              className="w-10 h-10 rounded-lg object-contain bg-white shrink-0"
-            />
-            {(!collapsed || isMobile) && (
-              <div className="overflow-hidden">
-                <h1 className="truncate text-lg font-bold gradient-text">LIMA</h1>
-                <p className="truncate text-xs text-muted-foreground">Gestion &amp; Spectacles</p>
+            {(collapsed && !isMobile) ? (
+              <img
+                src={limaLogo}
+                alt="LIMA"
+                className="w-10 h-10 rounded-lg object-contain bg-white shrink-0"
+              />
+            ) : (
+              <div className="bg-white rounded-xl px-3 py-1.5 shrink-0">
+                <img
+                  src={logoLimaCouleur}
+                  alt="LIMA"
+                  className="h-9 w-auto object-contain"
+                />
               </div>
             )}
           </div>

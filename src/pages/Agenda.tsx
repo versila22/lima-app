@@ -40,6 +40,9 @@ import {
 import { fr } from "date-fns/locale";
 
 import { api, ApiError, uploadEventPhoto, deleteEventPhoto } from "@/lib/api";
+import bgCabaret from "@/assets/posters/bg-cabaret.jpg";
+import bgMatch from "@/assets/posters/bg-match.jpg";
+import bgFormation from "@/assets/posters/bg-formation.jpg";
 import { PosterGenerator } from "@/components/PosterGenerator";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -155,6 +158,13 @@ export const EVENT_TYPE_CONFIG: Record<
     color: "bg-gray-500/20 text-gray-300 border-gray-500/30",
     dot: "bg-gray-400",
   },
+};
+
+const FALLBACK_BG: Partial<Record<string, string>> = {
+  cabaret: bgCabaret,
+  match: bgMatch,
+  formation: bgFormation,
+  welsh: bgMatch,
 };
 
 const DAYS_FR = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
@@ -704,6 +714,13 @@ function EventDetailDrawer({
     enabled: open,
   });
 
+  const { data: bannerPhotos = [] } = useQuery<EventPhoto[]>({
+    queryKey: ["event-photos", event.id],
+    queryFn: () => api.get<EventPhoto[]>(`/events/${event.id}/photos`),
+    enabled: open,
+  });
+  const bannerBg = bannerPhotos[0]?.url ?? FALLBACK_BG[event.event_type] ?? bgFormation;
+
   const isTraining = event.event_type === "training_show" || event.event_type === "training_leisure";
   const showParticipation = event.allow_registration || isTraining;
   const showPoster = isAdmin && ["cabaret", "formation", "match"].includes(event.event_type) && !event.is_away;
@@ -748,18 +765,31 @@ function EventDetailDrawer({
     <>
     <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
       <DrawerContent className="max-h-[85vh] bg-card border-border">
-        <div className="overflow-y-auto px-4 pb-2">
-          <DrawerHeader className="px-0">
-            <DrawerTitle className="flex items-center gap-2 text-left">
+        {/* Photo banner header */}
+        <div className="relative h-32 overflow-hidden rounded-t-[inherit] shrink-0">
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{
+              backgroundImage: `url(${bannerBg})`,
+              filter: "blur(10px) brightness(0.35)",
+              transform: "scale(1.15)",
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+          <div className="relative z-10 flex flex-col justify-end h-full px-4 pb-3">
+            <DrawerTitle className="flex items-center gap-2 text-left text-white drop-shadow">
               <span className={`inline-block w-3 h-3 rounded-full shrink-0 ${cfg.dot}`} />
               {event.title}
             </DrawerTitle>
-            <DrawerDescription className="text-left">
-              <Badge variant="outline" className={`text-xs ${cfg.color} mt-1`}>
+            <DrawerDescription className="text-left mt-1">
+              <Badge variant="outline" className="text-xs text-white/90 border-white/30 bg-white/10">
                 {cfg.label}
               </Badge>
             </DrawerDescription>
-          </DrawerHeader>
+          </div>
+        </div>
+
+        <div className="overflow-y-auto px-4 pb-2">
 
           <div className="space-y-3 text-sm py-2">
             <div>
