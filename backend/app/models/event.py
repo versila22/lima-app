@@ -46,6 +46,7 @@ class Event(Base):
 
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     match_report: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    allow_registration: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Visibility: all | match | cabaret | loisir | admin
     visibility: Mapped[str] = mapped_column(String(20), default="all")
@@ -61,3 +62,30 @@ class Event(Base):
     alignment_events = relationship("AlignmentEvent", back_populates="event")
     alignment_assignments = relationship("AlignmentAssignment", back_populates="event")
     show_plans = relationship("ShowPlan", back_populates="event")
+    registrations = relationship("EventRegistration", back_populates="event", cascade="all, delete-orphan")
+
+
+class EventRegistration(Base):
+    __tablename__ = "event_registrations"
+    __table_args__ = (
+        Index("idx_event_registrations_event", "event_id"),
+        Index("idx_event_registrations_member", "member_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    event_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("events.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    member_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("members.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    created_at: Mapped[datetime] = mapped_column(default=func.now())
+
+    event = relationship("Event", back_populates="registrations")
+    member = relationship("Member")

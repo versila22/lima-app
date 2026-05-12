@@ -46,6 +46,7 @@ import type {
   EventType,
   EventVisibility,
   MemberSummary,
+  RegistrationRead,
 } from "@/types";
 
 import { Button } from "@/components/ui/button";
@@ -538,6 +539,7 @@ function EventDetailDrawer({
   event,
   open,
   isAdmin,
+  currentUserId,
   onClose,
   onEdit,
   onDelete,
@@ -545,17 +547,43 @@ function EventDetailDrawer({
   event: EventRead;
   open: boolean;
   isAdmin: boolean;
+  currentUserId?: string;
   onClose: () => void;
   onEdit: (event: EventRead) => void;
   onDelete: (event: EventRead) => void;
 }) {
   const cfg = EVENT_TYPE_CONFIG[event.event_type] ?? EVENT_TYPE_CONFIG.other;
   const helloAssoUrl = parseHelloAssoUrl(event.notes);
+  const queryClient = useQueryClient();
 
   const { data: cast = [], isLoading: castLoading } = useQuery<CastMember[]>({
     queryKey: ["event-cast", event.id],
     queryFn: () => api.get<CastMember[]>(`/events/${event.id}/cast`),
     enabled: open,
+  });
+
+  const { data: registrations = [], isLoading: regLoading } = useQuery<RegistrationRead[]>({
+    queryKey: ["event-registrations", event.id],
+    queryFn: () => api.get<RegistrationRead[]>(`/events/${event.id}/registrations`),
+    enabled: open && event.allow_registration,
+  });
+
+  const registerMutation = useMutation<unknown, ApiError>({
+    mutationFn: () => api.post(`/events/${event.id}/register`, {}),
+    onSuccess: () => {
+      toast.success("Inscription confirmée !");
+      queryClient.invalidateQueries({ queryKey: ["event-registrations", event.id] });
+    },
+    onError: (err) => toast.error(err.detail ?? "Erreur lors de l'inscription"),
+  });
+
+  const unregisterMutation = useMutation<unknown, ApiError>({
+    mutationFn: () => api.delete(`/events/${event.id}/register`),
+    onSuccess: () => {
+      toast.success("Désinscription effectuée");
+      queryClient.invalidateQueries({ queryKey: ["event-registrations", event.id] });
+    },
+    onError: (err) => toast.error(err.detail ?? "Erreur lors de la désinscription"),
   });
 
   // Group by role
@@ -643,6 +671,49 @@ function EventDetailDrawer({
                 })}
               </div>
             ) : null}
+          {event.allow_registration && (
+            <div className="pt-2 border-t border-border space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-foreground text-sm">
+                  ✋ Inscriptions
+                  {!regLoading && ` (${registrations.length})`}
+                </span>
+                {(() => {
+                  const isRegistered = registrations.some((r) => r.member_id === currentUserId);
+                  return isRegistered ? (
+                    <button
+                      onClick={() => unregisterMutation.mutate()}
+                      disabled={unregisterMutation.isPending}
+                      className="text-xs px-3 py-1.5 rounded-md border border-destructive/50 text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                    >
+                      {unregisterMutation.isPending ? "…" : "Se désinscrire"}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => registerMutation.mutate()}
+                      disabled={registerMutation.isPending}
+                      className="text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                    >
+                      {registerMutation.isPending ? "…" : "S'inscrire"}
+                    </button>
+                  );
+                })()}
+              </div>
+              {registrations.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {registrations.map((r) => (
+                    <span
+                      key={r.id}
+                      className={`text-xs px-2 py-0.5 rounded-full border ${r.member_id === currentUserId ? "border-primary/50 bg-primary/10 text-primary" : "border-border bg-muted/40 text-muted-foreground"}`}
+                    >
+                      {r.first_name} {r.last_name.charAt(0)}.
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {helloAssoUrl && (
             <div className="pt-2 border-t border-border">
               <a
@@ -749,6 +820,7 @@ function EditEventDialog({
   const [endAt, setEndAt] = useState<string | undefined>(event.end_at ?? undefined);
   const [notes, setNotes] = useState(formatEventNotes(event.notes) ?? "");
   const [matchReport, setMatchReport] = useState(event.match_report ?? "");
+  const [allowRegistration, setAllowRegistration] = useState(event.allow_registration ?? false);
 
   useEffect(() => {
     setTitle(event.title);
@@ -758,6 +830,7 @@ function EditEventDialog({
     setEndAt(event.end_at ?? undefined);
     setNotes(formatEventNotes(event.notes) ?? "");
     setMatchReport(event.match_report ?? "");
+    setAllowRegistration(event.allow_registration ?? false);
   }, [event]);
 
   const updateMutation = useMutation<EventRead, ApiError, EventUpdate>({
@@ -784,6 +857,7 @@ function EditEventDialog({
       end_at: endAt || undefined,
       notes: notes || undefined,
       match_report: matchReport || undefined,
+      allow_registration: allowRegistration,
     });
   };
 
@@ -830,6 +904,15 @@ function EditEventDialog({
               <Label htmlFor="edit-is-away">Déplacement (match à l'extérieur)</Label>
             </div>
           )}
+
+          <div className="flex items-center space-x-2 border rounded-lg p-3 bg-background/30">
+            <Switch
+              id="edit-allow-reg"
+              checked={allowRegistration}
+              onCheckedChange={setAllowRegistration}
+            />
+            <Label htmlFor="edit-allow-reg">Inscriptions ouvertes (bouton "S'inscrire" visible)</Label>
+          </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <DateTimeField
@@ -901,6 +984,7 @@ function AddEventDialog({
   const [title, setTitle] = useState("");
   const [eventType, setEventType] = useState<EventType>("training_show");
   const [isAway, setIsAway] = useState<boolean>(false);
+  const [allowRegistration, setAllowRegistration] = useState(false);
   const [startAt, setStartAt] = useState<string | undefined>(() => combineDateAndTime(getDefaultDateTime(), format(getDefaultDateTime(), "HH"), "00"));
   const [endAt, setEndAt] = useState<string | undefined>(undefined);
   const [notes, setNotes] = useState("");
@@ -916,6 +1000,7 @@ function AddEventDialog({
     setTitle("");
     setEventType("training_show");
     setIsAway(false);
+    setAllowRegistration(false);
     setStartAt(combineDateAndTime(defaultDate, format(defaultDate, "HH"), "00"));
     setEndAt(undefined);
     setNotes("");
@@ -945,6 +1030,7 @@ function AddEventDialog({
       start_at: startAt,
       end_at: endAt || undefined,
       notes: notes || undefined,
+      allow_registration: allowRegistration,
     });
   };
 
@@ -990,6 +1076,15 @@ function AddEventDialog({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="flex items-center space-x-2 border rounded-lg p-3 bg-background/30">
+            <Switch
+              id="add-allow-reg"
+              checked={allowRegistration}
+              onCheckedChange={setAllowRegistration}
+            />
+            <Label htmlFor="add-allow-reg">Inscriptions ouvertes (bouton "S'inscrire" visible)</Label>
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -1461,6 +1556,7 @@ export default function Agenda() {
           event={selectedEvent}
           open={!!selectedEvent}
           isAdmin={isAdmin}
+          currentUserId={user?.id}
           onClose={() => setSelectedEvent(null)}
           onEdit={(ev) => {
             setSelectedEvent(null);

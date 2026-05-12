@@ -14,11 +14,13 @@ from app.models.alignment import AlignmentAssignment, AlignmentEvent
 from app.models.event import Event
 from app.models.member import Member
 from app.models.show_plan import ShowPlan
+from app.models.event import EventRegistration
 from app.schemas.event import (
     CalendarImportReport,
     EventCreate,
     EventRead,
     EventUpdate,
+    RegistrationRead,
 )
 from app.services import import_service
 from app.utils.deps import get_current_user, require_admin
@@ -166,6 +168,86 @@ async def delete_event(
     await db.execute(delete(ShowPlan).where(ShowPlan.event_id == event_id))
     await db.delete(event)
     await db.flush()
+    await db.commit()
+
+
+@router.get("/{event_id}/registrations", response_model=List[RegistrationRead])
+async def list_registrations(
+    event_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: Member = Depends(get_current_user),
+):
+    """List all members registered for an event."""
+    result = await db.execute(
+        select(
+            EventRegistration.id,
+            EventRegistration.member_id,
+            Member.first_name,
+            Member.last_name,
+            EventRegistration.created_at,
+        )
+        .join(Member, Member.id == EventRegistration.member_id)
+        .where(EventRegistration.event_id == event_id)
+        .order_by(Member.last_name, Member.first_name)
+    )
+    return [
+        RegistrationRead(
+            id=r.id,
+            member_id=r.member_id,
+            first_name=r.first_name,
+            last_name=r.last_name,
+            created_at=r.created_at,
+        )
+        for r in result.all()
+    ]
+
+
+@router.post("/{event_id}/register", status_code=201)
+async def register_for_event(
+    event_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: Member = Depends(get_current_user),
+):
+    """Register the current member for an event."""
+    event_result = await db.execute(select(Event).where(Event.id == event_id))
+    event = event_result.scalar_one_or_none()
+    if event is None:
+        raise HTTPException(status_code=404, detail="Événement introuvable")
+    if not event.allow_registration:
+        raise HTTPException(status_code=400, detail="Les inscriptions ne sont pas ouvertes")
+
+    existing = await db.execute(
+        select(EventRegistration).where(
+            EventRegistration.event_id == event_id,
+            EventRegistration.member_id == current_user.id,
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="Déjà inscrit")
+
+    reg = EventRegistration(event_id=event_id, member_id=current_user.id)
+    db.add(reg)
+    await db.commit()
+    return {"detail": "Inscription confirmée"}
+
+
+@router.delete("/{event_id}/register", status_code=204)
+async def unregister_from_event(
+    event_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: Member = Depends(get_current_user),
+):
+    """Unregister the current member from an event."""
+    result = await db.execute(
+        select(EventRegistration).where(
+            EventRegistration.event_id == event_id,
+            EventRegistration.member_id == current_user.id,
+        )
+    )
+    reg = result.scalar_one_or_none()
+    if reg is None:
+        raise HTTPException(status_code=404, detail="Inscription introuvable")
+    await db.delete(reg)
     await db.commit()
 
 

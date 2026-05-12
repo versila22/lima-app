@@ -184,6 +184,7 @@ export interface EventRead {
   away_opponent: string | null;
   notes: string | null;
   match_report: string | null;
+  allow_registration: boolean;
   visibility: EventVisibility;
   created_at: string;
   updated_at: string;
@@ -201,6 +202,7 @@ export interface EventCreate {
   away_opponent?: string;
   notes?: string;
   match_report?: string;
+  allow_registration?: boolean;
   visibility?: EventVisibility;
 }
 
@@ -215,7 +217,16 @@ export interface EventUpdate {
   away_opponent?: string;
   notes?: string;
   match_report?: string;
+  allow_registration?: boolean;
   visibility?: EventVisibility;
+}
+
+export interface RegistrationRead {
+  id: string;
+  member_id: string;
+  first_name: string;
+  last_name: string;
+  created_at: string;
 }
 
 // ---------- ShowPlan ----------
