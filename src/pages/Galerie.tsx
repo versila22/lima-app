@@ -69,23 +69,30 @@ function UploadDialog({
     if (!eventId || queued.length === 0) return;
     setPending(true);
     let ok = 0;
-    let fail = 0;
+    let lastError = "";
     for (const file of queued) {
       try {
         await uploadEventPhoto(eventId, file);
         ok++;
-      } catch {
-        fail++;
+      } catch (err) {
+        lastError = err instanceof ApiError ? err.detail : "Erreur inconnue";
       }
     }
+    const fail = queued.length - ok;
     setPending(false);
     queryClient.invalidateQueries({ queryKey: ["gallery-photos"] });
     queryClient.invalidateQueries({ queryKey: ["event-photos", eventId] });
     setQueued([]);
     setEventId("");
-    if (fail === 0) toast.success(`${ok} photo${ok > 1 ? "s" : ""} importée${ok > 1 ? "s" : ""}`);
-    else toast.warning(`${ok} importée${ok > 1 ? "s" : ""}, ${fail} échouée${fail > 1 ? "s" : ""}`);
-    onOpenChange(false);
+    if (fail === 0) {
+      toast.success(`${ok} photo${ok > 1 ? "s" : ""} importée${ok > 1 ? "s" : ""}`);
+      onOpenChange(false);
+    } else if (ok === 0) {
+      toast.error(`Échec : ${lastError}`);
+    } else {
+      toast.warning(`${ok} importée${ok > 1 ? "s" : ""}, ${fail} échouée${fail > 1 ? "s" : ""} — ${lastError}`);
+      onOpenChange(false);
+    }
   };
 
   return (
