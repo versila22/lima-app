@@ -45,11 +45,21 @@ async def list_uninvited(
     db: AsyncSession = Depends(get_db),
     _: Member = Depends(require_admin),
 ):
-    """Admin-only: list members who have never activated (no password set yet)."""
+    """Admin-only: list active members who have never had a successful login event."""
+    from app.models.activity_log import ActivityLog
+
+    # Members who have at least one successful login in the activity log
+    logged_in_subq = (
+        select(ActivityLog.user_id)
+        .where(ActivityLog.user_id.is_not(None))
+        .where(ActivityLog.status_code < 400)
+        .distinct()
+    )
+
     result = await db.execute(
         select(Member.id, Member.first_name, Member.last_name, Member.email)
-        .where(Member.password_hash.is_(None))
         .where(Member.is_active.is_(True))
+        .where(Member.id.not_in(logged_in_subq))
         .order_by(Member.last_name, Member.first_name)
     )
     return [
