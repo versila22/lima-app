@@ -766,24 +766,20 @@ function EventDetailDrawer({
     <>
     <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
       <DrawerContent className="max-h-[85vh] bg-card border-border">
-        {/* Photo banner header */}
-        <div className="relative h-32 overflow-hidden rounded-t-[inherit] shrink-0">
+        {/* Photo banner header: sharp photo + bottom blur strip for title readability */}
+        <div className="relative h-44 overflow-hidden rounded-t-[inherit] shrink-0">
           <div
             className="absolute inset-0 bg-cover bg-center"
-            style={{
-              backgroundImage: `url(${bannerBg})`,
-              filter: "blur(6px) brightness(0.4)",
-              transform: "scale(1.15)",
-            }}
+            style={{ backgroundImage: `url(${bannerBg})` }}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-          <div className="relative z-10 flex flex-col justify-end h-full px-4 pb-3">
-            <DrawerTitle className="flex items-center gap-2 text-left text-white drop-shadow">
+          <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/85 via-black/50 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 backdrop-blur-md bg-black/30 border-t border-white/10 px-4 py-3">
+            <DrawerTitle className="flex items-center gap-2 text-left text-white text-lg font-semibold drop-shadow-lg">
               <span className={`inline-block w-3 h-3 rounded-full shrink-0 ${cfg.dot}`} />
-              {event.title}
+              <span className="truncate">{event.title}</span>
             </DrawerTitle>
-            <DrawerDescription className="text-left mt-1">
-              <Badge variant="outline" className="text-xs text-white/90 border-white/30 bg-white/10">
+            <DrawerDescription className="text-left mt-1.5">
+              <Badge variant="outline" className="text-xs text-white border-white/40 bg-white/10 backdrop-blur-sm">
                 {cfg.label}
               </Badge>
             </DrawerDescription>
