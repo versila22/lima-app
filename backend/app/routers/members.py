@@ -488,7 +488,11 @@ async def import_members(
 async def _build_member_planning(db: AsyncSession, member_id: UUID) -> MemberPlanning:
     from datetime import timezone
     now = datetime.now(timezone.utc)
-    three_months_ago = now - timedelta(days=90)
+    # Event.start_at column is declared TIMESTAMP WITHOUT TIME ZONE in SQLAlchemy,
+    # so asyncpg rejects tz-aware datetimes for filter parameters. Use naive UTC
+    # for the SQL WHERE, keep aware UTC for Python comparisons (the rows returned
+    # are aware because the underlying postgres column is timestamptz).
+    three_months_ago_naive = (now - timedelta(days=90)).replace(tzinfo=None)
 
     try:
         align_stmt = (
@@ -496,7 +500,7 @@ async def _build_member_planning(db: AsyncSession, member_id: UUID) -> MemberPla
             .join(Alignment, AlignmentAssignment.alignment_id == Alignment.id)
             .join(Event, AlignmentAssignment.event_id == Event.id)
             .where(AlignmentAssignment.member_id == member_id)
-            .where(Event.start_at >= three_months_ago)
+            .where(Event.start_at >= three_months_ago_naive)
             .order_by(Event.start_at.asc())
         )
         align_rows = (await db.execute(align_stmt)).all()
@@ -506,7 +510,7 @@ async def _build_member_planning(db: AsyncSession, member_id: UUID) -> MemberPla
             select(Event)
             .join(EventRegistration, EventRegistration.event_id == Event.id)
             .where(EventRegistration.member_id == member_id)
-            .where(Event.start_at >= three_months_ago)
+            .where(Event.start_at >= three_months_ago_naive)
             .order_by(Event.start_at.asc())
         )
         reg_events = (await db.execute(reg_event_stmt)).scalars().all()
@@ -525,6 +529,11 @@ async def _build_member_planning(db: AsyncSession, member_id: UUID) -> MemberPla
         past: list[PlanningEvent] = []
         assigned_event_ids: set[UUID] = set()
 
+        def _is_upcoming(start_at: datetime) -> bool:
+            # Normalize both sides to naive (interpret naive db values as UTC)
+            ref = start_at.replace(tzinfo=None) if start_at.tzinfo else start_at
+            return ref >= now.replace(tzinfo=None)
+
         for assignment, alignment, event in align_rows:
             assigned_event_ids.add(event.id)
             pe = PlanningEvent(
@@ -539,7 +548,7 @@ async def _build_member_planning(db: AsyncSession, member_id: UUID) -> MemberPla
                 alignment_name=alignment.name,
                 alignment_status=alignment.status,
             )
-            if event.start_at >= now:
+            if _is_upcoming(event.start_at):
                 upcoming.append(pe)
             else:
                 past.append(pe)
@@ -558,7 +567,7 @@ async def _build_member_planning(db: AsyncSession, member_id: UUID) -> MemberPla
                 venue_name=await venue_name_for(event),
                 source="registration",
             )
-            if event.start_at >= now:
+            if _is_upcoming(event.start_at):
                 upcoming.append(pe)
             else:
                 past.append(pe)
