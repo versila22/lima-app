@@ -67,6 +67,27 @@ class EventRead(EventBase):
     model_config = {"from_attributes": True}
 
 
+class EventPhotoRead(BaseModel):
+    id: uuid.UUID
+    event_id: uuid.UUID
+    url: str
+    caption: Optional[str] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class GalleryPhotoRead(BaseModel):
+    id: uuid.UUID
+    event_id: uuid.UUID
+    event_title: str
+    event_type: str
+    event_date: datetime
+    url: str
+    caption: Optional[str] = None
+    created_at: datetime
+
+
 class CalendarImportReport(BaseModel):
     created: int = 0
     skipped: int = 0

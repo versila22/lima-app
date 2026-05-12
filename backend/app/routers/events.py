@@ -10,16 +10,25 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+import os
+import uuid as _uuid
+import boto3
+from botocore.exceptions import ClientError
+from starlette.concurrency import run_in_threadpool
+
+from app.config import settings
 from app.models.alignment import AlignmentAssignment, AlignmentEvent
-from app.models.event import Event
+from app.models.event import Event, EventPhoto
 from app.models.member import Member
 from app.models.show_plan import ShowPlan
 from app.models.event import EventRegistration
 from app.schemas.event import (
     CalendarImportReport,
     EventCreate,
+    EventPhotoRead,
     EventRead,
     EventUpdate,
+    GalleryPhotoRead,
     RegistrationRead,
 )
 from app.services import import_service
@@ -33,6 +42,41 @@ class EventCastMember(BaseModel):
     first_name: str
     last_name: str
     role: str
+
+
+@router.get("/photos", response_model=List[GalleryPhotoRead])
+async def list_gallery_photos(
+    db: AsyncSession = Depends(get_db),
+    _: Member = Depends(get_current_user),
+):
+    """Return all event photos with event info, most recent events first."""
+    result = await db.execute(
+        select(
+            EventPhoto.id,
+            EventPhoto.event_id,
+            Event.title.label("event_title"),
+            Event.event_type.label("event_type"),
+            Event.start_at.label("event_date"),
+            EventPhoto.url,
+            EventPhoto.caption,
+            EventPhoto.created_at,
+        )
+        .join(Event, Event.id == EventPhoto.event_id)
+        .order_by(Event.start_at.desc(), EventPhoto.created_at)
+    )
+    return [
+        GalleryPhotoRead(
+            id=row.id,
+            event_id=row.event_id,
+            event_title=row.event_title,
+            event_type=row.event_type,
+            event_date=row.event_date,
+            url=row.url,
+            caption=row.caption,
+            created_at=row.created_at,
+        )
+        for row in result.all()
+    ]
 
 
 @router.get("", response_model=List[EventRead])
@@ -168,6 +212,118 @@ async def delete_event(
     await db.execute(delete(ShowPlan).where(ShowPlan.event_id == event_id))
     await db.delete(event)
     await db.flush()
+    await db.commit()
+
+
+@router.get("/{event_id}/photos", response_model=List[EventPhotoRead])
+async def list_event_photos(
+    event_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: Member = Depends(get_current_user),
+):
+    """List all photos for an event."""
+    result = await db.execute(
+        select(EventPhoto)
+        .where(EventPhoto.event_id == event_id)
+        .order_by(EventPhoto.created_at)
+    )
+    return result.scalars().all()
+
+
+@router.post("/{event_id}/photos", response_model=EventPhotoRead, status_code=201)
+async def upload_event_photo(
+    event_id: UUID,
+    file: UploadFile = File(...),
+    caption: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+    _: Member = Depends(require_admin),
+):
+    """Upload a photo for an event to Cloudflare R2 (admin only)."""
+    event_result = await db.execute(select(Event.id).where(Event.id == event_id))
+    if event_result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail="Événement introuvable")
+
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Le fichier doit être une image")
+
+    if not settings.S3_BUCKET_NAME:
+        raise HTTPException(status_code=500, detail="Stockage S3 non configuré")
+
+    ext = os.path.splitext(file.filename or "photo.jpg")[1] or ".jpg"
+    photo_id = _uuid.uuid4()
+    s3_key = f"event-photos/{photo_id}{ext}"
+
+    s3_client = boto3.client(
+        "s3",
+        endpoint_url=settings.S3_ENDPOINT_URL,
+        aws_access_key_id=settings.S3_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.S3_SECRET_ACCESS_KEY,
+        region_name="auto",
+    )
+
+    file_bytes = await file.read()
+
+    def _upload():
+        s3_client.put_object(
+            Bucket=settings.S3_BUCKET_NAME,
+            Key=s3_key,
+            Body=file_bytes,
+            ContentType=file.content_type,
+        )
+
+    try:
+        await run_in_threadpool(_upload)
+    except ClientError as e:
+        raise HTTPException(status_code=500, detail=f"Erreur upload: {e}")
+
+    photo_url = f"{settings.S3_PUBLIC_URL}/{s3_key}"
+    photo = EventPhoto(
+        id=photo_id,
+        event_id=event_id,
+        url=photo_url,
+        s3_key=s3_key,
+        caption=caption,
+    )
+    db.add(photo)
+    await db.commit()
+    await db.refresh(photo)
+    return photo
+
+
+@router.delete("/{event_id}/photos/{photo_id}", status_code=204)
+async def delete_event_photo(
+    event_id: UUID,
+    photo_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: Member = Depends(require_admin),
+):
+    """Delete an event photo (admin only)."""
+    result = await db.execute(
+        select(EventPhoto).where(
+            EventPhoto.id == photo_id,
+            EventPhoto.event_id == event_id,
+        )
+    )
+    photo = result.scalar_one_or_none()
+    if photo is None:
+        raise HTTPException(status_code=404, detail="Photo introuvable")
+
+    if photo.s3_key and settings.S3_BUCKET_NAME:
+        s3_client = boto3.client(
+            "s3",
+            endpoint_url=settings.S3_ENDPOINT_URL,
+            aws_access_key_id=settings.S3_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.S3_SECRET_ACCESS_KEY,
+            region_name="auto",
+        )
+        try:
+            await run_in_threadpool(
+                lambda: s3_client.delete_object(Bucket=settings.S3_BUCKET_NAME, Key=photo.s3_key)
+            )
+        except ClientError:
+            pass  # best-effort R2 cleanup
+
+    await db.delete(photo)
     await db.commit()
 
 

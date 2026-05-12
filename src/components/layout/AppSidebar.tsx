@@ -15,6 +15,7 @@ import {
   LogOut,
   X,
   LayoutGrid,
+  Images,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -37,6 +38,7 @@ const menuItems = [
   { icon: Calendar, label: "Agenda", path: "/agenda" },
   { icon: User, label: "Mon Profil", path: "/mon-profil" },
   { icon: CalendarDays, label: "Mon Planning", path: "/mon-planning" },
+  { icon: Images, label: "Galerie", path: "/galerie" },
   { icon: Users, label: "Membres", path: "/membres" },
   { icon: LayoutGrid, label: "Alignements", path: "/alignements", adminOnly: true },
   { icon: BarChart3, label: "Statistiques", path: "/stats", adminOnly: true },

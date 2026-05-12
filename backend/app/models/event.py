@@ -63,6 +63,26 @@ class Event(Base):
     alignment_assignments = relationship("AlignmentAssignment", back_populates="event")
     show_plans = relationship("ShowPlan", back_populates="event")
     registrations = relationship("EventRegistration", back_populates="event", cascade="all, delete-orphan")
+    photos = relationship("EventPhoto", back_populates="event", cascade="all, delete-orphan", order_by="EventPhoto.created_at")
+
+
+class EventPhoto(Base):
+    __tablename__ = "event_photos"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    event_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("events.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    url: Mapped[str] = mapped_column(Text, nullable=False)
+    s3_key: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    caption: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(default=func.now())
+
+    event = relationship("Event", back_populates="photos")
 
 
 class EventRegistration(Base):

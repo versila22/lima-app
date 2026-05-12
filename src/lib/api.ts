@@ -9,6 +9,8 @@ import type {
   AssignmentRole,
   DailyActiveUserStat,
   EndpointStat,
+  EventPhoto,
+  GalleryPhoto,
   LoginAttempt,
   LoginStats,
   MemberPlanning,
@@ -364,6 +366,27 @@ function resizeToDataUrl(file: File, maxPx = 300, quality = 0.82): Promise<strin
 export async function uploadMemberPhoto(memberId: string, file: File): Promise<{ photo_url: string }> {
   const dataUrl = await resizeToDataUrl(file);
   return api.post<{ photo_url: string }>(`/members/${memberId}/photo-data`, { data: dataUrl });
+}
+
+// ---- Event photo helpers ----
+
+export function listEventPhotos(eventId: string): Promise<EventPhoto[]> {
+  return api.get<EventPhoto[]>(`/events/${eventId}/photos`);
+}
+
+export function uploadEventPhoto(eventId: string, file: File, caption?: string): Promise<EventPhoto> {
+  const form = new FormData();
+  form.append("file", file);
+  if (caption) form.append("caption", caption);
+  return api.postForm<EventPhoto>(`/events/${eventId}/photos`, form);
+}
+
+export function deleteEventPhoto(eventId: string, photoId: string): Promise<void> {
+  return api.delete<void>(`/events/${eventId}/photos/${photoId}`);
+}
+
+export function listGalleryPhotos(): Promise<GalleryPhoto[]> {
+  return api.get<GalleryPhoto[]>("/events/photos");
 }
 
 // ---- Members CRUD helpers ----

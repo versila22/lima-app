@@ -30,6 +30,7 @@ const MonProfil = lazy(() => import("./pages/MonProfil"));
 const Alignements = lazy(() => import("./pages/Alignements"));
 const AlignementEditor = lazy(() => import("./pages/AlignementEditor"));
 const Home = lazy(() => import("./pages/Home"));
+const Galerie = lazy(() => import("./pages/Galerie"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -118,6 +119,7 @@ function AppRoutes() {
           <Route path="/agenda" element={<Agenda />} />
           <Route path="/mon-profil" element={<MonProfil />} />
           <Route path="/mon-planning" element={<MonPlanning />} />
+          <Route path="/galerie" element={<Galerie />} />
           <Route path="/membres" element={<Members />} />
           <Route
             path="/alignements"

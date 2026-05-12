@@ -368,6 +368,26 @@ export interface MemberStats {
   by_role: Record<string, number>;
 }
 
+// ---------- Event Photos ----------
+export interface EventPhoto {
+  id: string;
+  event_id: string;
+  url: string;
+  caption: string | null;
+  created_at: string;
+}
+
+export interface GalleryPhoto {
+  id: string;
+  event_id: string;
+  event_title: string;
+  event_type: string;
+  event_date: string;
+  url: string;
+  caption: string | null;
+  created_at: string;
+}
+
 // ---------- Pinned News ----------
 export interface PinnedNewsItem {
   id: string;

@@ -15,6 +15,9 @@ import {
   Check,
   ChevronsUpDown,
   ExternalLink,
+  ImagePlus,
+  X as XIcon,
+  Images,
 } from "lucide-react";
 import {
   format,
@@ -35,13 +38,14 @@ import {
 } from "date-fns";
 import { fr } from "date-fns/locale";
 
-import { api, ApiError } from "@/lib/api";
+import { api, ApiError, uploadEventPhoto, deleteEventPhoto } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import type {
   EventRead,
   EventCreate,
   EventUpdate,
+  EventPhoto,
   SeasonRead,
   EventType,
   EventVisibility,
@@ -534,6 +538,142 @@ function ReferentField({
   );
 }
 
+// ---- Event Photo Gallery (used inside EventDetailDrawer) ----
+function EventPhotoGallery({
+  eventId,
+  isAdmin,
+  open,
+}: {
+  eventId: string;
+  isAdmin: boolean;
+  open: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const [lightbox, setLightbox] = useState<EventPhoto | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const { data: photos = [], isLoading } = useQuery<EventPhoto[]>({
+    queryKey: ["event-photos", eventId],
+    queryFn: () => api.get<EventPhoto[]>(`/events/${eventId}/photos`),
+    enabled: open,
+  });
+
+  const uploadMutation = useMutation<EventPhoto, ApiError, File>({
+    mutationFn: (file) => uploadEventPhoto(eventId, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["event-photos", eventId] });
+      queryClient.invalidateQueries({ queryKey: ["gallery-photos"] });
+    },
+    onError: (err) => toast.error(err.detail ?? "Erreur upload"),
+  });
+
+  const deleteMutation = useMutation<void, ApiError, string>({
+    mutationFn: (photoId) => deleteEventPhoto(eventId, photoId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["event-photos", eventId] });
+      queryClient.invalidateQueries({ queryKey: ["gallery-photos"] });
+      setLightbox(null);
+    },
+    onError: (err) => toast.error(err.detail ?? "Erreur suppression"),
+  });
+
+  const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    files.forEach((f) => uploadMutation.mutate(f));
+    e.target.value = "";
+  };
+
+  if (isLoading) return null;
+  if (photos.length === 0 && !isAdmin) return null;
+
+  return (
+    <div className="pt-2 border-t border-border">
+      <div className="flex items-center justify-between mb-2">
+        <span className="flex items-center gap-1.5 text-sm font-semibold">
+          <Images className="w-4 h-4 text-primary" />
+          Photos {photos.length > 0 && `(${photos.length})`}
+        </span>
+        {isAdmin && (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={handleFiles}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadMutation.isPending}
+              className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-md border border-border hover:bg-muted/50 transition-colors disabled:opacity-50"
+            >
+              {uploadMutation.isPending ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <ImagePlus className="w-3.5 h-3.5" />
+              )}
+              Ajouter
+            </button>
+          </>
+        )}
+      </div>
+
+      {photos.length === 0 ? (
+        <p className="text-xs text-muted-foreground italic">Aucune photo pour cet événement.</p>
+      ) : (
+        <div className="grid grid-cols-3 gap-1.5">
+          {photos.map((photo) => (
+            <button
+              key={photo.id}
+              onClick={() => setLightbox(photo)}
+              className="relative aspect-square rounded-md overflow-hidden border border-border hover:opacity-90 transition-opacity"
+            >
+              <img
+                src={photo.url}
+                alt={photo.caption ?? "photo"}
+                className="w-full h-full object-cover"
+              />
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Lightbox */}
+      {lightbox && (
+        <Dialog open={!!lightbox} onOpenChange={() => setLightbox(null)}>
+          <DialogContent className="max-w-[95vw] p-2 bg-card border-border">
+            <div className="relative">
+              <img
+                src={lightbox.url}
+                alt={lightbox.caption ?? "photo"}
+                className="w-full max-h-[80vh] object-contain rounded-md"
+              />
+              {isAdmin && (
+                <button
+                  onClick={() => deleteMutation.mutate(lightbox.id)}
+                  disabled={deleteMutation.isPending}
+                  className="absolute top-2 right-2 p-1.5 rounded-full bg-destructive/90 text-white hover:bg-destructive transition-colors disabled:opacity-50"
+                >
+                  {deleteMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <XIcon className="w-4 h-4" />
+                  )}
+                </button>
+              )}
+            </div>
+            {lightbox.caption && (
+              <p className="text-sm text-center text-muted-foreground px-2">{lightbox.caption}</p>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
+}
+
+
 // ---- Event Detail Drawer (mobile-friendly bottom sheet) ----
 function EventDetailDrawer({
   event,
@@ -741,6 +881,9 @@ function EventDetailDrawer({
               Demander un remboursement au trésorier
             </a>
           </div>
+
+          {/* Photo gallery */}
+          <EventPhotoGallery eventId={event.id} isAdmin={isAdmin} open={open} />
 
           <div className="pt-2 border-t border-border">
             <p className="text-xs text-muted-foreground mb-2">Partager</p>
