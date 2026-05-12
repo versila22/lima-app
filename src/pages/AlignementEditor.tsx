@@ -119,7 +119,6 @@ export default function AlignementEditor() {
     queryKey: ["members"],
     queryFn: () => api.get<MemberSummary[]>("/members"),
     staleTime: 60_000,
-    enabled: assignDialogEventId !== null,
   });
 
   const updateMutation = useMutation({
