@@ -10,14 +10,14 @@ import { api } from "@/lib/api";
 import type { EventPhoto, EventRead } from "@/types";
 import { EVENT_TYPE_CONFIG } from "@/pages/Agenda";
 import limaLogo from "@/assets/logo-lima.jpg";
-import bgCabaret from "@/assets/posters/bg-cabaret.jpg";
-import bgMatch from "@/assets/posters/bg-match.jpg";
+import bgCabaretPoster from "@/assets/posters/bg-cabaret-poster.jpg";
+import bgMatchPoster from "@/assets/posters/bg-match-poster.jpg";
 import bgFormation from "@/assets/posters/bg-formation.jpg";
 import bgWelsh from "@/assets/posters/bg-welsh.jpg";
 
 const FALLBACK_BG: Record<string, string> = {
-  cabaret: bgCabaret,
-  match: bgMatch,
+  cabaret: bgCabaretPoster,
+  match: bgMatchPoster,
   formation: bgFormation,
   welsh: bgWelsh,
 };
@@ -96,7 +96,8 @@ function PosterLayout({
   const accentColor =
     event.event_type === "cabaret" ? "#e95220" :
     event.event_type === "formation" ? "#a855f7" :
-    event.event_type === "match" ? "#e01f1f" : "#e95220";
+    event.event_type === "match" ? "#e01f1f" :
+    event.event_type === "welsh" ? "#f59e0b" : "#e95220";
 
   return (
     <div
@@ -109,40 +110,35 @@ function PosterLayout({
         background: bgDataUrl ? "transparent" : "#0d0d14",
       }}
     >
-      {/* Background photo (blurred) */}
-      {bgDataUrl && (
+      {/* Background photo */}
+      {bgDataUrl ? (
         <div
           style={{
             position: "absolute",
-            inset: -40,
+            inset: -6,
             backgroundImage: `url(${bgDataUrl})`,
             backgroundSize: "cover",
             backgroundPosition: "center",
-            filter: "blur(24px) brightness(0.35)",
-            transform: "scale(1.1)",
+            filter: "blur(3px) brightness(0.6)",
           }}
         />
-      )}
-
-      {/* Fallback gradient background */}
-      {!bgDataUrl && (
+      ) : (
         <div
           style={{
             position: "absolute",
             inset: 0,
-            background:
-              "linear-gradient(135deg, #12001a 0%, #1a0005 50%, #1a0800 100%)",
+            background: "linear-gradient(135deg, #12001a 0%, #1a0005 50%, #1a0800 100%)",
           }}
         />
       )}
 
-      {/* Bottom gradient overlay for contrast */}
+      {/* Dark overlay so text stays readable */}
       <div
         style={{
           position: "absolute",
           inset: 0,
           background:
-            "linear-gradient(to bottom, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.55) 60%, rgba(0,0,0,0.8) 100%)",
+            "linear-gradient(to bottom, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.62) 50%, rgba(0,0,0,0.88) 100%)",
         }}
       />
 
