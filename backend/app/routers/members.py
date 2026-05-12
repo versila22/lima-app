@@ -40,6 +40,24 @@ from app.utils.deps import get_current_user, require_admin
 router = APIRouter(prefix="/members", tags=["members"])
 
 
+@router.get("/uninvited")
+async def list_uninvited(
+    db: AsyncSession = Depends(get_db),
+    _: Member = Depends(require_admin),
+):
+    """Admin-only: list members who have never activated (no password set yet)."""
+    result = await db.execute(
+        select(Member.id, Member.first_name, Member.last_name, Member.email)
+        .where(Member.password_hash.is_(None))
+        .where(Member.is_active.is_(True))
+        .order_by(Member.last_name, Member.first_name)
+    )
+    return [
+        {"id": str(r.id), "first_name": r.first_name, "last_name": r.last_name, "email": r.email}
+        for r in result.all()
+    ]
+
+
 async def _get_member_for_response(db: AsyncSession, member_id: UUID) -> Member:
     result = await db.execute(
         select(Member)
