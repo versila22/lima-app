@@ -208,8 +208,12 @@ async def get_member_profile(
 ):
     """Retrieve the enriched profile of a member.
 
-    Any authenticated member can view any profile.
+    The full profile contains personal data (email, phone, address, date_of_birth).
+    Restricted to the member themselves or an admin.
     """
+    if current_user.id != member_id and current_user.app_role != "admin":
+        raise HTTPException(status_code=403, detail="Accès refusé")
+
     result = await db.execute(select(Member.id).where(Member.id == member_id))
     if result.scalar_one_or_none() is None:
         raise HTTPException(status_code=404, detail="Membre introuvable")
