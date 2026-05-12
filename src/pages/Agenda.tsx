@@ -562,10 +562,13 @@ function EventDetailDrawer({
     enabled: open,
   });
 
+  const isTraining = event.event_type === "training_show" || event.event_type === "training_leisure";
+  const showParticipation = event.allow_registration || isTraining;
+
   const { data: registrations = [], isLoading: regLoading } = useQuery<RegistrationRead[]>({
     queryKey: ["event-registrations", event.id],
     queryFn: () => api.get<RegistrationRead[]>(`/events/${event.id}/registrations`),
-    enabled: open && event.allow_registration,
+    enabled: open && showParticipation,
   });
 
   const registerMutation = useMutation<unknown, ApiError>({
@@ -671,11 +674,11 @@ function EventDetailDrawer({
                 })}
               </div>
             ) : null}
-          {event.allow_registration && (
+          {showParticipation && (
             <div className="pt-2 border-t border-border space-y-3">
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-foreground text-sm">
-                  ✋ Inscriptions
+                  {isTraining ? "🙋 Présences" : "✋ Inscriptions"}
                   {!regLoading && ` (${registrations.length})`}
                 </span>
                 {(() => {
@@ -686,7 +689,7 @@ function EventDetailDrawer({
                       disabled={unregisterMutation.isPending}
                       className="text-xs px-3 py-1.5 rounded-md border border-destructive/50 text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
                     >
-                      {unregisterMutation.isPending ? "…" : "Se désinscrire"}
+                      {unregisterMutation.isPending ? "…" : isTraining ? "Annuler" : "Se désinscrire"}
                     </button>
                   ) : (
                     <button
@@ -694,7 +697,7 @@ function EventDetailDrawer({
                       disabled={registerMutation.isPending}
                       className="text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
                     >
-                      {registerMutation.isPending ? "…" : "S'inscrire"}
+                      {registerMutation.isPending ? "…" : isTraining ? "Je participe" : "S'inscrire"}
                     </button>
                   );
                 })()}

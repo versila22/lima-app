@@ -213,7 +213,8 @@ async def register_for_event(
     event = event_result.scalar_one_or_none()
     if event is None:
         raise HTTPException(status_code=404, detail="Événement introuvable")
-    if not event.allow_registration:
+    TRAINING_TYPES = ("training_show", "training_leisure")
+    if not event.allow_registration and event.event_type not in TRAINING_TYPES:
         raise HTTPException(status_code=400, detail="Les inscriptions ne sont pas ouvertes")
 
     existing = await db.execute(
