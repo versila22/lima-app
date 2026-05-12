@@ -43,6 +43,7 @@ import { api, ApiError, uploadEventPhoto, deleteEventPhoto } from "@/lib/api";
 import bgCabaret from "@/assets/posters/bg-cabaret.jpg";
 import bgMatch from "@/assets/posters/bg-match.jpg";
 import bgFormation from "@/assets/posters/bg-formation.jpg";
+import bgWelsh from "@/assets/posters/bg-welsh.jpg";
 import { PosterGenerator } from "@/components/PosterGenerator";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -164,7 +165,7 @@ const FALLBACK_BG: Partial<Record<string, string>> = {
   cabaret: bgCabaret,
   match: bgMatch,
   formation: bgFormation,
-  welsh: bgMatch,
+  welsh: bgWelsh,
 };
 
 const DAYS_FR = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
@@ -723,7 +724,7 @@ function EventDetailDrawer({
 
   const isTraining = event.event_type === "training_show" || event.event_type === "training_leisure";
   const showParticipation = event.allow_registration || isTraining;
-  const showPoster = isAdmin && ["cabaret", "formation", "match"].includes(event.event_type) && !event.is_away;
+  const showPoster = isAdmin && ["cabaret", "formation", "match", "welsh"].includes(event.event_type) && !event.is_away;
   const [posterOpen, setPosterOpen] = useState(false);
 
   const { data: registrations = [], isLoading: regLoading } = useQuery<RegistrationRead[]>({
@@ -771,7 +772,7 @@ function EventDetailDrawer({
             className="absolute inset-0 bg-cover bg-center"
             style={{
               backgroundImage: `url(${bannerBg})`,
-              filter: "blur(10px) brightness(0.35)",
+              filter: "blur(6px) brightness(0.4)",
               transform: "scale(1.15)",
             }}
           />

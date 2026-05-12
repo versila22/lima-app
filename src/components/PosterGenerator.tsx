@@ -13,11 +13,13 @@ import limaLogo from "@/assets/logo-lima.jpg";
 import bgCabaret from "@/assets/posters/bg-cabaret.jpg";
 import bgMatch from "@/assets/posters/bg-match.jpg";
 import bgFormation from "@/assets/posters/bg-formation.jpg";
+import bgWelsh from "@/assets/posters/bg-welsh.jpg";
 
 const FALLBACK_BG: Record<string, string> = {
   cabaret: bgCabaret,
   match: bgMatch,
   formation: bgFormation,
+  welsh: bgWelsh,
 };
 
 import { Button } from "@/components/ui/button";
