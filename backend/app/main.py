@@ -4,6 +4,24 @@ FastAPI Application Entry Point
 """
 
 import os
+
+# Initialize Sentry as early as possible so import-time errors are captured.
+# No-op when SENTRY_DSN is unset (local dev / CI).
+_SENTRY_DSN = os.environ.get("SENTRY_DSN", "").strip()
+if _SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
+    from sentry_sdk.integrations.starlette import StarletteIntegration
+
+    sentry_sdk.init(
+        dsn=_SENTRY_DSN,
+        environment=os.environ.get("APP_ENV", "production"),
+        integrations=[StarletteIntegration(), FastApiIntegration()],
+        # Capture 100% of errors. Sample 10% of transactions for performance traces.
+        traces_sample_rate=0.1,
+        send_default_pii=False,
+    )
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
