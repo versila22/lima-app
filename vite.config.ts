@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => {
     hmr: {
       overlay: false,
     },
-    allowedHosts: ["localhost", "127.0.0.1"],
+    allowedHosts: mode === "development" ? "all" : ["localhost", "127.0.0.1"],
     proxy: mode === "development" ? {
       "^/(auth|members|seasons|events|venues|alignments|commissions|show-plans|settings|api|health)": {
         target: "https://api-production-e15b.up.railway.app",
