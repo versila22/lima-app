@@ -12,6 +12,8 @@ from starlette.responses import Response
 
 # Headers applied to every response. Values are conservative defaults; they can
 # be overridden per-route by setting the same header on the response.
+# The API mostly returns JSON; the strict CSP below assumes no HTML is served
+# from API endpoints. /docs is auto-disabled in production via FastAPI config.
 SECURITY_HEADERS = {
     # Force HTTPS for one year on all subdomains.
     "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
@@ -26,6 +28,8 @@ SECURITY_HEADERS = {
     # Cross-origin isolation defaults.
     "Cross-Origin-Opener-Policy": "same-origin",
     "Cross-Origin-Resource-Policy": "same-site",
+    # CSP: API serves JSON only — block everything but its own origin.
+    "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'; base-uri 'none'",
 }
 
 

@@ -11,6 +11,7 @@ REQUIRED_HEADERS = [
     "X-Frame-Options",
     "Referrer-Policy",
     "Permissions-Policy",
+    "Content-Security-Policy",
 ]
 
 
@@ -40,6 +41,14 @@ async def test_hsts_includes_subdomains_and_one_year(client):
     hsts = response.headers["Strict-Transport-Security"]
     assert "max-age=31536000" in hsts
     assert "includeSubDomains" in hsts
+
+
+@pytest.mark.asyncio
+async def test_csp_blocks_default_resources(client):
+    response = await client.get("/health")
+    csp = response.headers["Content-Security-Policy"]
+    assert "default-src 'none'" in csp
+    assert "frame-ancestors 'none'" in csp
 
 
 @pytest.mark.asyncio
