@@ -199,6 +199,14 @@ async def health_check():
     return {"status": "ok", "version": "0.1.0"}
 
 
+@app.get("/__sentry-test", tags=["health"])
+async def sentry_test():
+    """Send a test event to Sentry to verify the integration. Remove after verification."""
+    import sentry_sdk
+    sentry_sdk.capture_message("Hello from /__sentry-test — backend Sentry is wired up.")
+    return {"sent": True}
+
+
 @app.get("/health/db", tags=["health"])
 async def health_check_db():
     """Test asyncpg DB connectivity — returns URL prefix and table list."""
