@@ -1437,6 +1437,7 @@ function AgendaListView({ events, onEventClick }: AgendaListViewProps) {
 export default function Agenda() {
   const { user } = useAuth();
   const isAdmin = user?.app_role === "admin";
+  const isMobile = useIsMobile();
   const queryClient = useQueryClient();
   const location = useLocation();
 
@@ -1445,7 +1446,9 @@ export default function Agenda() {
   const [addOpen, setAddOpen] = useState(false);
   const [editEvent, setEditEvent] = useState<EventRead | null>(null);
   const [deleteEvent, setDeleteEvent] = useState<EventRead | null>(null);
-  const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
+  const [viewMode, setViewMode] = useState<"calendar" | "list">(() =>
+    typeof window !== "undefined" && window.innerWidth < 768 ? "list" : "calendar",
+  );
   const [searchParams, setSearchParams] = useSearchParams();
   const filterType = (searchParams.get("type") as EventType) || null;
   const filterVisibility = (searchParams.get("visibility") as EventVisibility) || null;
@@ -1519,7 +1522,7 @@ export default function Agenda() {
 
         <div className="flex flex-wrap items-center gap-2">
           {/* View toggle */}
-          <div className="flex rounded-lg border border-border overflow-hidden">
+          <div className="hidden md:flex rounded-lg border border-border overflow-hidden">
             <Button
               variant={viewMode === "calendar" ? "default" : "ghost"}
               size="sm"
