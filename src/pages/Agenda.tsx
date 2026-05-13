@@ -50,6 +50,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { AgendaMobileHeader } from "@/components/agenda/AgendaMobileHeader";
 import { AgendaTimelineCard } from "@/components/agenda/AgendaTimelineCard";
+import { AgendaFAB } from "@/components/agenda/AgendaFAB";
 import type {
   EventRead,
   EventCreate,
@@ -1866,6 +1867,14 @@ export default function Agenda() {
           event={editEvent}
           open={!!editEvent}
           onOpenChange={(open) => !open && setEditEvent(null)}
+        />
+      )}
+
+      {/* FAB Ajouter — mobile only, admin only */}
+      {isAdmin && (
+        <AgendaFAB
+          onClick={() => setAddOpen(true)}
+          disabled={!activeSeason}
         />
       )}
 
