@@ -168,8 +168,8 @@ async def get_event(
     if row is None:
         raise HTTPException(status_code=404, detail="Événement introuvable")
     event, photo_url = row
-    if not current_user.is_admin and event.visibility == "admin":
-        raise HTTPException(status_code=404, detail="Événement introuvable")
+    if event.visibility == "admin" and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Accès refusé")
     return EventRead.model_validate(
         {
             **{c.name: getattr(event, c.name) for c in Event.__table__.columns},
