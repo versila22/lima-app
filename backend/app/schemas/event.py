@@ -63,6 +63,7 @@ class EventRead(EventBase):
     id: uuid.UUID
     created_at: datetime
     updated_at: datetime
+    cover_url: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

@@ -188,6 +188,7 @@ export interface EventRead {
   visibility: EventVisibility;
   created_at: string;
   updated_at: string;
+  cover_url: string | null;
 }
 
 export interface EventCreate {

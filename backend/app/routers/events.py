@@ -99,8 +99,31 @@ async def list_events(
     List events with optional filters.
 
     Non-admin users cannot see events with visibility='admin'.
+    Each event is augmented with cover_url = first photo URL by created_at.
     """
-    query = select(Event)
+    # Subquery: first photo per event by created_at
+    from sqlalchemy import func as sa_func
+    first_photo = (
+        select(
+            EventPhoto.event_id,
+            sa_func.min(EventPhoto.created_at).label("first_at"),
+        )
+        .group_by(EventPhoto.event_id)
+        .subquery()
+    )
+
+    query = (
+        select(Event, EventPhoto.url)
+        .outerjoin(
+            first_photo,
+            first_photo.c.event_id == Event.id,
+        )
+        .outerjoin(
+            EventPhoto,
+            (EventPhoto.event_id == Event.id)
+            & (EventPhoto.created_at == first_photo.c.first_at),
+        )
+    )
     if season_id:
         query = query.where(Event.season_id == season_id)
     if event_type:
@@ -114,7 +137,15 @@ async def list_events(
 
     query = query.order_by(Event.start_at)
     result = await db.execute(query)
-    return result.scalars().all()
+    return [
+        EventRead.model_validate(
+            {
+                **{c.name: getattr(event, c.name) for c in Event.__table__.columns},
+                "cover_url": photo_url,
+            },
+        )
+        for event, photo_url in result.all()
+    ]
 
 
 @router.get("/{event_id}", response_model=EventRead)
@@ -124,13 +155,27 @@ async def get_event(
     current_user: Member = Depends(get_current_user),
 ):
     """Retrieve an event by ID."""
-    result = await db.execute(select(Event).where(Event.id == event_id))
-    event = result.scalar_one_or_none()
-    if event is None:
+    result = await db.execute(
+        select(Event, EventPhoto.url)
+        .outerjoin(
+            EventPhoto,
+            EventPhoto.event_id == Event.id,
+        )
+        .where(Event.id == event_id)
+        .order_by(EventPhoto.created_at.asc().nulls_last())
+    )
+    row = result.first()
+    if row is None:
         raise HTTPException(status_code=404, detail="Événement introuvable")
-    if event.visibility == "admin" and not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="Accès refusé")
-    return event
+    event, photo_url = row
+    if not current_user.is_admin and event.visibility == "admin":
+        raise HTTPException(status_code=404, detail="Événement introuvable")
+    return EventRead.model_validate(
+        {
+            **{c.name: getattr(event, c.name) for c in Event.__table__.columns},
+            "cover_url": photo_url,
+        },
+    )
 
 
 @router.get("/{event_id}/cast", response_model=List[EventCastMember])
