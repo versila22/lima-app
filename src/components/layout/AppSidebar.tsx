@@ -15,7 +15,9 @@ import {
   LogOut,
   X,
   Images,
+  MessageSquareWarning,
 } from "lucide-react";
+import { FeedbackDialog } from "@/components/FeedbackDialog";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -156,6 +158,44 @@ export function AppSidebar({
           return content;
         })}
       </nav>
+
+      {/* Feedback / bug report */}
+      <div className="border-t border-sidebar-border p-2">
+        {collapsed && !isMobile ? (
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <FeedbackDialog
+                trigger={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="w-full text-muted-foreground hover:text-primary hover:bg-primary/10"
+                    aria-label="Remarques / bugs"
+                  >
+                    <MessageSquareWarning className="w-4 h-4" />
+                  </Button>
+                }
+              />
+            </TooltipTrigger>
+            <TooltipContent side="right" className="bg-popover border-border">
+              Remarques / bugs
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <FeedbackDialog
+            trigger={
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start gap-2 text-muted-foreground hover:text-primary hover:bg-primary/10"
+              >
+                <MessageSquareWarning className="w-4 h-4 shrink-0" />
+                <span className="truncate">Remarques / bugs</span>
+              </Button>
+            }
+          />
+        )}
+      </div>
 
       {isAuthenticated && (
         <div className="border-t border-sidebar-border p-2">

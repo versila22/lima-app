@@ -70,6 +70,37 @@ async def get_current_user(
     return member
 
 
+async def get_current_user_optional(
+    request: Request,
+    access_token: Optional[str] = Cookie(default=None),
+    db: AsyncSession = Depends(get_db),
+) -> Optional[Member]:
+    """Like get_current_user, but returns None instead of raising 401."""
+    token = access_token
+    if not token:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[len("Bearer "):]
+    if not token:
+        return None
+    try:
+        payload = decode_access_token(token)
+        user_id: Optional[str] = payload.get("sub")
+        if user_id is None:
+            return None
+    except (JWTError, ValueError):
+        return None
+    result = await db.execute(
+        select(Member)
+        .options(selectinload(Member.member_seasons))
+        .where(Member.id == UUID(user_id))
+    )
+    member = result.scalar_one_or_none()
+    if member is None or not member.is_active:
+        return None
+    return member
+
+
 async def require_admin(
     current_user: Member = Depends(get_current_user),
 ) -> Member:

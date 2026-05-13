@@ -9,6 +9,7 @@ from app.models.event import Event
 from app.models.alignment import Alignment, AlignmentEvent, AlignmentAssignment
 from app.models.show_plan import ShowPlan
 from app.models.activity_log import ActivityLog
+from app.models.feedback import Feedback
 
 __all__ = [
     "Season",
@@ -23,4 +24,5 @@ __all__ = [
     "AlignmentAssignment",
     "ShowPlan",
     "ActivityLog",
+    "Feedback",
 ]

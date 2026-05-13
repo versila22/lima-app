@@ -18,6 +18,7 @@ from app.models.activity_log import ActivityLog
 from app.models.alignment import Alignment, AlignmentAssignment, AlignmentEvent
 from app.models.commission import Commission, MemberCommission
 from app.models.event import Event
+from app.models.feedback import Feedback
 from app.models.member import Member
 from app.models.member_season import MemberSeason
 from app.models.season import Season
@@ -75,6 +76,7 @@ async def setup_test_database():
 async def clean_db():
     async with TestingSessionLocal() as session:
         for model in [
+            Feedback,
             ActivityLog,
             AlignmentAssignment,
             AlignmentEvent,
