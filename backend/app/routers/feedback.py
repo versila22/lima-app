@@ -30,10 +30,15 @@ async def submit_feedback(
 
     Open to authenticated members and guests. Rate-limited to prevent spam.
     """
+    image = (payload.image_data_url or "").strip() or None
+    if image and not image.startswith("data:image/"):
+        raise HTTPException(status_code=422, detail="image_data_url doit être un data URL d'image")
+
     fb = Feedback(
         body=payload.body.strip(),
         reporter_name=(payload.reporter_name or "").strip() or None,
         reporter_member_id=current_user.id if current_user else None,
+        image_data_url=image,
     )
     db.add(fb)
     await db.commit()
@@ -45,6 +50,7 @@ async def submit_feedback(
         reporter_member_id=fb.reporter_member_id,
         reporter_first_name=current_user.first_name if current_user else None,
         reporter_last_name=current_user.last_name if current_user else None,
+        image_data_url=fb.image_data_url,
         created_at=fb.created_at,
     )
 
@@ -72,6 +78,7 @@ async def list_feedback(
                 reporter_member_id=fb.reporter_member_id,
                 reporter_first_name=fb.reporter.first_name if fb.reporter else None,
                 reporter_last_name=fb.reporter.last_name if fb.reporter else None,
+                image_data_url=fb.image_data_url,
                 created_at=fb.created_at,
             )
         )

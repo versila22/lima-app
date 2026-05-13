@@ -30,6 +30,8 @@ class Feedback(Base):
         ForeignKey("members.id", ondelete="SET NULL"),
         nullable=True,
     )
+    # Optional inline image (base64 data URL). Capped at ~5 MB by Pydantic schema.
+    image_data_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=func.now())
 
     reporter = relationship("Member", foreign_keys=[reporter_member_id])
