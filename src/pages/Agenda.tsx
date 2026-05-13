@@ -49,6 +49,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { AgendaMobileHeader } from "@/components/agenda/AgendaMobileHeader";
+import { AgendaTimelineCard } from "@/components/agenda/AgendaTimelineCard";
 import type {
   EventRead,
   EventCreate,
@@ -1364,6 +1365,7 @@ interface AgendaListViewProps {
 }
 
 function AgendaListView({ events, onEventClick }: AgendaListViewProps) {
+  const isMobile = useIsMobile();
   const sorted = [...events].sort(
     (a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime()
   );
@@ -1392,42 +1394,60 @@ function AgendaListView({ events, onEventClick }: AgendaListViewProps) {
     <div className="space-y-6">
       {groups.map((group) => (
         <section key={group.label}>
-          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-3 capitalize">
+          <h2
+            className={
+              isMobile
+                ? "sticky top-0 z-10 -mx-4 px-4 py-2 bg-background/95 backdrop-blur text-sm font-semibold text-foreground uppercase tracking-wide capitalize"
+                : "text-sm font-medium text-muted-foreground uppercase tracking-wide mb-3 capitalize"
+            }
+          >
             {group.label}
           </h2>
-          <div className="space-y-1.5">
-            {group.items.map((ev) => {
-              const cfg = EVENT_TYPE_CONFIG[ev.event_type] ?? EVENT_TYPE_CONFIG.other;
-              const startDate = parseISO(ev.start_at);
-              return (
-                <button
+          {isMobile ? (
+            <div className="space-y-3 pt-3">
+              {group.items.map((ev) => (
+                <AgendaTimelineCard
                   key={ev.id}
-                  type="button"
+                  event={ev}
                   onClick={() => onEventClick(ev)}
-                  className={`w-full flex items-center gap-3 text-left px-3 py-2.5 rounded-lg border ${cfg.color} hover:opacity-80 transition-opacity`}
-                >
-                  <div className="shrink-0 text-center min-w-[2.5rem]">
-                    <p className="text-sm sm:text-xs font-semibold leading-none">
-                      {format(startDate, "d", { locale: fr })}
-                    </p>
-                    <p className="text-xs sm:text-[10px] text-muted-foreground capitalize">
-                      {format(startDate, "EEE", { locale: fr })}
-                    </p>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-base sm:text-sm font-medium truncate">{ev.title}</p>
-                    <p className="text-sm sm:text-xs text-muted-foreground">
-                      {format(startDate, "HH:mm")}
-                      {ev.is_away && ev.away_city ? ` · Déplacement — ${ev.away_city}` : ""}
-                    </p>
-                  </div>
-                  <span className={`shrink-0 text-xs sm:text-[10px] px-1.5 py-0.5 rounded border ${cfg.color} hidden sm:inline-block`}>
-                    {cfg.label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {group.items.map((ev) => {
+                const cfg = EVENT_TYPE_CONFIG[ev.event_type] ?? EVENT_TYPE_CONFIG.other;
+                const startDate = parseISO(ev.start_at);
+                return (
+                  <button
+                    key={ev.id}
+                    type="button"
+                    onClick={() => onEventClick(ev)}
+                    className={`w-full flex items-center gap-3 text-left px-3 py-2.5 rounded-lg border ${cfg.color} hover:opacity-80 transition-opacity`}
+                  >
+                    <div className="shrink-0 text-center min-w-[2.5rem]">
+                      <p className="text-sm font-semibold leading-none">
+                        {format(startDate, "d", { locale: fr })}
+                      </p>
+                      <p className="text-xs text-muted-foreground capitalize">
+                        {format(startDate, "EEE", { locale: fr })}
+                      </p>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">{ev.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {format(startDate, "HH:mm")}
+                        {ev.is_away && ev.away_city ? ` · Déplacement — ${ev.away_city}` : ""}
+                      </p>
+                    </div>
+                    <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded border ${cfg.color}`}>
+                      {cfg.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </section>
       ))}
     </div>
@@ -1453,6 +1473,25 @@ export default function Agenda() {
   const [searchParams, setSearchParams] = useSearchParams();
   const filterType = (searchParams.get("type") as EventType) || null;
   const filterVisibility = (searchParams.get("visibility") as EventVisibility) || null;
+
+  const [showTodayButton, setShowTodayButton] = useState(false);
+
+  useEffect(() => {
+    if (!isMobile || viewMode !== "list") {
+      setShowTodayButton(false);
+      return;
+    }
+    const onScroll = () => {
+      setShowTodayButton(window.scrollY > 800);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [isMobile, viewMode]);
+
+  const scrollToToday = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    setCurrentMonth(new Date());
+  };
 
   const deleteMutation = useMutation<void, ApiError, string>({
     mutationFn: (id) => api.delete(`/events/${id}`),
@@ -1828,6 +1867,19 @@ export default function Agenda() {
           open={!!editEvent}
           onOpenChange={(open) => !open && setEditEvent(null)}
         />
+      )}
+
+      {/* Aller à aujourd'hui floating button */}
+      {showTodayButton && (
+        <button
+          type="button"
+          onClick={scrollToToday}
+          className="md:hidden fixed left-4 z-30 flex items-center gap-2 rounded-full bg-card border border-border px-4 h-11 shadow-lg text-sm font-medium hover:bg-accent transition-colors"
+          style={{ bottom: "calc(3.5rem + env(safe-area-inset-bottom) + 1rem)" }}
+        >
+          <CalendarDays className="h-4 w-4" />
+          Aujourd'hui
+        </button>
       )}
 
       {/* Delete confirmation dialog */}
