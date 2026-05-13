@@ -48,6 +48,7 @@ import { PosterGenerator } from "@/components/PosterGenerator";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { AgendaFilterChips } from "@/components/agenda/AgendaFilterChips";
 import { AgendaMobileHeader } from "@/components/agenda/AgendaMobileHeader";
 import { AgendaTimelineCard } from "@/components/agenda/AgendaTimelineCard";
 import { AgendaFAB } from "@/components/agenda/AgendaFAB";
@@ -1562,6 +1563,32 @@ export default function Agenda() {
         />
       </div>
 
+      {/* Filter chips — mobile only */}
+      <div className="md:hidden">
+        <AgendaFilterChips
+          isAdmin={isAdmin}
+          filterType={filterType}
+          filterVisibility={filterVisibility}
+          onTypeChange={(t) => {
+            setSearchParams((prev) => {
+              const next = new URLSearchParams(prev);
+              if (t === null) next.delete("type");
+              else next.set("type", t);
+              return next;
+            });
+          }}
+          onVisibilityChange={(v) => {
+            setSearchParams((prev) => {
+              const next = new URLSearchParams(prev);
+              if (v === null) next.delete("visibility");
+              else next.set("visibility", v);
+              return next;
+            });
+          }}
+          onClearAll={() => setSearchParams({})}
+        />
+      </div>
+
       {/* Header — Desktop */}
       <div className="hidden md:flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -1647,6 +1674,7 @@ export default function Agenda() {
         </div>
       </div>
 
+      <div className="hidden md:block space-y-4">
       {/* Legend */}
       <div className="flex flex-wrap gap-2">
         {(Object.entries(EVENT_TYPE_CONFIG) as [EventType, (typeof EVENT_TYPE_CONFIG)[EventType]][]).map(
@@ -1718,6 +1746,7 @@ export default function Agenda() {
             Effacer filtres
           </Button>
         )}
+      </div>
       </div>
 
       {/* Loading */}
