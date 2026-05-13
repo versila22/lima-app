@@ -35,26 +35,31 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+// Light mode: saturated bg-200 + dark text; dark mode: keep current translucent style.
 const STATUS_CONFIG: Record<PlayerStatus, { label: string; emoji: string; className: string }> = {
   M: {
     label: "Match",
     emoji: "🎭",
-    className: "border-fuchsia-500/30 bg-fuchsia-500/15 text-fuchsia-200",
+    className:
+      "bg-fuchsia-200 text-fuchsia-900 border-fuchsia-500 font-medium dark:bg-fuchsia-500/20 dark:text-fuchsia-100 dark:border-fuchsia-500/50",
   },
   C: {
     label: "Cabaret",
     emoji: "🎪",
-    className: "border-amber-500/30 bg-amber-500/15 text-amber-200",
+    className:
+      "bg-amber-200 text-amber-900 border-amber-600 font-medium dark:bg-amber-500/20 dark:text-amber-100 dark:border-amber-500/50",
   },
   L: {
     label: "Loisir",
     emoji: "🎈",
-    className: "border-sky-500/30 bg-sky-500/15 text-sky-200",
+    className:
+      "bg-sky-200 text-sky-900 border-sky-500 font-medium dark:bg-sky-500/20 dark:text-sky-100 dark:border-sky-500/50",
   },
   A: {
     label: "Adhérent",
     emoji: "👋",
-    className: "border-emerald-500/30 bg-emerald-500/15 text-emerald-200",
+    className:
+      "bg-emerald-200 text-emerald-900 border-emerald-600 font-medium dark:bg-emerald-500/20 dark:text-emerald-100 dark:border-emerald-500/50",
   },
 };
 
@@ -67,12 +72,12 @@ const ASSO_ROLE_LABELS: Record<string, string> = {
 };
 
 const COMMISSION_CONFIG: Record<string, string> = {
-  comspec: "border-violet-500/30 bg-violet-500/15 text-violet-200",
-  comprog: "border-cyan-500/30 bg-cyan-500/15 text-cyan-200",
-  comform: "border-emerald-500/30 bg-emerald-500/15 text-emerald-200",
-  comadh: "border-amber-500/30 bg-amber-500/15 text-amber-200",
-  comcom: "border-rose-500/30 bg-rose-500/15 text-rose-200",
-  ca: "border-fuchsia-500/30 bg-fuchsia-500/15 text-fuchsia-200",
+  comspec: "bg-violet-200 text-violet-900 border-violet-500 font-medium dark:bg-violet-500/20 dark:text-violet-100 dark:border-violet-500/50",
+  comprog: "bg-cyan-200 text-cyan-900 border-cyan-600 font-medium dark:bg-cyan-500/20 dark:text-cyan-100 dark:border-cyan-500/50",
+  comform: "bg-emerald-200 text-emerald-900 border-emerald-600 font-medium dark:bg-emerald-500/20 dark:text-emerald-100 dark:border-emerald-500/50",
+  comadh: "bg-amber-200 text-amber-900 border-amber-600 font-medium dark:bg-amber-500/20 dark:text-amber-100 dark:border-amber-500/50",
+  comcom: "bg-rose-200 text-rose-900 border-rose-500 font-medium dark:bg-rose-500/20 dark:text-rose-100 dark:border-rose-500/50",
+  ca: "bg-fuchsia-200 text-fuchsia-900 border-fuchsia-500 font-medium dark:bg-fuchsia-500/20 dark:text-fuchsia-100 dark:border-fuchsia-500/50",
 };
 
 function getInitials(firstName?: string | null, lastName?: string | null) {
