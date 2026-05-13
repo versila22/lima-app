@@ -1670,7 +1670,7 @@ export default function Agenda() {
             });
           }}
         >
-          <SelectTrigger className="h-8 w-auto text-xs bg-background/50 border-border">
+          <SelectTrigger className="h-11 md:h-8 w-auto text-sm md:text-xs bg-background/50 border-border">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -1694,7 +1694,7 @@ export default function Agenda() {
               });
             }}
           >
-            <SelectTrigger className="h-8 w-auto text-xs bg-background/50 border-border">
+            <SelectTrigger className="h-11 md:h-8 w-auto text-sm md:text-xs bg-background/50 border-border">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -1711,7 +1711,7 @@ export default function Agenda() {
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 text-xs text-muted-foreground"
+            className="h-11 md:h-8 text-sm md:text-xs text-muted-foreground"
             onClick={() => setSearchParams({})}
           >
             Effacer filtres
