@@ -31,6 +31,7 @@ const Alignements = lazy(() => import("./pages/Alignements"));
 const AlignementEditor = lazy(() => import("./pages/AlignementEditor"));
 const Home = lazy(() => import("./pages/Home"));
 const Galerie = lazy(() => import("./pages/Galerie"));
+const AdminFeedback = lazy(() => import("./pages/AdminFeedback"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -161,6 +162,14 @@ function AppRoutes() {
             element={
               <ProtectedRoute adminOnly>
                 <Settings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/feedback"
+            element={
+              <ProtectedRoute adminOnly>
+                <AdminFeedback />
               </ProtectedRoute>
             }
           />
