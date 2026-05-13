@@ -3,6 +3,10 @@ services:
     build:
       context: .
       dockerfile: frontend.Dockerfile
+      args:
+        # Vite bakes these into the built bundle.
+        # Set VITE_SENTRY_DSN in a .env file next to this compose, or via shell env.
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
     container_name: lima-frontend
     restart: unless-stopped
     networks:
