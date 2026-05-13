@@ -16,6 +16,7 @@ import {
   X,
   Images,
   MessageSquareWarning,
+  Gift,
 } from "lucide-react";
 import { FeedbackDialog } from "@/components/FeedbackDialog";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -275,6 +276,25 @@ export function AppSidebar({
             </a>
           </TooltipTrigger>
           <TooltipContent side="right">Facebook</TooltipContent>
+        </Tooltip>
+        <Tooltip delayDuration={0}>
+          <TooltipTrigger asChild>
+            <a
+              href="https://ko-fi.com/jeromejacq"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg p-2 text-rose-400/80 transition-colors hover:bg-rose-500/10 hover:text-rose-400"
+              aria-label="Soutenir le développeur"
+            >
+              <Gift className="w-5 h-5" />
+            </a>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="bg-popover border-border max-w-[220px]">
+            <p className="font-medium">Soutenir le développeur</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Don personnel à Jérôme — ne va pas à LIMA
+            </p>
+          </TooltipContent>
         </Tooltip>
       </div>
 
