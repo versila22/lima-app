@@ -48,6 +48,7 @@ import { PosterGenerator } from "@/components/PosterGenerator";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { AgendaMobileHeader } from "@/components/agenda/AgendaMobileHeader";
 import type {
   EventRead,
   EventCreate,
@@ -1511,8 +1512,18 @@ export default function Agenda() {
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      {/* Header — Mobile */}
+      <div className="md:hidden">
+        <AgendaMobileHeader
+          seasons={seasons}
+          selectedSeasonId={selectedSeasonId}
+          defaultSeasonId={defaultSeason?.id ?? null}
+          onSeasonChange={(v) => setSelectedSeasonId(v)}
+        />
+      </div>
+
+      {/* Header — Desktop */}
+      <div className="hidden md:flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-cabaret-purple to-cabaret-gold flex items-center justify-center">
             <CalendarDays className="w-5 h-5 text-background" />
