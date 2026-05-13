@@ -1087,12 +1087,8 @@ function EditEventDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-card border-border w-[95vw] max-w-3xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Modifier l'événement</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 py-2">
+    <ResponsiveFormShell open={open} onOpenChange={onOpenChange} title="Modifier l'événement">
+      <form onSubmit={handleSubmit} className="space-y-4 py-2">
           <div className="space-y-2">
             <Label htmlFor="edit-title">Titre</Label>
             <Input
@@ -1173,14 +1169,19 @@ function EditEventDialog({
               />
             </div>
           )}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <div className="flex justify-end gap-2 pt-4 border-t border-border md:border-0 md:pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="h-11 md:h-10"
+            >
               Annuler
             </Button>
             <Button
               type="submit"
               disabled={updateMutation.isPending}
-              className="bg-gradient-to-r from-cabaret-purple to-cabaret-gold text-background"
+              className="h-11 md:h-10 bg-gradient-to-r from-cabaret-purple to-cabaret-gold text-background"
             >
               {updateMutation.isPending ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -1188,8 +1189,46 @@ function EditEventDialog({
                 "Enregistrer"
               )}
             </Button>
-          </DialogFooter>
+          </div>
         </form>
+    </ResponsiveFormShell>
+  );
+}
+
+// ---- Responsive Form Shell ----
+function ResponsiveFormShell({
+  open,
+  onOpenChange,
+  title,
+  children,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  title: string;
+  children: React.ReactNode;
+}) {
+  const isMobile = useIsMobile();
+
+  if (isMobile) {
+    return (
+      <Drawer open={open} onOpenChange={onOpenChange}>
+        <DrawerContent className="bg-card border-border h-screen max-h-screen rounded-t-none">
+          <DrawerHeader className="border-b border-border px-4 py-3 shrink-0">
+            <DrawerTitle>{title}</DrawerTitle>
+          </DrawerHeader>
+          <div className="overflow-y-auto px-4 py-4 flex-1">{children}</div>
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="bg-card border-border w-[95vw] max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        {children}
       </DialogContent>
     </Dialog>
   );
@@ -1260,7 +1299,7 @@ function AddEventDialog({
   };
 
   return (
-    <Dialog
+    <ResponsiveFormShell
       open={open}
       onOpenChange={(nextOpen) => {
         onOpenChange(nextOpen);
@@ -1268,12 +1307,9 @@ function AddEventDialog({
           resetForm();
         }
       }}
+      title="Ajouter un événement"
     >
-      <DialogContent className="bg-card border-border w-[95vw] max-w-3xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Ajouter un événement</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 py-2">
+      <form onSubmit={handleSubmit} className="space-y-4 py-2">
           <div className="space-y-2">
             <Label htmlFor="ev-title">Titre</Label>
             <Input
@@ -1334,18 +1370,19 @@ function AddEventDialog({
               className="bg-background/50 min-h-28"
             />
           </div>
-          <DialogFooter>
+          <div className="flex justify-end gap-2 pt-4 border-t border-border md:border-0 md:pt-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
+              className="h-11 md:h-10"
             >
               Annuler
             </Button>
             <Button
               type="submit"
               disabled={createMutation.isPending}
-              className="bg-gradient-to-r from-cabaret-purple to-cabaret-gold text-background"
+              className="h-11 md:h-10 bg-gradient-to-r from-cabaret-purple to-cabaret-gold text-background"
             >
               {createMutation.isPending ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -1353,10 +1390,9 @@ function AddEventDialog({
                 "Créer"
               )}
             </Button>
-          </DialogFooter>
+          </div>
         </form>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveFormShell>
   );
 }
 
