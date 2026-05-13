@@ -47,6 +47,7 @@ import bgWelsh from "@/assets/posters/bg-welsh.jpg";
 import { PosterGenerator } from "@/components/PosterGenerator";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 import type {
   EventRead,
   EventCreate,
@@ -711,6 +712,7 @@ function EventDetailDrawer({
   const cfg = EVENT_TYPE_CONFIG[event.event_type] ?? EVENT_TYPE_CONFIG.other;
   const helloAssoUrl = parseHelloAssoUrl(event.notes);
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
 
   const { data: cast = [], isLoading: castLoading } = useQuery<CastMember[]>({
     queryKey: ["event-cast", event.id],
@@ -768,7 +770,14 @@ function EventDetailDrawer({
   return (
     <>
     <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
-      <DrawerContent className="max-h-[85vh] bg-card border-border">
+      <DrawerContent
+        className={cn(
+          "bg-card border-border",
+          isMobile
+            ? "h-screen max-h-screen rounded-t-none"
+            : "max-h-[85vh]",
+        )}
+      >
         {/* Photo banner header: sharp photo + bottom blur strip for title readability */}
         <div className="relative h-44 overflow-hidden rounded-t-[inherit] shrink-0">
           <div
@@ -787,6 +796,16 @@ function EventDetailDrawer({
               </Badge>
             </DrawerDescription>
           </div>
+          {isMobile && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Fermer"
+              className="absolute top-3 right-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 backdrop-blur-sm text-white hover:bg-black/70 transition-colors"
+            >
+              <XIcon className="h-5 w-5" />
+            </button>
+          )}
         </div>
 
         <div className="overflow-y-auto px-4 pb-2">
