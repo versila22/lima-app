@@ -7,6 +7,7 @@ import { MobileBottomNav } from "./MobileBottomNav";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import limaLogo from "@/assets/logo-lima.jpg";
 
 const PAGE_TITLES: Record<string, string> = {
   "/cabaret": "Organisateur Cabaret",
@@ -58,21 +59,28 @@ export function DashboardLayout() {
             !isMobile && (collapsed ? "md:ml-16" : "md:ml-64")
           )}
         >
-          <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur md:hidden">
+          <div className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-background/95 px-4 py-3 backdrop-blur md:hidden">
+            <div className="flex items-center gap-2 min-w-0">
+              <img
+                src={limaLogo}
+                alt="LIMA"
+                className="w-8 h-8 rounded object-contain bg-white shrink-0"
+              />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">{pageTitle}</p>
+                <p className="text-xs text-muted-foreground">LIMA</p>
+              </div>
+            </div>
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               size="icon"
-              className="shrink-0"
+              className="shrink-0 ml-2"
               onClick={() => setMobileOpen(true)}
               aria-label="Ouvrir le menu"
             >
-              <Menu className="h-5 w-5" />
+              <Menu className="h-6 w-6" />
             </Button>
-            <div>
-              <p className="text-sm font-semibold">{pageTitle}</p>
-              <p className="text-xs text-muted-foreground">LIMA</p>
-            </div>
           </div>
 
           <div className="h-full px-4 py-4 md:p-6" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
