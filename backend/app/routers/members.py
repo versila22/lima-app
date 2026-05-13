@@ -637,6 +637,71 @@ async def get_member_planning(
     return await _build_member_planning(db, member_id)
 
 
+@router.post("/me/ical-token")
+async def regenerate_my_ical_token(
+    db: AsyncSession = Depends(get_db),
+    current_user: Member = Depends(get_current_user),
+):
+    """Generate (or rotate) a personal token used to subscribe to the iCal feed.
+
+    Returns the token + the absolute URL to register in a calendar app.
+    Calling again invalidates the previous one.
+    """
+    import secrets
+
+    token = secrets.token_urlsafe(32)
+    current_user.ical_token = token
+    await db.commit()
+    return {
+        "token": token,
+        "path": f"/members/{current_user.id}/planning.ics?token={token}",
+    }
+
+
+@router.get("/{member_id}/planning.ics")
+async def get_member_planning_ical(
+    member_id: UUID,
+    token: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Public iCal feed (token-protected). No JWT — calendar apps don't auth.
+
+    The token is the per-member secret returned by POST /members/me/ical-token.
+    """
+    from fastapi import Response
+    from app.utils.ical import ICalEvent, render_calendar
+
+    member = (await db.execute(select(Member).where(Member.id == member_id))).scalar_one_or_none()
+    if member is None or not member.ical_token or member.ical_token != token:
+        raise HTTPException(status_code=404, detail="Calendrier introuvable")
+
+    planning = await _build_member_planning(db, member_id)
+    events: list[ICalEvent] = []
+    for entry in [*planning.upcoming, *planning.past]:
+        summary = entry.title
+        if entry.source == "registration":
+            summary = f"[Présent] {entry.title}"
+        elif entry.role:
+            summary = f"[{entry.role}] {entry.title}"
+        events.append(
+            ICalEvent(
+                uid=f"{entry.event_id}-{entry.source}@lima",
+                start=entry.start_at,
+                end=entry.end_at,
+                summary=summary,
+                location=entry.venue_name,
+                description=(entry.alignment_name or None),
+            )
+        )
+
+    body = render_calendar(name=f"Planning LIMA — {member.first_name}", events=events)
+    return Response(
+        content=body,
+        media_type="text/calendar; charset=utf-8",
+        headers={"Content-Disposition": f'inline; filename="lima-{member.first_name.lower()}.ics"'},
+    )
+
+
 @router.get("/me/stats")
 async def get_my_stats(
     db: AsyncSession = Depends(get_db),

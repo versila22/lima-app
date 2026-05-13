@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { IcalSubscribeCard } from "@/components/IcalSubscribeCard";
 
 const ROLE_CONFIG: Record<AssignmentRole, { label: string; emoji: string; className: string }> = {
   JR: {
@@ -196,6 +197,8 @@ export default function MonPlanning() {
           <p className="text-sm text-muted-foreground">Tes spectacles, entraînements et historique.</p>
         </div>
       </div>
+
+      <IcalSubscribeCard />
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="border-border/70 bg-card/80">

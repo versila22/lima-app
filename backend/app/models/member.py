@@ -49,6 +49,9 @@ class Member(Base):
     reset_token: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     reset_expires_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
 
+    # Per-member secret used to subscribe to /members/{id}/planning.ics from calendar apps
+    ical_token: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, unique=True)
+
     created_at: Mapped[datetime] = mapped_column(default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         default=func.now(), onupdate=func.now()
