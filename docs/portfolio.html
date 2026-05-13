@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LIMA App — Portfolio</title>
+<style>
+  :root {
+    --bg: #0c0c18;
+    --card: #13132a;
+    --card2: #1a1a35;
+    --border: rgba(255,255,255,0.07);
+    --purple: #a855f7;
+    --gold: #f59e0b;
+    --blue: #3b82f6;
+    --green: #22c55e;
+    --red: #ef4444;
+    --amber: #f97316;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --radius: 12px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* ── Slide engine ── */
+  .deck {
+    width: 100%; height: 100%;
+    position: relative;
+  }
+
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 48px 60px;
+    opacity: 0;
+    transform: translateX(60px);
+    transition: opacity 0.45s ease, transform 0.45s ease;
+    pointer-events: none;
+  }
+  .slide.active {
+    opacity: 1; transform: translateX(0);
+    pointer-events: all;
+  }
+  .slide.prev {
+    opacity: 0; transform: translateX(-60px);
+  }
+
+  /* ── Progress bar ── */
+  #progress {
+    position: fixed; top: 0; left: 0; height: 3px;
+    background: linear-gradient(90deg, var(--purple), var(--gold));
+    transition: width 0.4s ease;
+    z-index: 100;
+  }
+
+  /* ── Slide counter ── */
+  #counter {
+    position: fixed; bottom: 20px; right: 28px;
+    font-size: 12px; color: var(--muted);
+    letter-spacing: 0.05em;
+    z-index: 100;
+  }
+
+  /* ── Nav arrows ── */
+  .nav-btn {
+    position: fixed; top: 50%; transform: translateY(-50%);
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    border-radius: 50%; width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--muted);
+    transition: background 0.2s, color 0.2s;
+    z-index: 100; font-size: 20px;
+  }
+  .nav-btn:hover { background: rgba(255,255,255,0.12); color: var(--text); }
+  #prev { left: 16px; }
+  #next { right: 16px; }
+
+  /* ── Common layout helpers ── */
+  .center { text-align: center; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 100%; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; width: 100%; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; width: 100%; }
+
+  /* ── Typography ── */
+  .label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--muted);
+    margin-bottom: 10px;
+  }
+  h1 { font-size: clamp(2.4rem, 4vw, 3.6rem); font-weight: 800; line-height: 1.1; }
+  h2 { font-size: clamp(1.6rem, 2.8vw, 2.4rem); font-weight: 700; }
+  h3 { font-size: 1.1rem; font-weight: 600; }
+  p  { font-size: 0.95rem; line-height: 1.6; color: var(--muted); }
+
+  .gradient-text {
+    background: linear-gradient(135deg, var(--purple), var(--gold));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .accent { color: var(--purple); }
+  .gold   { color: var(--gold); }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px 24px;
+  }
+  .card-sm {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+
+  /* ── Stat big number ── */
+  .stat { text-align: center; }
+  .stat .num {
+    font-size: clamp(2rem, 3.5vw, 3rem);
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--purple), var(--gold));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+  }
+  .stat .unit {
+    font-size: 0.8rem; color: var(--muted); margin-top: 4px; display: block;
+  }
+
+  /* ── Tag / Badge ── */
+  .tag {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: rgba(168,85,247,0.12);
+    border: 1px solid rgba(168,85,247,0.3);
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: 0.78rem; font-weight: 500;
+    color: var(--purple);
+  }
+  .tag.gold-tag {
+    background: rgba(245,158,11,0.12);
+    border-color: rgba(245,158,11,0.3);
+    color: var(--gold);
+  }
+  .tag.green-tag {
+    background: rgba(34,197,94,0.12);
+    border-color: rgba(34,197,94,0.3);
+    color: var(--green);
+  }
+  .tag.blue-tag {
+    background: rgba(59,130,246,0.12);
+    border-color: rgba(59,130,246,0.3);
+    color: var(--blue);
+  }
+
+  /* ── Feature row ── */
+  .feat-row {
+    display: flex; align-items: flex-start; gap: 14px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .feat-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .feat-icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem; flex-shrink: 0;
+  }
+
+  /* ── Tech pill ── */
+  .tech-pill {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.82rem;
+  }
+  .tech-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+
+  /* ── Event type dot ── */
+  .ev-dot {
+    display: inline-block;
+    width: 10px; height: 10px; border-radius: 50%;
+    margin-right: 6px; flex-shrink: 0;
+  }
+  .ev-row {
+    display: flex; align-items: center;
+    font-size: 0.82rem; padding: 5px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    color: var(--muted);
+  }
+  .ev-row:last-child { border-bottom: none; }
+  .ev-row .ev-label { flex: 1; }
+  .ev-row .ev-count {
+    font-weight: 600; font-size: 0.8rem;
+    color: var(--text);
+  }
+
+  /* ── Role badge ── */
+  .role-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    border-radius: 6px; padding: 4px 10px;
+    font-size: 0.78rem; font-weight: 600;
+  }
+
+  /* ── Timeline dot ── */
+  .timeline {
+    display: flex; flex-direction: column; gap: 0;
+    border-left: 2px solid rgba(168,85,247,0.3);
+    padding-left: 20px;
+    margin-left: 8px;
+  }
+  .t-item {
+    position: relative; padding: 10px 0;
+    font-size: 0.88rem; color: var(--muted);
+  }
+  .t-item::before {
+    content: '';
+    position: absolute; left: -27px; top: 14px;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--purple);
+    border: 2px solid var(--bg);
+  }
+  .t-item strong { color: var(--text); }
+
+  /* ── Glow line ── */
+  .glow-line {
+    height: 2px; width: 60px;
+    background: linear-gradient(90deg, var(--purple), var(--gold));
+    border-radius: 2px; margin: 14px auto;
+  }
+
+  /* ── PWA mockup ── */
+  .phone-frame {
+    width: 160px; height: 280px;
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 28px;
+    background: var(--card2);
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .phone-frame .screen-bar {
+    height: 32px;
+    background: linear-gradient(135deg, rgba(168,85,247,0.3), rgba(245,158,11,0.2));
+    display: flex; align-items: center; padding: 0 12px;
+    font-size: 0.65rem; font-weight: 600;
+  }
+  .phone-item {
+    margin: 8px; padding: 8px 10px;
+    background: var(--card); border-radius: 8px;
+    border: 1px solid var(--border);
+    font-size: 0.6rem; line-height: 1.5;
+  }
+
+  /* ── Slide-specific backgrounds ── */
+  .slide-cover { background: radial-gradient(ellipse at 30% 50%, rgba(168,85,247,0.12) 0%, transparent 60%), radial-gradient(ellipse at 70% 30%, rgba(245,158,11,0.08) 0%, transparent 50%); }
+  .slide-dark  { background: radial-gradient(ellipse at 50% 50%, rgba(168,85,247,0.05) 0%, transparent 70%); }
+
+  /* ── Footer note ── */
+  .slide-note {
+    position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
+    font-size: 0.72rem; color: rgba(148,163,184,0.5);
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+<div id="counter"></div>
+<button class="nav-btn" id="prev">&#8249;</button>
+<button class="nav-btn" id="next">&#8250;</button>
+
+<!-- Recording controls -->
+<div style="position:fixed; bottom:18px; left:20px; display:flex; align-items:center; gap:10px; z-index:200;">
+  <button id="rec-btn" style="
+    background: rgba(239,68,68,0.15);
+    border: 1px solid rgba(239,68,68,0.4);
+    color: #fca5a5;
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  " onmouseover="this.style.background='rgba(239,68,68,0.28)'" onmouseout="this.style.background='rgba(239,68,68,0.15)'">
+    ⏺ Enregistrer
+  </button>
+  <span id="rec-dot" style="display:none; width:8px; height:8px; border-radius:50%; background:#ef4444; animation:blink 1s infinite;"></span>
+  <span id="rec-label" style="font-size:11px; color:#94a3b8;"></span>
+  <span id="rec-countdown" style="font-size:11px; color:#f59e0b; font-weight:600;"></span>
+</div>
+<style>
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+</style>
+
+<div class="deck" id="deck">
+
+  <!-- ══ SLIDE 1 — COVER ══ -->
+  <div class="slide slide-cover active" data-index="0">
+    <div class="center" style="max-width:700px">
+      <div class="label" style="margin-bottom:16px">Projet personnel · Full-stack</div>
+      <h1 class="gradient-text" style="margin-bottom:18px">LIMA App</h1>
+      <div class="glow-line"></div>
+      <p style="font-size:1.1rem; color:var(--text); margin-bottom:24px; max-width:520px; margin-left:auto; margin-right:auto;">
+        Application de gestion d'une association d'improvisation théâtrale —
+        agenda, membres, casting, planning personnel.
+      </p>
+      <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+        <span class="tag">React · TypeScript</span>
+        <span class="tag">FastAPI · PostgreSQL</span>
+        <span class="tag gold-tag">PWA installable</span>
+        <span class="tag green-tag">En production</span>
+      </div>
+      <p style="margin-top:28px; font-size:0.82rem; color:var(--muted);">
+        limaimpro.duckdns.org &nbsp;·&nbsp; api-production-e15b.up.railway.app
+      </p>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 2 — CONTEXTE & CHIFFRES ══ -->
+  <div class="slide slide-dark" data-index="1">
+    <div style="width:100%; max-width:860px;">
+      <div class="label" style="margin-bottom:16px; text-align:center">Contexte</div>
+      <h2 style="text-align:center; margin-bottom:8px">D'Excel à une appli web déployée</h2>
+      <p style="text-align:center; margin-bottom:32px">Développée solo en 3 mois, de zéro à la production.</p>
+
+      <div class="grid-4" style="margin-bottom:24px;">
+        <div class="card stat">
+          <div class="num">55</div>
+          <span class="unit">membres actifs</span>
+        </div>
+        <div class="card stat">
+          <div class="num">99</div>
+          <span class="unit">événements 2025-2026</span>
+        </div>
+        <div class="card stat">
+          <div class="num">48</div>
+          <span class="unit">assignments de casting T3</span>
+        </div>
+        <div class="card stat">
+          <div class="num">2</div>
+          <span class="unit">rôles (admin / membre)</span>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3 style="margin-bottom:10px; font-size:0.95rem;">🎯 Problèmes résolus</h3>
+          <div class="feat-row" style="padding:8px 0;">
+            <span style="font-size:0.85rem; color:var(--muted);">Partage du calendrier par emails / tableurs</span>
+          </div>
+          <div class="feat-row" style="padding:8px 0;">
+            <span style="font-size:0.85rem; color:var(--muted);">Grilles d'alignement gérées manuellement</span>
+          </div>
+          <div class="feat-row" style="padding:8px 0;">
+            <span style="font-size:0.85rem; color:var(--muted);">Trombinoscope PDF à mettre à jour</span>
+          </div>
+          <div class="feat-row" style="padding:8px 0; border:none;">
+            <span style="font-size:0.85rem; color:var(--muted);">Aucun outil de planning personnel</span>
+          </div>
+        </div>
+        <div class="card">
+          <h3 style="margin-bottom:10px; font-size:0.95rem;">⚙️ Déploiement</h3>
+          <div class="timeline">
+            <div class="t-item"><strong>Railway</strong> — Backend FastAPI, auto-deploy sur push GitHub</div>
+            <div class="t-item"><strong>VPS Ubuntu</strong> — Frontend React, Docker + nginx, script de déploiement Python/paramiko</div>
+            <div class="t-item"><strong>PostgreSQL</strong> — Migrations Alembic versionées</div>
+            <div class="t-item"><strong>Cloudflare R2</strong> — Stockage photos (S3-compatible)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 3 — AGENDA ══ -->
+  <div class="slide slide-dark" data-index="2">
+    <div style="width:100%; max-width:860px;">
+      <div class="label" style="margin-bottom:8px">Feature</div>
+      <h2 style="margin-bottom:6px">📅 Agenda</h2>
+      <p style="margin-bottom:28px">Vue calendrier mensuel + vue liste, filtres par type et visibilité.</p>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3 style="font-size:0.9rem; color:var(--muted); margin-bottom:14px; text-transform:uppercase; letter-spacing:0.08em;">8 types d'événements</h3>
+          <div class="ev-row"><span class="ev-dot" style="background:#a855f7;"></span><span class="ev-label">Entraînement spectacle</span></div>
+          <div class="ev-row"><span class="ev-dot" style="background:#3b82f6;"></span><span class="ev-label">Entraînement loisir</span></div>
+          <div class="ev-row"><span class="ev-dot" style="background:#ef4444;"></span><span class="ev-label">Match</span></div>
+          <div class="ev-row"><span class="ev-dot" style="background:#eab308;"></span><span class="ev-label">Cabaret</span></div>
+          <div class="ev-row"><span class="ev-dot" style="background:#f97316;"></span><span class="ev-label">Welsh</span></div>
+          <div class="ev-row"><span class="ev-dot" style="background:#22c55e;"></span><span class="ev-label">Formation</span></div>
+          <div class="ev-row"><span class="ev-dot" style="background:#f97316;"></span><span class="ev-label">AG</span></div>
+          <div class="ev-row" style="border:none;"><span class="ev-dot" style="background:#6b7280;"></span><span class="ev-label">Autre</span></div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          <div class="card-sm">
+            <h3 style="font-size:0.9rem; margin-bottom:8px;">🎬 Casting par événement</h3>
+            <p>En cliquant sur un événement, le casting assigné s'affiche directement dans le drawer (Joueur, MJ/MC, DJ, Arbitre, Coach).</p>
+          </div>
+          <div class="card-sm">
+            <h3 style="font-size:0.9rem; margin-bottom:8px;">🔒 Visibilité différenciée</h3>
+            <p>Certains événements sont visibles admin seulement. Les membres voient leur agenda filtré automatiquement.</p>
+          </div>
+          <div class="card-sm">
+            <h3 style="font-size:0.9rem; margin-bottom:8px;">📥 Import Excel</h3>
+            <p>Import en masse depuis un fichier Excel de calendrier. Détection automatique du type d'événement par mot-clé.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 4 — MEMBRES ══ -->
+  <div class="slide slide-dark" data-index="3">
+    <div style="width:100%; max-width:860px;">
+      <div class="label" style="margin-bottom:8px">Feature</div>
+      <h2 style="margin-bottom:6px">👥 Membres</h2>
+      <p style="margin-bottom:28px">Répertoire avec photos, fiche détail, et gestion admin complète.</p>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3 style="font-size:0.9rem; margin-bottom:16px;">Fiche membre</h3>
+          <div class="feat-row">
+            <div class="feat-icon" style="background:rgba(168,85,247,0.15);">📸</div>
+            <div>
+              <h3 style="font-size:0.88rem;">Photo de profil</h3>
+              <p style="font-size:0.82rem;">Upload + recadrage côté client (Canvas API), stockée en base64 ou R2.</p>
+            </div>
+          </div>
+          <div class="feat-row">
+            <div class="feat-icon" style="background:rgba(245,158,11,0.15);">📅</div>
+            <div>
+              <h3 style="font-size:0.88rem;">Prochains spectacles</h3>
+              <p style="font-size:0.82rem;">Planning de la saison en cours — événements à venir par membre.</p>
+            </div>
+          </div>
+          <div class="feat-row">
+            <div class="feat-icon" style="background:rgba(34,197,94,0.15);">🏷️</div>
+            <div>
+              <h3 style="font-size:0.88rem;">Statut & rôle</h3>
+              <p style="font-size:0.82rem;">Statut joueur (Match / Cabaret / Loisirs / Adhérent), rôle asso, commissions.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 style="font-size:0.9rem; margin-bottom:16px;">Actions admin</h3>
+          <div class="feat-row" style="padding:10px 0;">
+            <span style="font-size:1.1rem; margin-right:10px;">✉️</span>
+            <div>
+              <h3 style="font-size:0.88rem;">Invitation par email</h3>
+              <p style="font-size:0.82rem;">Envoi d'un lien d'activation sécurisé (SMTP). Renvoi possible.</p>
+            </div>
+          </div>
+          <div class="feat-row" style="padding:10px 0;">
+            <span style="font-size:1.1rem; margin-right:10px;">✏️</span>
+            <div>
+              <h3 style="font-size:0.88rem;">Édition du profil</h3>
+              <p style="font-size:0.82rem;">Modification de toutes les données (nom, email, statuts, rôles…).</p>
+            </div>
+          </div>
+          <div class="feat-row" style="padding:10px 0; border:none;">
+            <span style="font-size:1.1rem; margin-right:10px;">🔄</span>
+            <div>
+              <h3 style="font-size:0.88rem;">Activation / désactivation</h3>
+              <p style="font-size:0.82rem;">Compte désactivé = accès révoqué, données conservées.</p>
+            </div>
+          </div>
+          <div style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border);">
+            <p style="font-size:0.8rem; color:var(--muted);">Script d'import photos depuis le PDF du trombinoscope (PyMuPDF + Pillow).</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 5 — ALIGNEMENTS ══ -->
+  <div class="slide slide-dark" data-index="4">
+    <div style="width:100%; max-width:860px;">
+      <div class="label" style="margin-bottom:8px">Feature</div>
+      <h2 style="margin-bottom:6px">🎬 Alignements</h2>
+      <p style="margin-bottom:28px">Grilles de casting par période — affectation des membres à chaque événement.</p>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3 style="font-size:0.9rem; margin-bottom:14px;">Flux de travail</h3>
+          <div class="timeline">
+            <div class="t-item"><strong>Créer une grille</strong> — nommer la période (ex : T3 2025-2026)</div>
+            <div class="t-item"><strong>Ajouter des événements</strong> — sélection multi-choix parmi la saison</div>
+            <div class="t-item"><strong>Assigner des membres</strong> — par rôle pour chaque événement</div>
+            <div class="t-item"><strong>Publier la grille</strong> — visible dans l'agenda de chaque membre</div>
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          <div class="card-sm">
+            <h3 style="font-size:0.9rem; margin-bottom:10px;">5 rôles disponibles</h3>
+            <div style="display:flex; flex-wrap:wrap; gap:6px;">
+              <span class="role-badge" style="background:rgba(168,85,247,0.15); color:#d8b4fe;">🎭 Joueur</span>
+              <span class="role-badge" style="background:rgba(14,165,233,0.15); color:#7dd3fc;">🎤 MJ / MC</span>
+              <span class="role-badge" style="background:rgba(6,182,212,0.15); color:#67e8f9;">🎵 DJ</span>
+              <span class="role-badge" style="background:rgba(245,158,11,0.15); color:#fcd34d;">⚖️ Arbitre</span>
+              <span class="role-badge" style="background:rgba(34,197,94,0.15); color:#86efac;">🏋️ Coach</span>
+            </div>
+          </div>
+          <div class="card-sm">
+            <h3 style="font-size:0.9rem; margin-bottom:8px;">Intégration agenda</h3>
+            <p>Le casting d'un événement est consultable en un tap depuis la vue calendrier ou liste — pas besoin de naviguer vers les alignements.</p>
+          </div>
+          <div class="card-sm">
+            <h3 style="font-size:0.9rem; margin-bottom:8px;">Script de seed</h3>
+            <p>Import initial des données T3 (9 événements, 48 assignements) via script Python — zéro saisie manuelle.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 6 — AUTH & SÉCURITÉ ══ -->
+  <div class="slide slide-dark" data-index="5">
+    <div style="width:100%; max-width:860px;">
+      <div class="label" style="margin-bottom:8px">Architecture</div>
+      <h2 style="margin-bottom:6px">🔐 Auth & Sécurité</h2>
+      <p style="margin-bottom:28px">JWT httpOnly cookies — aucun token côté client, refresh transparent.</p>
+
+      <div class="grid-3">
+        <div class="card">
+          <div style="font-size:1.6rem; margin-bottom:10px;">🍪</div>
+          <h3 style="font-size:0.95rem; margin-bottom:8px;">httpOnly Cookies</h3>
+          <p>Access token (30 min) + Refresh token (7 jours) stockés en cookie httpOnly. Inaccessibles depuis JS — protection XSS.</p>
+        </div>
+        <div class="card">
+          <div style="font-size:1.6rem; margin-bottom:10px;">♻️</div>
+          <h3 style="font-size:0.95rem; margin-bottom:8px;">Refresh silencieux</h3>
+          <p>Le client intercepte les 401, appelle <code style="font-size:0.78rem; background:var(--card2); padding:1px 4px; border-radius:3px;">/auth/refresh</code> et rejoue la requête échouée. File d'attente pour les requêtes parallèles.</p>
+        </div>
+        <div class="card">
+          <div style="font-size:1.6rem; margin-bottom:10px;">🛡️</div>
+          <h3 style="font-size:0.95rem; margin-bottom:8px;">Secrets distincts</h3>
+          <p>Access JWT secret et Refresh JWT secret indépendants en production — rotation séparée possible. Validation à la startup.</p>
+        </div>
+        <div class="card">
+          <div style="font-size:1.6rem; margin-bottom:10px;">🚦</div>
+          <h3 style="font-size:0.95rem; margin-bottom:8px;">Rate limiting</h3>
+          <p>Middleware custom sur les endpoints sensibles (login, reset password). Retour 429 avec header Retry-After.</p>
+        </div>
+        <div class="card">
+          <div style="font-size:1.6rem; margin-bottom:10px;">📧</div>
+          <h3 style="font-size:0.95rem; margin-bottom:8px;">Activation email</h3>
+          <p>Token signé à usage unique pour l'activation de compte et la réinitialisation de mot de passe (SMTP).</p>
+        </div>
+        <div class="card">
+          <div style="font-size:1.6rem; margin-bottom:10px;">📊</div>
+          <h3 style="font-size:0.95rem; margin-bottom:8px;">Activity logs</h3>
+          <p>Middleware qui trace chaque requête (méthode, endpoint, durée, code HTTP, user). Dashboard admin avec stats.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 7 — PWA & UX ══ -->
+  <div class="slide slide-dark" data-index="6">
+    <div style="width:100%; max-width:860px; display:flex; gap:40px; align-items:center;">
+      <div style="flex:1;">
+        <div class="label" style="margin-bottom:8px">Feature</div>
+        <h2 style="margin-bottom:8px">📱 PWA Mobile-first</h2>
+        <p style="margin-bottom:24px">Installable sur iOS/Android, fonctionnel hors-ligne sur les données cachées.</p>
+
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div class="card-sm" style="display:flex; gap:12px; align-items:center;">
+            <span style="font-size:1.4rem;">⚡</span>
+            <div>
+              <h3 style="font-size:0.88rem;">NetworkFirst Service Worker</h3>
+              <p style="font-size:0.82rem;">Réseau prioritaire, cache en fallback. Refresh automatique des données.</p>
+            </div>
+          </div>
+          <div class="card-sm" style="display:flex; gap:12px; align-items:center;">
+            <span style="font-size:1.4rem;">🎨</span>
+            <div>
+              <h3 style="font-size:0.88rem;">shadcn/ui + Tailwind CSS</h3>
+              <p style="font-size:0.82rem;">Composants accessibles, thème dark cohérent, animations CSS custom.</p>
+            </div>
+          </div>
+          <div class="card-sm" style="display:flex; gap:12px; align-items:center;">
+            <span style="font-size:1.4rem;">🔔</span>
+            <div>
+              <h3 style="font-size:0.88rem;">Mon Planning</h3>
+              <p style="font-size:0.82rem;">Page personnalisée — prochains spectacles du membre connecté, son profil éditable.</p>
+            </div>
+          </div>
+          <div class="card-sm" style="display:flex; gap:12px; align-items:center;">
+            <span style="font-size:1.4rem;">🔄</span>
+            <div>
+              <h3 style="font-size:0.88rem;">React Query</h3>
+              <p style="font-size:0.82rem;">Cache côté client, invalidation ciblée, stale-while-revalidate, pas de Redux.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:16px; align-items:center;">
+        <div class="phone-frame">
+          <div class="phone-frame" style="width:auto; height:auto; border:none; border-radius:0; background:var(--card2);">
+            <div class="screen-bar">📅 Agenda · Mai 2026</div>
+            <div style="padding:8px; display:flex; flex-direction:column; gap:6px;">
+              <div class="phone-item" style="border-left:3px solid #a855f7;">
+                <div style="font-size:0.7rem; font-weight:600;">Welsh</div>
+                <div style="color:var(--muted); font-size:0.62rem;">29 mai · 20h00</div>
+              </div>
+              <div class="phone-item" style="border-left:3px solid #eab308;">
+                <div style="font-size:0.7rem; font-weight:600;">Cabaret Giffard</div>
+                <div style="color:var(--muted); font-size:0.62rem;">18 juin · 20h00</div>
+              </div>
+              <div class="phone-item" style="border-left:3px solid #ef4444;">
+                <div style="font-size:0.7rem; font-weight:600;">Dépla Rennes</div>
+                <div style="color:var(--muted); font-size:0.62rem;">20 juin · 20h00</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <span class="tag green-tag" style="font-size:0.72rem;">iOS</span>
+          <span class="tag green-tag" style="font-size:0.72rem;">Android</span>
+          <span class="tag" style="font-size:0.72rem;">Desktop</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 8 — STACK TECHNIQUE ══ -->
+  <div class="slide slide-dark" data-index="7">
+    <div style="width:100%; max-width:860px;">
+      <div class="label" style="margin-bottom:8px; text-align:center">Stack technique</div>
+      <h2 style="text-align:center; margin-bottom:28px">Technologies</h2>
+
+      <div class="grid-2" style="gap:24px;">
+        <div>
+          <div class="label" style="color:var(--purple); margin-bottom:12px;">Frontend</div>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <div class="tech-pill"><div class="tech-dot" style="background:#3b82f6;"></div> React 18 + TypeScript + Vite</div>
+            <div class="tech-pill"><div class="tech-dot" style="background:#06b6d4;"></div> Tailwind CSS + shadcn/ui</div>
+            <div class="tech-pill"><div class="tech-dot" style="background:#f59e0b;"></div> TanStack Query (React Query)</div>
+            <div class="tech-pill"><div class="tech-dot" style="background:#8b5cf6;"></div> PWA (vite-plugin-pwa · Workbox)</div>
+            <div class="tech-pill"><div class="tech-dot" style="background:#ec4899;"></div> React Router v6 · Sonner (toasts)</div>
+          </div>
+        </div>
+        <div>
+          <div class="label" style="color:var(--gold); margin-bottom:12px;">Backend</div>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <div class="tech-pill"><div class="tech-dot" style="background:#22c55e;"></div> Python · FastAPI · Pydantic v2</div>
+            <div class="tech-pill"><div class="tech-dot" style="background:#3b82f6;"></div> SQLAlchemy (async) · PostgreSQL</div>
+            <div class="tech-pill"><div class="tech-dot" style="background:#f97316;"></div> Alembic (migrations versionnées)</div>
+            <div class="tech-pill"><div class="tech-dot" style="background:#a855f7;"></div> JWT · bcrypt · httpOnly cookies</div>
+            <div class="tech-pill"><div class="tech-dot" style="background:#ef4444;"></div> pydantic-settings · SMTP · boto3</div>
+          </div>
+        </div>
+        <div>
+          <div class="label" style="color:var(--green); margin-bottom:12px;">Infra & Déploiement</div>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <div class="tech-pill"><div class="tech-dot" style="background:#6366f1;"></div> Railway (backend · auto-deploy)</div>
+            <div class="tech-pill"><div class="tech-dot" style="background:#0ea5e9;"></div> VPS Ubuntu · Docker · nginx</div>
+            <div class="tech-pill"><div class="tech-dot" style="background:#f59e0b;"></div> Cloudflare R2 (stockage S3-compatible)</div>
+          </div>
+        </div>
+        <div>
+          <div class="label" style="color:var(--blue); margin-bottom:12px;">Outils & Qualité</div>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <div class="tech-pill"><div class="tech-dot" style="background:#22c55e;"></div> pytest · 40+ tests d'intégration</div>
+            <div class="tech-pill"><div class="tech-dot" style="background:#94a3b8;"></div> GitHub · CI/CD Railway</div>
+            <div class="tech-pill"><div class="tech-dot" style="background:#f97316;"></div> PyMuPDF · Pillow (scripts Python)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 9 — CLOSING ══ -->
+  <div class="slide slide-cover" data-index="8">
+    <div class="center" style="max-width:680px;">
+      <div class="label" style="margin-bottom:16px">Jérôme Jacq · Développeur full-stack</div>
+      <h1 class="gradient-text" style="margin-bottom:12px">LIMA App</h1>
+      <div class="glow-line"></div>
+      <p style="font-size:1rem; color:var(--text); margin: 20px 0 28px; max-width:480px; margin-left:auto; margin-right:auto;">
+        Application complète, déployée en production et utilisée activement par 55 membres de l'association.
+      </p>
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:32px;">
+        <div class="card stat">
+          <div class="num" style="font-size:1.8rem;">3</div>
+          <span class="unit">mois de développement</span>
+        </div>
+        <div class="card stat">
+          <div class="num" style="font-size:1.8rem;">55</div>
+          <span class="unit">utilisateurs réels</span>
+        </div>
+        <div class="card stat">
+          <div class="num" style="font-size:1.8rem;">10+</div>
+          <span class="unit">features déployées</span>
+        </div>
+      </div>
+      <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+        <span class="tag">jerome.jacq@gmail.com</span>
+        <span class="tag gold-tag">github.com/…</span>
+        <span class="tag green-tag">limaimpro.duckdns.org</span>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /deck -->
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const total = slides.length;
+  let cur = 0;
+
+  function goTo(n) {
+    slides[cur].classList.remove('active');
+    slides[cur].classList.add('prev');
+    cur = (n + total) % total;
+    slides.forEach((s, i) => {
+      s.classList.toggle('active', i === cur);
+      if (i !== cur) s.classList.remove('prev');
+    });
+    document.getElementById('progress').style.width = ((cur + 1) / total * 100) + '%';
+    document.getElementById('counter').textContent = (cur + 1) + ' / ' + total;
+  }
+
+  document.getElementById('next').addEventListener('click', () => goTo(cur + 1));
+  document.getElementById('prev').addEventListener('click', () => goTo(cur - 1));
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); goTo(cur + 1); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); goTo(cur - 1); }
+  });
+
+  // Touch swipe
+  let tx = 0;
+  document.addEventListener('touchstart', e => tx = e.touches[0].clientX, { passive: true });
+  document.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - tx;
+    if (Math.abs(dx) > 50) goTo(cur + (dx < 0 ? 1 : -1));
+  });
+
+  goTo(0);
+
+  // ── MediaRecorder auto-record ──
+  const REC_SLIDE_DURATION = 6000; // ms par slide
+  let mediaRecorder = null;
+  let recChunks = [];
+  let recTimer = null;
+  let recStream = null;
+
+  const recBtn = document.getElementById('rec-btn');
+  const recDot = document.getElementById('rec-dot');
+  const recLabel = document.getElementById('rec-label');
+  const recCountdown = document.getElementById('rec-countdown');
+
+  async function startRecording() {
+    try {
+      recStream = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: 30 },
+        audio: false,
+      });
+    } catch (e) {
+      alert('Capture annulée ou non supportée.');
+      return;
+    }
+
+    recChunks = [];
+    mediaRecorder = new MediaRecorder(recStream, {
+      mimeType: MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+        ? 'video/webm;codecs=vp9'
+        : 'video/webm',
+    });
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recChunks.push(e.data); };
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(recChunks, { type: 'video/webm' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'lima-app-portfolio.webm';
+      a.click();
+      recStream.getTracks().forEach(t => t.stop());
+      recBtn.textContent = '⏺ Enregistrer';
+      recDot.style.display = 'none';
+      recCountdown.textContent = '';
+      recBtn.disabled = false;
+    };
+
+    // Revenir slide 0, lancer
+    goTo(0);
+    await new Promise(r => setTimeout(r, 800));
+
+    mediaRecorder.start();
+    recBtn.textContent = '⏹ Stop';
+    recDot.style.display = 'inline-block';
+    recBtn.onclick = stopRecording;
+
+    let slide = 0;
+    function nextSlide() {
+      const remaining = total - slide - 1;
+      recCountdown.textContent = remaining > 0
+        ? `Slide ${slide + 1}/${total}`
+        : `Slide ${slide + 1}/${total} — fin dans ${(REC_SLIDE_DURATION / 1000).toFixed(0)}s`;
+      if (slide < total - 1) {
+        recTimer = setTimeout(() => {
+          slide++;
+          goTo(slide);
+          nextSlide();
+        }, REC_SLIDE_DURATION);
+      } else {
+        // Dernière slide : attendre puis stopper
+        recTimer = setTimeout(stopRecording, REC_SLIDE_DURATION);
+      }
+    }
+    nextSlide();
+  }
+
+  function stopRecording() {
+    clearTimeout(recTimer);
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+    }
+    recBtn.disabled = true;
+    recCountdown.textContent = 'Téléchargement…';
+  }
+
+  recBtn.onclick = startRecording;
+</script>
+</body>
+</html>

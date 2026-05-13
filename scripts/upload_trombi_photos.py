@@ -106,8 +106,8 @@ def lookup(idx, name):
 def extract_portraits_from_page(pdf_doc, page_idx):
     """
     Return portrait images sorted by (y, x) position (top→bottom, left→right).
-    We skip the largest image (full-page background) and keep only portrait-sized ones.
-    Returns list of PIL Images.
+    Filters out: page background (>1000px either dim), off-page images (neg coords),
+    near-white placeholders (empty frames), and caption/label strips (<100px height).
     """
     page = pdf_doc[page_idx]
     img_list = page.get_images(full=True)
@@ -120,19 +120,28 @@ def extract_portraits_from_page(pdf_doc, page_idx):
         img_width = base_image["width"]
         img_height = base_image["height"]
 
-        # Skip tiny images (decorations) and very large images (background/full page)
-        if img_width < 50 or img_height < 50:
+        # Skip tiny labels/captions and full-page backgrounds
+        if img_width < 100 or img_height < 100:
             continue
-        if img_width > 1500 and img_height > 1500:
+        if img_width > 1000 or img_height > 1000:
             continue
 
-        # Get bounding box on the page
+        # Get bounding box on the page — skip off-page images (backgrounds)
         rects = [r for r in page.get_image_rects(xref)]
         if not rects:
             continue
         rect = rects[0]
+        if rect.x0 < 0 or rect.y0 < 0:
+            continue
 
-        img = Image.open(io.BytesIO(img_bytes))
+        img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+
+        # Skip near-white images (empty frame placeholders)
+        cx, cy = img.width // 2, img.height // 2
+        r, g, b = img.getpixel((cx, cy))
+        if r > 230 and g > 230 and b > 230:
+            continue
+
         candidates.append((rect.y0, rect.x0, img))
 
     # Sort by top-to-bottom, then left-to-right
