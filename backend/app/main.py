@@ -4,6 +4,24 @@ FastAPI Application Entry Point
 """
 
 import os
+
+# Initialize Sentry as early as possible so import-time errors are captured.
+# No-op when SENTRY_DSN is unset (local dev / CI).
+_SENTRY_DSN = os.environ.get("SENTRY_DSN", "").strip()
+if _SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
+    from sentry_sdk.integrations.starlette import StarletteIntegration
+
+    sentry_sdk.init(
+        dsn=_SENTRY_DSN,
+        environment=os.environ.get("APP_ENV", "production"),
+        integrations=[StarletteIntegration(), FastApiIntegration()],
+        # Capture 100% of errors. Sample 10% of transactions for performance traces.
+        traces_sample_rate=0.1,
+        send_default_pii=False,
+    )
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -13,12 +31,14 @@ from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.limiting import limiter
 from app.middleware.activity_tracker import ActivityTrackerMiddleware
+from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.routers import (
     admin,
     auth,
     alignments,
     commissions,
     events,
+    feedback,
     members,
     seasons,
     settings as settings_router,
@@ -142,6 +162,7 @@ app.add_middleware(
     expose_headers=["Content-Length"],
 )
 app.add_middleware(ActivityTrackerMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 
 # ---------------------------------------------------------------------------
 # Routers
@@ -155,6 +176,7 @@ app.include_router(alignments.router)
 app.include_router(commissions.router)
 app.include_router(show_plans.router)
 app.include_router(settings_router.router)
+app.include_router(feedback.router)
 app.include_router(admin.router, prefix="/api/admin")
 
 # ---------------------------------------------------------------------------

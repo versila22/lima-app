@@ -64,10 +64,15 @@ export default defineConfig(({ mode }) => {
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg}"],
+        // urlPattern functions are serialized into the SW and lose closure variables,
+        // so we use a RegExp built at config-time instead — workbox embeds the literal
+        // regex source into the generated service worker.
         runtimeCaching: apiOrigin
           ? [
               {
-                urlPattern: ({ url }) => url.origin === apiOrigin,
+                urlPattern: new RegExp(
+                  "^" + apiOrigin.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+                ),
                 handler: "NetworkFirst",
                 options: {
                   cacheName: "lima-api-cache",

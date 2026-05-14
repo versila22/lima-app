@@ -183,9 +183,12 @@ export interface EventRead {
   away_city: string | null;
   away_opponent: string | null;
   notes: string | null;
+  match_report: string | null;
+  allow_registration: boolean;
   visibility: EventVisibility;
   created_at: string;
   updated_at: string;
+  cover_url: string | null;
 }
 
 export interface EventCreate {
@@ -199,6 +202,8 @@ export interface EventCreate {
   away_city?: string;
   away_opponent?: string;
   notes?: string;
+  match_report?: string;
+  allow_registration?: boolean;
   visibility?: EventVisibility;
 }
 
@@ -212,7 +217,17 @@ export interface EventUpdate {
   away_city?: string;
   away_opponent?: string;
   notes?: string;
+  match_report?: string;
+  allow_registration?: boolean;
   visibility?: EventVisibility;
+}
+
+export interface RegistrationRead {
+  id: string;
+  member_id: string;
+  first_name: string;
+  last_name: string;
+  created_at: string;
 }
 
 // ---------- ShowPlan ----------
@@ -281,7 +296,7 @@ export interface CommissionRead {
 
 // ---------- Alignment ----------
 export type AlignmentStatus = "draft" | "published";
-export type AssignmentRole = "JR" | "DJ" | "MJ_MC" | "AR" | "COACH";
+export type AssignmentRole = "JR" | "DJ" | "MJ_MC" | "AR" | "COACH" | "BENEVOLE";
 
 export interface AlignmentRead {
   id: string;
@@ -337,15 +352,50 @@ export interface PlanningEvent {
   start_at: string;
   end_at?: string;
   venue_name?: string;
-  role: AssignmentRole;
-  alignment_name: string;
-  alignment_status: AlignmentStatus;
+  source: "alignment" | "registration";
+  role?: AssignmentRole | string | null;
+  alignment_name?: string | null;
+  alignment_status?: AlignmentStatus | null;
 }
 
 export interface MemberPlanning {
   upcoming: PlanningEvent[];
   past: PlanningEvent[];
   total_shows: number;
+  total_attendances: number;
+}
+
+export interface MemberStats {
+  total_shows: number;
+  by_type: Record<string, number>;
+  by_role: Record<string, number>;
+}
+
+// ---------- Event Photos ----------
+export interface EventPhoto {
+  id: string;
+  event_id: string;
+  url: string;
+  caption: string | null;
+  created_at: string;
+}
+
+export interface GalleryPhoto {
+  id: string;
+  event_id: string;
+  event_title: string;
+  event_type: string;
+  event_date: string;
+  url: string;
+  caption: string | null;
+  created_at: string;
+}
+
+// ---------- Pinned News ----------
+export interface PinnedNewsItem {
+  id: string;
+  title: string;
+  url?: string | null;
 }
 
 // ---------- Admin Analytics ----------

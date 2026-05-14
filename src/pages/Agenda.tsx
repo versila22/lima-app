@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams, useLocation } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -14,6 +14,11 @@ import {
   Calendar as CalendarIcon,
   Check,
   ChevronsUpDown,
+  ExternalLink,
+  ImagePlus,
+  X as XIcon,
+  Images,
+  FileImage,
 } from "lucide-react";
 import {
   format,
@@ -24,6 +29,8 @@ import {
   isSameMonth,
   addMonths,
   subMonths,
+  addWeeks,
+  subWeeks,
   getDay,
   parseISO,
   setHours,
@@ -34,17 +41,32 @@ import {
 } from "date-fns";
 import { fr } from "date-fns/locale";
 
-import { api, ApiError } from "@/lib/api";
+import { api, ApiError, uploadEventPhoto, deleteEventPhoto } from "@/lib/api";
+import bgCabaret from "@/assets/posters/bg-cabaret.jpg";
+import bgMatch from "@/assets/posters/bg-match.jpg";
+import bgFormation from "@/assets/posters/bg-formation.jpg";
+import bgWelsh from "@/assets/posters/bg-welsh.jpg";
+import { PosterGenerator } from "@/components/PosterGenerator";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { AgendaFilterChips } from "@/components/agenda/AgendaFilterChips";
+import { AgendaMobileHeader } from "@/components/agenda/AgendaMobileHeader";
+import { AgendaTimelineCard } from "@/components/agenda/AgendaTimelineCard";
+import { AgendaFAB } from "@/components/agenda/AgendaFAB";
+import { useSwipeNavigation } from "@/hooks/use-swipe-navigation";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { haptic } from "@/lib/haptics";
 import type {
   EventRead,
   EventCreate,
   EventUpdate,
+  EventPhoto,
   SeasonRead,
   EventType,
   EventVisibility,
   MemberSummary,
+  RegistrationRead,
 } from "@/types";
 
 import { Button } from "@/components/ui/button";
@@ -103,50 +125,60 @@ import {
 } from "@/components/ui/command";
 
 // ---- Event type config ----
+// Color classes: strong contrast in light mode (saturated bg + dark text),
+// softer/translucent in dark mode (low-opacity bg + light text). font-medium
+// ensures legibility at small sizes.
 export const EVENT_TYPE_CONFIG: Record<
   EventType,
   { label: string; color: string; dot: string }
 > = {
   training_show: {
     label: "Entraînement spectacle",
-    color: "bg-purple-500/20 text-purple-300 border-purple-500/30",
-    dot: "bg-purple-400",
+    color: "bg-purple-200 text-purple-900 border-purple-500 font-medium dark:bg-purple-500/25 dark:text-purple-100 dark:border-purple-500/60",
+    dot: "bg-purple-500",
   },
   training_leisure: {
     label: "Entraînement loisir",
-    color: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-    dot: "bg-blue-400",
+    color: "bg-blue-200 text-blue-900 border-blue-500 font-medium dark:bg-blue-500/25 dark:text-blue-100 dark:border-blue-500/60",
+    dot: "bg-blue-500",
   },
   match: {
     label: "Match",
-    color: "bg-red-500/20 text-red-300 border-red-500/30",
-    dot: "bg-red-400",
+    color: "bg-red-200 text-red-900 border-red-500 font-medium dark:bg-red-500/25 dark:text-red-100 dark:border-red-500/60",
+    dot: "bg-red-500",
   },
   cabaret: {
     label: "Cabaret",
-    color: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
-    dot: "bg-yellow-400",
+    color: "bg-yellow-200 text-yellow-900 border-yellow-600 font-medium dark:bg-yellow-500/25 dark:text-yellow-100 dark:border-yellow-500/60",
+    dot: "bg-yellow-500",
   },
   welsh: {
     label: "Welsh",
-    color: "bg-amber-500/20 text-amber-300 border-amber-500/30",
-    dot: "bg-amber-400",
+    color: "bg-amber-200 text-amber-900 border-amber-600 font-medium dark:bg-amber-500/25 dark:text-amber-100 dark:border-amber-500/60",
+    dot: "bg-amber-500",
   },
   formation: {
     label: "Formation",
-    color: "bg-green-500/20 text-green-300 border-green-500/30",
-    dot: "bg-green-400",
+    color: "bg-green-200 text-green-900 border-green-600 font-medium dark:bg-green-500/25 dark:text-green-100 dark:border-green-500/60",
+    dot: "bg-green-500",
   },
   ag: {
     label: "AG",
-    color: "bg-orange-500/20 text-orange-300 border-orange-500/30",
-    dot: "bg-orange-400",
+    color: "bg-orange-200 text-orange-900 border-orange-600 font-medium dark:bg-orange-500/25 dark:text-orange-100 dark:border-orange-500/60",
+    dot: "bg-orange-500",
   },
   other: {
     label: "Autre",
-    color: "bg-gray-500/20 text-gray-300 border-gray-500/30",
-    dot: "bg-gray-400",
+    color: "bg-gray-200 text-gray-900 border-gray-500 font-medium dark:bg-gray-500/25 dark:text-gray-100 dark:border-gray-500/60",
+    dot: "bg-gray-500",
   },
+};
+
+const FALLBACK_BG: Partial<Record<string, string>> = {
+  cabaret: bgCabaret,
+  match: bgMatch,
+  formation: bgFormation,
+  welsh: bgWelsh,
 };
 
 const DAYS_FR = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
@@ -167,12 +199,16 @@ interface CastMember {
   role: string;
 }
 
+const REIMBURSEMENT_URL = "https://form.jotform.com/251113498983061";
+
+
 const DETAIL_ROLE_LABELS: Record<string, { label: string; emoji: string }> = {
   JR: { label: "Joueur", emoji: "🎭" },
   MJ_MC: { label: "MJ / MC", emoji: "🎤" },
   DJ: { label: "DJ", emoji: "🎵" },
   AR: { label: "Arbitre", emoji: "⚖️" },
   COACH: { label: "Coach", emoji: "🏋️" },
+  BENEVOLE: { label: "Bénévole", emoji: "🙋" },
 };
 
 function getDefaultDateTime(): Date {
@@ -182,9 +218,26 @@ function getDefaultDateTime(): Date {
 
 function formatEventNotes(notes?: string | null): string | null {
   if (!notes) return null;
-  const markerIndex = notes.indexOf("--- CAST_DATA ---");
-  if (markerIndex === -1) return notes.trim() || null;
-  return notes.slice(0, markerIndex).trim() || null;
+  let text = notes;
+  const markerIndex = text.indexOf("--- CAST_DATA ---");
+  if (markerIndex !== -1) text = text.slice(0, markerIndex);
+  // Strip helloasso: line so it doesn't appear in the notes display
+  text = text.replace(/^helloasso:\s*https?:\/\/\S+\s*/gim, "");
+  return text.trim() || null;
+}
+
+function parseHelloAssoUrl(notes?: string | null): string | null {
+  if (!notes) return null;
+  const match = notes.match(/^helloasso:\s*(https?:\/\/\S+)/im);
+  return match ? match[1] : null;
+}
+
+function buildShareText(event: EventRead, helloAssoUrl: string | null): string {
+  const dateStr = format(parseISO(event.start_at), "EEEE d MMMM yyyy 'à' HH:mm", { locale: fr });
+  let text = `🎭 ${event.title}\n📅 ${dateStr}`;
+  if (event.is_away && event.away_city) text += `\n📍 ${event.away_city}`;
+  if (helloAssoUrl) text += `\n🔗 ${helloAssoUrl}`;
+  return text;
 }
 
 function parseDateTimeValue(value?: string | null): Date | undefined {
@@ -203,7 +256,7 @@ function combineDateAndTime(date: Date | undefined, hour: string, minute: string
     0,
   );
 
-  return format(withTime, "yyyy-MM-dd'T'HH:mm:ss");
+  return withTime.toISOString();
 }
 
 function getInitialDateTimeState(value?: string | null): {
@@ -511,11 +564,148 @@ function ReferentField({
   );
 }
 
+// ---- Event Photo Gallery (used inside EventDetailDrawer) ----
+function EventPhotoGallery({
+  eventId,
+  isAdmin,
+  open,
+}: {
+  eventId: string;
+  isAdmin: boolean;
+  open: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const [lightbox, setLightbox] = useState<EventPhoto | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const { data: photos = [], isLoading } = useQuery<EventPhoto[]>({
+    queryKey: ["event-photos", eventId],
+    queryFn: () => api.get<EventPhoto[]>(`/events/${eventId}/photos`),
+    enabled: open,
+  });
+
+  const uploadMutation = useMutation<EventPhoto, ApiError, File>({
+    mutationFn: (file) => uploadEventPhoto(eventId, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["event-photos", eventId] });
+      queryClient.invalidateQueries({ queryKey: ["gallery-photos"] });
+    },
+    onError: (err) => toast.error(err.detail ?? "Erreur upload"),
+  });
+
+  const deleteMutation = useMutation<void, ApiError, string>({
+    mutationFn: (photoId) => deleteEventPhoto(eventId, photoId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["event-photos", eventId] });
+      queryClient.invalidateQueries({ queryKey: ["gallery-photos"] });
+      setLightbox(null);
+    },
+    onError: (err) => toast.error(err.detail ?? "Erreur suppression"),
+  });
+
+  const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    files.forEach((f) => uploadMutation.mutate(f));
+    e.target.value = "";
+  };
+
+  if (isLoading) return null;
+  if (photos.length === 0 && !isAdmin) return null;
+
+  return (
+    <div className="pt-2 border-t border-border">
+      <div className="flex items-center justify-between mb-2">
+        <span className="flex items-center gap-1.5 text-sm font-semibold">
+          <Images className="w-4 h-4 text-primary" />
+          Photos {photos.length > 0 && `(${photos.length})`}
+        </span>
+        {isAdmin && (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={handleFiles}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadMutation.isPending}
+              className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-md border border-border hover:bg-muted/50 transition-colors disabled:opacity-50"
+            >
+              {uploadMutation.isPending ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <ImagePlus className="w-3.5 h-3.5" />
+              )}
+              Ajouter
+            </button>
+          </>
+        )}
+      </div>
+
+      {photos.length === 0 ? (
+        <p className="text-xs text-muted-foreground italic">Aucune photo pour cet événement.</p>
+      ) : (
+        <div className="grid grid-cols-3 gap-1.5">
+          {photos.map((photo) => (
+            <button
+              key={photo.id}
+              onClick={() => setLightbox(photo)}
+              className="relative aspect-square rounded-md overflow-hidden border border-border hover:opacity-90 transition-opacity"
+            >
+              <img
+                src={photo.url}
+                alt={photo.caption ?? "photo"}
+                className="w-full h-full object-cover"
+              />
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Lightbox */}
+      {lightbox && (
+        <Dialog open={!!lightbox} onOpenChange={() => setLightbox(null)}>
+          <DialogContent className="max-w-[95vw] p-2 bg-card border-border">
+            <div className="relative">
+              <img
+                src={lightbox.url}
+                alt={lightbox.caption ?? "photo"}
+                className="w-full max-h-[80vh] object-contain rounded-md"
+              />
+              {isAdmin && (
+                <button
+                  onClick={() => deleteMutation.mutate(lightbox.id)}
+                  disabled={deleteMutation.isPending}
+                  className="absolute top-2 right-2 p-1.5 rounded-full bg-destructive/90 text-white hover:bg-destructive transition-colors disabled:opacity-50"
+                >
+                  {deleteMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <XIcon className="w-4 h-4" />
+                  )}
+                </button>
+              )}
+            </div>
+            {lightbox.caption && (
+              <p className="text-sm text-center text-muted-foreground px-2">{lightbox.caption}</p>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
+}
+
+
 // ---- Event Detail Drawer (mobile-friendly bottom sheet) ----
 function EventDetailDrawer({
   event,
   open,
   isAdmin,
+  currentUserId,
   onClose,
   onEdit,
   onDelete,
@@ -523,16 +713,56 @@ function EventDetailDrawer({
   event: EventRead;
   open: boolean;
   isAdmin: boolean;
+  currentUserId?: string;
   onClose: () => void;
   onEdit: (event: EventRead) => void;
   onDelete: (event: EventRead) => void;
 }) {
   const cfg = EVENT_TYPE_CONFIG[event.event_type] ?? EVENT_TYPE_CONFIG.other;
+  const helloAssoUrl = parseHelloAssoUrl(event.notes);
+  const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
 
   const { data: cast = [], isLoading: castLoading } = useQuery<CastMember[]>({
     queryKey: ["event-cast", event.id],
     queryFn: () => api.get<CastMember[]>(`/events/${event.id}/cast`),
     enabled: open,
+  });
+
+  const { data: bannerPhotos = [] } = useQuery<EventPhoto[]>({
+    queryKey: ["event-photos", event.id],
+    queryFn: () => api.get<EventPhoto[]>(`/events/${event.id}/photos`),
+    enabled: open,
+  });
+  const bannerBg = bannerPhotos[0]?.url ?? FALLBACK_BG[event.event_type] ?? bgFormation;
+
+  const isTraining = event.event_type === "training_show" || event.event_type === "training_leisure";
+  const showParticipation = event.allow_registration || isTraining;
+  const showPoster = isAdmin && ["cabaret", "formation", "match", "welsh"].includes(event.event_type) && !event.is_away;
+  const [posterOpen, setPosterOpen] = useState(false);
+
+  const { data: registrations = [], isLoading: regLoading } = useQuery<RegistrationRead[]>({
+    queryKey: ["event-registrations", event.id],
+    queryFn: () => api.get<RegistrationRead[]>(`/events/${event.id}/registrations`),
+    enabled: open && showParticipation,
+  });
+
+  const registerMutation = useMutation<unknown, ApiError>({
+    mutationFn: () => api.post(`/events/${event.id}/register`, {}),
+    onSuccess: () => {
+      toast.success("Inscription confirmée !");
+      queryClient.invalidateQueries({ queryKey: ["event-registrations", event.id] });
+    },
+    onError: (err) => toast.error(err.detail ?? "Erreur lors de l'inscription"),
+  });
+
+  const unregisterMutation = useMutation<unknown, ApiError>({
+    mutationFn: () => api.delete(`/events/${event.id}/register`),
+    onSuccess: () => {
+      toast.success("Désinscription effectuée");
+      queryClient.invalidateQueries({ queryKey: ["event-registrations", event.id] });
+    },
+    onError: (err) => toast.error(err.detail ?? "Erreur lors de la désinscription"),
   });
 
   // Group by role
@@ -543,24 +773,51 @@ function EventDetailDrawer({
   }, {});
 
   // Display order
-  const roleOrder = ["JR", "MJ_MC", "DJ", "AR", "COACH"];
+  const roleOrder = ["JR", "MJ_MC", "DJ", "AR", "COACH", "BENEVOLE"];
   const visibleNotes = formatEventNotes(event.notes);
 
   return (
+    <>
     <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
-      <DrawerContent className="max-h-[85vh] bg-card border-border">
-        <div className="overflow-y-auto px-4 pb-2">
-          <DrawerHeader className="px-0">
-            <DrawerTitle className="flex items-center gap-2 text-left">
+      <DrawerContent
+        className={cn(
+          "bg-card border-border",
+          isMobile
+            ? "h-screen max-h-screen rounded-t-none"
+            : "max-h-[85vh]",
+        )}
+      >
+        {/* Photo banner header: sharp photo + bottom blur strip for title readability */}
+        <div className="relative h-44 overflow-hidden rounded-t-[inherit] shrink-0">
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: `url(${bannerBg})` }}
+          />
+          <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/85 via-black/50 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 backdrop-blur-md bg-black/30 border-t border-white/10 px-4 py-3">
+            <DrawerTitle className="flex items-center gap-2 text-left text-white text-lg font-semibold drop-shadow-lg">
               <span className={`inline-block w-3 h-3 rounded-full shrink-0 ${cfg.dot}`} />
-              {event.title}
+              <span className="truncate">{event.title}</span>
             </DrawerTitle>
-            <DrawerDescription className="text-left">
-              <Badge variant="outline" className={`text-xs ${cfg.color} mt-1`}>
+            <DrawerDescription className="text-left mt-1.5">
+              <Badge variant="outline" className="text-xs text-white border-white/40 bg-white/10 backdrop-blur-sm">
                 {cfg.label}
               </Badge>
             </DrawerDescription>
-          </DrawerHeader>
+          </div>
+          {isMobile && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Fermer"
+              className="absolute top-3 right-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 backdrop-blur-sm text-white hover:bg-black/70 transition-colors"
+            >
+              <XIcon className="h-5 w-5" />
+            </button>
+          )}
+        </div>
+
+        <div className="overflow-y-auto px-4 pb-2">
 
           <div className="space-y-3 text-sm py-2">
             <div>
@@ -583,6 +840,13 @@ function EventDetailDrawer({
               <div>
                 <span className="text-muted-foreground">Notes : </span>
                 {visibleNotes}
+              </div>
+            )}
+
+            {event.match_report && (
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+                <p className="text-xs font-semibold text-amber-400 mb-1">📋 Compte-rendu</p>
+                <p className="text-sm whitespace-pre-wrap">{event.match_report}</p>
               </div>
             )}
 
@@ -613,10 +877,108 @@ function EventDetailDrawer({
                 })}
               </div>
             ) : null}
+          {showParticipation && (
+            <div className="pt-2 border-t border-border space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-foreground text-sm">
+                  {isTraining ? "🙋 Présences" : "✋ Inscriptions"}
+                  {!regLoading && ` (${registrations.length})`}
+                </span>
+                {(() => {
+                  const isRegistered = registrations.some((r) => r.member_id === currentUserId);
+                  return isRegistered ? (
+                    <button
+                      onClick={() => unregisterMutation.mutate()}
+                      disabled={unregisterMutation.isPending}
+                      className="text-xs px-3 py-1.5 rounded-md border border-destructive/50 text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                    >
+                      {unregisterMutation.isPending ? "…" : isTraining ? "Annuler" : "Se désinscrire"}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => registerMutation.mutate()}
+                      disabled={registerMutation.isPending}
+                      className="text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                    >
+                      {registerMutation.isPending ? "…" : isTraining ? "Je participe" : "S'inscrire"}
+                    </button>
+                  );
+                })()}
+              </div>
+              {registrations.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {registrations.map((r) => (
+                    <span
+                      key={r.id}
+                      className={`text-xs px-2 py-0.5 rounded-full border ${r.member_id === currentUserId ? "border-primary/50 bg-primary/10 text-primary" : "border-border bg-muted/40 text-muted-foreground"}`}
+                    >
+                      {r.first_name} {r.last_name.charAt(0)}.
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {helloAssoUrl && (
+            <div className="pt-2 border-t border-border">
+              <a
+                href={helloAssoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-colors font-medium"
+              >
+                <ExternalLink className="w-4 h-4 shrink-0" />
+                S'inscrire sur HelloAsso
+              </a>
+            </div>
+          )}
+          <div className="pt-2 border-t border-border">
+            <a
+              href={REIMBURSEMENT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-colors"
+            >
+              <ExternalLink className="w-4 h-4 shrink-0" />
+              Demander un remboursement au trésorier
+            </a>
+          </div>
+
+          {/* Photo gallery */}
+          <EventPhotoGallery eventId={event.id} isAdmin={isAdmin} open={open} />
+
+          <div className="pt-2 border-t border-border">
+            <p className="text-xs text-muted-foreground mb-2">Partager</p>
+            <div className="flex gap-2">
+              <a
+                href={`https://www.facebook.com/sharer/sharer.php?${helloAssoUrl ? `u=${encodeURIComponent(helloAssoUrl)}&` : ""}quote=${encodeURIComponent(buildShareText(event, helloAssoUrl))}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-blue-600/20 text-blue-400 border border-blue-600/30 hover:bg-blue-600/30 transition-colors"
+              >
+                <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                </svg>
+                Facebook
+              </a>
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(buildShareText(event, helloAssoUrl))}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-green-600/20 text-green-400 border border-green-600/30 hover:bg-green-600/30 transition-colors"
+              >
+                <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                </svg>
+                WhatsApp
+              </a>
+            </div>
+          </div>
           </div>
         </div>
 
-        <DrawerFooter className="flex-row gap-2 border-t border-border pt-3">
+        <DrawerFooter className="flex-row gap-2 border-t border-border pt-3 flex-wrap">
           {isAdmin && (
             <>
               <Button
@@ -637,6 +999,17 @@ function EventDetailDrawer({
                 <Trash2 className="w-3.5 h-3.5" />
                 Supprimer
               </Button>
+              {showPoster && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPosterOpen(true)}
+                  className="gap-1.5"
+                >
+                  <FileImage className="w-3.5 h-3.5" />
+                  Affiche
+                </Button>
+              )}
             </>
           )}
           <Button variant="outline" onClick={onClose} className="ml-auto">
@@ -645,6 +1018,16 @@ function EventDetailDrawer({
         </DrawerFooter>
       </DrawerContent>
     </Drawer>
+
+    {posterOpen && (
+      <PosterGenerator
+        event={event}
+        cast={cast}
+        open={posterOpen}
+        onClose={() => setPosterOpen(false)}
+      />
+    )}
+    </>
   );
 }
 
@@ -666,6 +1049,8 @@ function EditEventDialog({
   const [startAt, setStartAt] = useState<string | undefined>(event.start_at);
   const [endAt, setEndAt] = useState<string | undefined>(event.end_at ?? undefined);
   const [notes, setNotes] = useState(formatEventNotes(event.notes) ?? "");
+  const [matchReport, setMatchReport] = useState(event.match_report ?? "");
+  const [allowRegistration, setAllowRegistration] = useState(event.allow_registration ?? false);
 
   useEffect(() => {
     setTitle(event.title);
@@ -674,6 +1059,8 @@ function EditEventDialog({
     setStartAt(event.start_at);
     setEndAt(event.end_at ?? undefined);
     setNotes(formatEventNotes(event.notes) ?? "");
+    setMatchReport(event.match_report ?? "");
+    setAllowRegistration(event.allow_registration ?? false);
   }, [event]);
 
   const updateMutation = useMutation<EventRead, ApiError, EventUpdate>({
@@ -699,16 +1086,14 @@ function EditEventDialog({
       start_at: startAt,
       end_at: endAt || undefined,
       notes: notes || undefined,
+      match_report: matchReport || undefined,
+      allow_registration: allowRegistration,
     });
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-card border-border w-[95vw] max-w-3xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Modifier l'événement</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 py-2">
+    <ResponsiveFormShell open={open} onOpenChange={onOpenChange} title="Modifier l'événement">
+      <form onSubmit={handleSubmit} className="space-y-4 py-2">
           <div className="space-y-2">
             <Label htmlFor="edit-title">Titre</Label>
             <Input
@@ -746,6 +1131,15 @@ function EditEventDialog({
             </div>
           )}
 
+          <div className="flex items-center space-x-2 border rounded-lg p-3 bg-background/30">
+            <Switch
+              id="edit-allow-reg"
+              checked={allowRegistration}
+              onCheckedChange={setAllowRegistration}
+            />
+            <Label htmlFor="edit-allow-reg">Inscriptions ouvertes (bouton "S'inscrire" visible)</Label>
+          </div>
+
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <DateTimeField
               label="Début"
@@ -768,14 +1162,31 @@ function EditEventDialog({
               className="bg-background/50 min-h-28"
             />
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          {eventType === "match" && (
+            <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+              <Label htmlFor="edit-match-report">📋 Compte-rendu du match</Label>
+              <Textarea
+                id="edit-match-report"
+                value={matchReport}
+                onChange={(e) => setMatchReport(e.target.value)}
+                className="bg-background/50 min-h-28"
+                placeholder="Score, résultat, anecdotes du match..."
+              />
+            </div>
+          )}
+          <div className="flex justify-end gap-2 pt-4 border-t border-border md:border-0 md:pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="h-11 md:h-10"
+            >
               Annuler
             </Button>
             <Button
               type="submit"
               disabled={updateMutation.isPending}
-              className="bg-gradient-to-r from-cabaret-purple to-cabaret-gold text-background"
+              className="h-11 md:h-10 bg-gradient-to-r from-cabaret-purple to-cabaret-gold text-background"
             >
               {updateMutation.isPending ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -783,8 +1194,46 @@ function EditEventDialog({
                 "Enregistrer"
               )}
             </Button>
-          </DialogFooter>
+          </div>
         </form>
+    </ResponsiveFormShell>
+  );
+}
+
+// ---- Responsive Form Shell ----
+function ResponsiveFormShell({
+  open,
+  onOpenChange,
+  title,
+  children,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  title: string;
+  children: React.ReactNode;
+}) {
+  const isMobile = useIsMobile();
+
+  if (isMobile) {
+    return (
+      <Drawer open={open} onOpenChange={onOpenChange}>
+        <DrawerContent className="bg-card border-border h-screen max-h-screen rounded-t-none">
+          <DrawerHeader className="border-b border-border px-4 py-3 shrink-0">
+            <DrawerTitle>{title}</DrawerTitle>
+          </DrawerHeader>
+          <div className="overflow-y-auto px-4 py-4 flex-1">{children}</div>
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="bg-card border-border w-[95vw] max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        {children}
       </DialogContent>
     </Dialog>
   );
@@ -804,6 +1253,7 @@ function AddEventDialog({
   const [title, setTitle] = useState("");
   const [eventType, setEventType] = useState<EventType>("training_show");
   const [isAway, setIsAway] = useState<boolean>(false);
+  const [allowRegistration, setAllowRegistration] = useState(false);
   const [startAt, setStartAt] = useState<string | undefined>(() => combineDateAndTime(getDefaultDateTime(), format(getDefaultDateTime(), "HH"), "00"));
   const [endAt, setEndAt] = useState<string | undefined>(undefined);
   const [notes, setNotes] = useState("");
@@ -819,6 +1269,7 @@ function AddEventDialog({
     setTitle("");
     setEventType("training_show");
     setIsAway(false);
+    setAllowRegistration(false);
     setStartAt(combineDateAndTime(defaultDate, format(defaultDate, "HH"), "00"));
     setEndAt(undefined);
     setNotes("");
@@ -848,11 +1299,12 @@ function AddEventDialog({
       start_at: startAt,
       end_at: endAt || undefined,
       notes: notes || undefined,
+      allow_registration: allowRegistration,
     });
   };
 
   return (
-    <Dialog
+    <ResponsiveFormShell
       open={open}
       onOpenChange={(nextOpen) => {
         onOpenChange(nextOpen);
@@ -860,12 +1312,9 @@ function AddEventDialog({
           resetForm();
         }
       }}
+      title="Ajouter un événement"
     >
-      <DialogContent className="bg-card border-border w-[95vw] max-w-3xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Ajouter un événement</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 py-2">
+      <form onSubmit={handleSubmit} className="space-y-4 py-2">
           <div className="space-y-2">
             <Label htmlFor="ev-title">Titre</Label>
             <Input
@@ -895,6 +1344,15 @@ function AddEventDialog({
             </Select>
           </div>
 
+          <div className="flex items-center space-x-2 border rounded-lg p-3 bg-background/30">
+            <Switch
+              id="add-allow-reg"
+              checked={allowRegistration}
+              onCheckedChange={setAllowRegistration}
+            />
+            <Label htmlFor="add-allow-reg">Inscriptions ouvertes (bouton "S'inscrire" visible)</Label>
+          </div>
+
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <DateTimeField
               label="Début"
@@ -917,18 +1375,19 @@ function AddEventDialog({
               className="bg-background/50 min-h-28"
             />
           </div>
-          <DialogFooter>
+          <div className="flex justify-end gap-2 pt-4 border-t border-border md:border-0 md:pt-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
+              className="h-11 md:h-10"
             >
               Annuler
             </Button>
             <Button
               type="submit"
               disabled={createMutation.isPending}
-              className="bg-gradient-to-r from-cabaret-purple to-cabaret-gold text-background"
+              className="h-11 md:h-10 bg-gradient-to-r from-cabaret-purple to-cabaret-gold text-background"
             >
               {createMutation.isPending ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -936,10 +1395,9 @@ function AddEventDialog({
                 "Créer"
               )}
             </Button>
-          </DialogFooter>
+          </div>
         </form>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveFormShell>
   );
 }
 
@@ -947,10 +1405,22 @@ function AddEventDialog({
 interface AgendaListViewProps {
   events: EventRead[];
   onEventClick: (event: EventRead) => void;
+  anchorWeek?: Date | null;
 }
 
-function AgendaListView({ events, onEventClick }: AgendaListViewProps) {
-  const sorted = [...events].sort(
+function AgendaListView({ events, onEventClick, anchorWeek }: AgendaListViewProps) {
+  const isMobile = useIsMobile();
+  const visibleEvents = anchorWeek
+    ? events.filter((e) => {
+        const d = parseISO(e.start_at);
+        const start = new Date(anchorWeek);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(start);
+        end.setDate(end.getDate() + 7);
+        return d >= start && d < end;
+      })
+    : events;
+  const sorted = [...visibleEvents].sort(
     (a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime()
   );
 
@@ -978,42 +1448,60 @@ function AgendaListView({ events, onEventClick }: AgendaListViewProps) {
     <div className="space-y-6">
       {groups.map((group) => (
         <section key={group.label}>
-          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-3 capitalize">
+          <h2
+            className={
+              isMobile
+                ? "sticky top-0 z-10 -mx-4 px-4 py-2 bg-background/95 backdrop-blur text-sm font-semibold text-foreground uppercase tracking-wide capitalize"
+                : "text-sm font-medium text-muted-foreground uppercase tracking-wide mb-3 capitalize"
+            }
+          >
             {group.label}
           </h2>
-          <div className="space-y-1.5">
-            {group.items.map((ev) => {
-              const cfg = EVENT_TYPE_CONFIG[ev.event_type] ?? EVENT_TYPE_CONFIG.other;
-              const startDate = parseISO(ev.start_at);
-              return (
-                <button
+          {isMobile ? (
+            <div className="space-y-3 pt-3">
+              {group.items.map((ev) => (
+                <AgendaTimelineCard
                   key={ev.id}
-                  type="button"
+                  event={ev}
                   onClick={() => onEventClick(ev)}
-                  className={`w-full flex items-center gap-3 text-left px-3 py-2 rounded-lg border ${cfg.color} hover:opacity-80 transition-opacity`}
-                >
-                  <div className="shrink-0 text-center min-w-[2.5rem]">
-                    <p className="text-xs font-semibold leading-none">
-                      {format(startDate, "d", { locale: fr })}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground capitalize">
-                      {format(startDate, "EEE", { locale: fr })}
-                    </p>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate">{ev.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {format(startDate, "HH:mm")}
-                      {ev.is_away && ev.away_city ? ` · Déplacement — ${ev.away_city}` : ""}
-                    </p>
-                  </div>
-                  <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded border ${cfg.color}`}>
-                    {cfg.label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {group.items.map((ev) => {
+                const cfg = EVENT_TYPE_CONFIG[ev.event_type] ?? EVENT_TYPE_CONFIG.other;
+                const startDate = parseISO(ev.start_at);
+                return (
+                  <button
+                    key={ev.id}
+                    type="button"
+                    onClick={() => onEventClick(ev)}
+                    className={`w-full flex items-center gap-3 text-left px-3 py-2.5 rounded-lg border ${cfg.color} hover:opacity-80 transition-opacity`}
+                  >
+                    <div className="shrink-0 text-center min-w-[2.5rem]">
+                      <p className="text-sm font-semibold leading-none">
+                        {format(startDate, "d", { locale: fr })}
+                      </p>
+                      <p className="text-xs text-muted-foreground capitalize">
+                        {format(startDate, "EEE", { locale: fr })}
+                      </p>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">{ev.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {format(startDate, "HH:mm")}
+                        {ev.is_away && ev.away_city ? ` · Déplacement — ${ev.away_city}` : ""}
+                      </p>
+                    </div>
+                    <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded border ${cfg.color}`}>
+                      {cfg.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </section>
       ))}
     </div>
@@ -1024,17 +1512,40 @@ function AgendaListView({ events, onEventClick }: AgendaListViewProps) {
 export default function Agenda() {
   const { user } = useAuth();
   const isAdmin = user?.app_role === "admin";
+  const isMobile = useIsMobile();
   const queryClient = useQueryClient();
+  const location = useLocation();
 
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState<EventRead | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [editEvent, setEditEvent] = useState<EventRead | null>(null);
   const [deleteEvent, setDeleteEvent] = useState<EventRead | null>(null);
-  const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
+  const [viewMode, setViewMode] = useState<"calendar" | "list">(() =>
+    typeof window !== "undefined" && window.innerWidth < 768 ? "list" : "calendar",
+  );
   const [searchParams, setSearchParams] = useSearchParams();
   const filterType = (searchParams.get("type") as EventType) || null;
   const filterVisibility = (searchParams.get("visibility") as EventVisibility) || null;
+
+  const [showTodayButton, setShowTodayButton] = useState(false);
+
+  useEffect(() => {
+    if (!isMobile || viewMode !== "list") {
+      setShowTodayButton(false);
+      return;
+    }
+    const onScroll = () => {
+      setShowTodayButton(window.scrollY > 800);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [isMobile, viewMode]);
+
+  const scrollToToday = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    setCurrentMonth(new Date());
+  };
 
   const deleteMutation = useMutation<void, ApiError, string>({
     mutationFn: (id) => api.delete(`/events/${id}`),
@@ -1047,20 +1558,31 @@ export default function Agenda() {
     onError: (err) => toast.error(err.detail ?? "Erreur lors de la suppression"),
   });
 
-  // Fetch current season
-  const { data: seasons } = useQuery<SeasonRead[]>({
+  // Fetch seasons
+  const { data: seasons = [] } = useQuery<SeasonRead[]>({
     queryKey: ["seasons"],
     queryFn: () => api.get<SeasonRead[]>("/seasons"),
   });
-  const currentSeason = seasons?.find((s) => s.is_current);
+  const defaultSeason = seasons.find((s) => s.is_current) ?? seasons[0];
+  const [selectedSeasonId, setSelectedSeasonId] = useState<string | null>(null);
 
-  // Fetch events
+  const activeSeason = seasons.find((s) => s.id === (selectedSeasonId ?? defaultSeason?.id)) ?? defaultSeason;
+
+  // Fetch events for the selected season
   const { data: events = [], isLoading } = useQuery<EventRead[]>({
-    queryKey: ["events", currentSeason?.id],
+    queryKey: ["events", activeSeason?.id],
     queryFn: () =>
-      api.get<EventRead[]>("/events", currentSeason ? { season_id: currentSeason.id } : {}),
-    enabled: !!currentSeason,
+      api.get<EventRead[]>("/events", activeSeason ? { season_id: activeSeason.id } : {}),
+    enabled: !!activeSeason,
   });
+
+  // Auto-open event drawer when navigating from Home page
+  useEffect(() => {
+    const openEventId = location.state?.openEventId;
+    if (!openEventId || events.length === 0) return;
+    const ev = events.find((e) => e.id === openEventId);
+    if (ev) setSelectedEvent(ev);
+  }, [location.state, events]);
 
   const filteredEvents = useMemo(
     () =>
@@ -1071,6 +1593,47 @@ export default function Agenda() {
       }),
     [events, filterType, filterVisibility]
   );
+
+  const listContainerRef = useRef<HTMLDivElement>(null);
+  const [anchorWeek, setAnchorWeek] = useState<Date | null>(null);
+  const heavyMonth = filteredEvents.filter((e) => {
+    const d = parseISO(e.start_at);
+    return isSameMonth(d, currentMonth);
+  }).length > 6;
+
+  useSwipeNavigation(listContainerRef, {
+    enabled: isMobile && viewMode === "list",
+    onSwipeLeft: () => {
+      haptic("tap");
+      if (heavyMonth && anchorWeek) {
+        setAnchorWeek(addWeeks(anchorWeek, 1));
+      } else if (heavyMonth) {
+        setAnchorWeek(addWeeks(new Date(), 1));
+      } else {
+        setCurrentMonth((m) => addMonths(m, 1));
+        setAnchorWeek(null);
+      }
+    },
+    onSwipeRight: () => {
+      haptic("tap");
+      if (heavyMonth && anchorWeek) {
+        setAnchorWeek(subWeeks(anchorWeek, 1));
+      } else if (heavyMonth) {
+        setAnchorWeek(subWeeks(new Date(), 1));
+      } else {
+        setCurrentMonth((m) => subMonths(m, 1));
+        setAnchorWeek(null);
+      }
+    },
+  });
+
+  const { pullDistance, refreshing } = usePullToRefresh({
+    enabled: isMobile && viewMode === "list",
+    onRefresh: async () => {
+      haptic("refresh");
+      await queryClient.invalidateQueries({ queryKey: ["events"] });
+    },
+  });
 
   // Calendar grid
   const monthStart = startOfMonth(currentMonth);
@@ -1083,8 +1646,44 @@ export default function Agenda() {
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      {/* Header — Mobile */}
+      <div className="md:hidden">
+        <AgendaMobileHeader
+          seasons={seasons}
+          selectedSeasonId={selectedSeasonId}
+          defaultSeasonId={defaultSeason?.id ?? null}
+          onSeasonChange={(v) => setSelectedSeasonId(v)}
+        />
+      </div>
+
+      {/* Filter chips — mobile only */}
+      <div className="md:hidden">
+        <AgendaFilterChips
+          isAdmin={isAdmin}
+          filterType={filterType}
+          filterVisibility={filterVisibility}
+          onTypeChange={(t) => {
+            setSearchParams((prev) => {
+              const next = new URLSearchParams(prev);
+              if (t === null) next.delete("type");
+              else next.set("type", t);
+              return next;
+            });
+          }}
+          onVisibilityChange={(v) => {
+            setSearchParams((prev) => {
+              const next = new URLSearchParams(prev);
+              if (v === null) next.delete("visibility");
+              else next.set("visibility", v);
+              return next;
+            });
+          }}
+          onClearAll={() => setSearchParams({})}
+        />
+      </div>
+
+      {/* Header — Desktop */}
+      <div className="hidden md:flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-cabaret-purple to-cabaret-gold flex items-center justify-center">
             <CalendarDays className="w-5 h-5 text-background" />
@@ -1094,7 +1693,7 @@ export default function Agenda() {
 
         <div className="flex flex-wrap items-center gap-2">
           {/* View toggle */}
-          <div className="flex rounded-lg border border-border overflow-hidden">
+          <div className="hidden md:flex rounded-lg border border-border overflow-hidden">
             <Button
               variant={viewMode === "calendar" ? "default" : "ghost"}
               size="sm"
@@ -1137,10 +1736,29 @@ export default function Agenda() {
             </>
           )}
 
-          {isAdmin && currentSeason && (
+          {seasons.length > 1 && (
+            <Select
+              value={selectedSeasonId ?? defaultSeason?.id ?? ""}
+              onValueChange={(v) => setSelectedSeasonId(v)}
+            >
+              <SelectTrigger className="h-8 w-auto text-xs bg-background/50 border-border">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {seasons.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}{s.is_current ? " (en cours)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          {isAdmin && (
             <Button
               onClick={() => setAddOpen(true)}
-              className="ml-2 bg-gradient-to-r from-cabaret-purple to-cabaret-gold text-background"
+              disabled={!activeSeason}
+              className="ml-2 bg-gradient-to-r from-cabaret-purple to-cabaret-gold text-background disabled:opacity-50"
             >
               <Plus className="w-4 h-4 mr-1" />
               Ajouter
@@ -1149,12 +1767,13 @@ export default function Agenda() {
         </div>
       </div>
 
+      <div className="hidden md:block space-y-4">
       {/* Legend */}
       <div className="flex flex-wrap gap-2">
         {(Object.entries(EVENT_TYPE_CONFIG) as [EventType, (typeof EVENT_TYPE_CONFIG)[EventType]][]).map(
           ([type, cfg]) => (
-            <span key={type} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className={`w-2 h-2 rounded-full ${cfg.dot}`} />
+            <span key={type} className="flex items-center gap-1.5 text-sm sm:text-xs text-muted-foreground">
+              <span className={`w-2.5 h-2.5 sm:w-2 sm:h-2 rounded-full ${cfg.dot}`} />
               {cfg.label}
             </span>
           )
@@ -1173,7 +1792,7 @@ export default function Agenda() {
             });
           }}
         >
-          <SelectTrigger className="h-8 w-auto text-xs bg-background/50 border-border">
+          <SelectTrigger className="h-11 md:h-8 w-auto text-sm md:text-xs bg-background/50 border-border">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -1197,7 +1816,7 @@ export default function Agenda() {
               });
             }}
           >
-            <SelectTrigger className="h-8 w-auto text-xs bg-background/50 border-border">
+            <SelectTrigger className="h-11 md:h-8 w-auto text-sm md:text-xs bg-background/50 border-border">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -1214,12 +1833,13 @@ export default function Agenda() {
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 text-xs text-muted-foreground"
+            className="h-11 md:h-8 text-sm md:text-xs text-muted-foreground"
             onClick={() => setSearchParams({})}
           >
             Effacer filtres
           </Button>
         )}
+      </div>
       </div>
 
       {/* Loading */}
@@ -1228,10 +1848,24 @@ export default function Agenda() {
           <Loader2 className="w-6 h-6 animate-spin text-primary" />
         </div>
       ) : viewMode === "list" ? (
-        <AgendaListView
-          events={filteredEvents}
-          onEventClick={setSelectedEvent}
-        />
+        <div ref={listContainerRef} style={{ touchAction: "pan-y" }} className="relative">
+          {(pullDistance > 0 || refreshing) && (
+            <div
+              className="md:hidden absolute left-0 right-0 flex justify-center pointer-events-none transition-opacity"
+              style={{ top: 0, height: pullDistance, opacity: refreshing ? 1 : Math.min(pullDistance / 70, 1) }}
+            >
+              <Loader2 className={cn("w-6 h-6 text-primary", refreshing && "animate-spin")} />
+            </div>
+          )}
+          <AgendaListView
+            events={filteredEvents}
+            onEventClick={(ev) => {
+              haptic("tap");
+              setSelectedEvent(ev);
+            }}
+            anchorWeek={anchorWeek}
+          />
+        </div>
       ) : (
         /* Calendar grid */
         <div className="overflow-x-auto">
@@ -1241,7 +1875,7 @@ export default function Agenda() {
             {DAYS_FR.map((d) => (
               <div
                 key={d}
-                className="py-2 text-center text-xs font-semibold text-muted-foreground"
+                className="py-2 text-center text-sm sm:text-xs font-semibold text-muted-foreground"
               >
                 {d}
               </div>
@@ -1268,7 +1902,7 @@ export default function Agenda() {
                   }`}
                 >
                   <div
-                    className={`w-6 h-6 flex items-center justify-center text-xs font-medium rounded-full mb-1 ${
+                    className={`w-7 h-7 sm:w-6 sm:h-6 flex items-center justify-center text-sm sm:text-xs font-medium rounded-full mb-1 ${
                       isToday
                         ? "bg-primary text-primary-foreground"
                         : "text-muted-foreground"
@@ -1285,7 +1919,7 @@ export default function Agenda() {
                         <button
                           key={ev.id}
                           onClick={() => setSelectedEvent(ev)}
-                          className={`w-full text-left px-1.5 py-0.5 rounded text-xs truncate border ${cfg.color} hover:opacity-80 transition-opacity`}
+                          className={`w-full text-left px-2 py-1 rounded text-sm sm:text-xs truncate border ${cfg.color} hover:opacity-80 transition-opacity`}
                         >
                           {ev.title}
                         </button>
@@ -1317,7 +1951,7 @@ export default function Agenda() {
                                   key={ev.id}
                                   type="button"
                                   onClick={() => setSelectedEvent(ev)}
-                                  className={`w-full text-left px-1.5 py-0.5 rounded text-xs truncate border ${cfg.color} hover:opacity-80 transition-opacity`}
+                                  className={`w-full text-left px-2 py-1 rounded text-sm sm:text-xs truncate border ${cfg.color} hover:opacity-80 transition-opacity`}
                                 >
                                   {ev.title}
                                 </button>
@@ -1342,6 +1976,7 @@ export default function Agenda() {
           event={selectedEvent}
           open={!!selectedEvent}
           isAdmin={isAdmin}
+          currentUserId={user?.id}
           onClose={() => setSelectedEvent(null)}
           onEdit={(ev) => {
             setSelectedEvent(null);
@@ -1354,11 +1989,11 @@ export default function Agenda() {
       )}
 
       {/* Add event dialog */}
-      {isAdmin && currentSeason && (
+      {isAdmin && activeSeason && (
         <AddEventDialog
           open={addOpen}
           onOpenChange={setAddOpen}
-          currentSeasonId={currentSeason.id}
+          currentSeasonId={activeSeason.id}
         />
       )}
 
@@ -1369,6 +2004,27 @@ export default function Agenda() {
           open={!!editEvent}
           onOpenChange={(open) => !open && setEditEvent(null)}
         />
+      )}
+
+      {/* FAB Ajouter — mobile only, admin only */}
+      {isAdmin && (
+        <AgendaFAB
+          onClick={() => setAddOpen(true)}
+          disabled={!activeSeason}
+        />
+      )}
+
+      {/* Aller à aujourd'hui floating button */}
+      {showTodayButton && (
+        <button
+          type="button"
+          onClick={scrollToToday}
+          className="md:hidden fixed left-4 z-30 flex items-center gap-2 rounded-full bg-card border border-border px-4 h-11 shadow-lg text-sm font-medium hover:bg-accent transition-colors"
+          style={{ bottom: "calc(3.5rem + env(safe-area-inset-bottom) + 1rem)" }}
+        >
+          <CalendarDays className="h-4 w-4" />
+          Aujourd'hui
+        </button>
       )}
 
       {/* Delete confirmation dialog */}

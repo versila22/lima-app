@@ -1,7 +1,8 @@
 """Settings router — association configuration (admin only)."""
 
 import logging
-from typing import Any, Dict
+import uuid as _uuid
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -11,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models.app_setting import AppSetting
 from app.models.member import Member
-from app.utils.deps import require_admin
+from app.utils.deps import get_current_user, require_admin
 
 logger = logging.getLogger(__name__)
 
@@ -84,3 +85,73 @@ async def update_settings(
             detail=f"Impossible de sauvegarder les paramètres: {exc}",
         )
     return current
+
+
+# ---------- Pinned News ----------
+
+PINNED_NEWS_KEY = "pinned_news"
+
+
+class PinnedNewsItem(BaseModel):
+    id: str
+    title: str
+    url: Optional[str] = None
+
+
+class PinnedNewsCreate(BaseModel):
+    title: str
+    url: Optional[str] = None
+
+
+async def _load_pinned_news(db: AsyncSession) -> List[Dict[str, Any]]:
+    result = await db.execute(select(AppSetting).where(AppSetting.key == PINNED_NEWS_KEY))
+    setting = result.scalar_one_or_none()
+    if setting and isinstance(setting.data, dict):
+        return setting.data.get("items", [])
+    return []
+
+
+async def _save_pinned_news(db: AsyncSession, items: List[Dict[str, Any]]) -> None:
+    result = await db.execute(select(AppSetting).where(AppSetting.key == PINNED_NEWS_KEY))
+    setting = result.scalar_one_or_none()
+    if setting is None:
+        setting = AppSetting(key=PINNED_NEWS_KEY, data={"items": items})
+        db.add(setting)
+    else:
+        setting.data = {"items": items}
+    await db.commit()
+
+
+@router.get("/pinned-news")
+async def get_pinned_news(
+    db: AsyncSession = Depends(get_db),
+    _: Member = Depends(get_current_user),
+):
+    """Return pinned news items (all authenticated members)."""
+    return {"items": await _load_pinned_news(db)}
+
+
+@router.post("/pinned-news", status_code=201)
+async def add_pinned_news(
+    body: PinnedNewsCreate,
+    db: AsyncSession = Depends(get_db),
+    _: Member = Depends(require_admin),
+):
+    """Add a pinned news item (admin only)."""
+    items = await _load_pinned_news(db)
+    new_item = {"id": str(_uuid.uuid4()), "title": body.title, "url": body.url}
+    items.append(new_item)
+    await _save_pinned_news(db, items)
+    return new_item
+
+
+@router.delete("/pinned-news/{item_id}", status_code=204)
+async def delete_pinned_news(
+    item_id: str,
+    db: AsyncSession = Depends(get_db),
+    _: Member = Depends(require_admin),
+):
+    """Remove a pinned news item (admin only)."""
+    items = await _load_pinned_news(db)
+    items = [i for i in items if i.get("id") != item_id]
+    await _save_pinned_news(db, items)

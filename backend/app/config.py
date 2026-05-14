@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 DEFAULT_JWT_SECRET = "insecure_dev_secret_change_me"
-DEFAULT_CORS_ORIGINS = "http://localhost:3000,http://localhost:5173,http://localhost:8080"
+DEFAULT_CORS_ORIGINS = "http://localhost:3000,http://localhost:5173,http://localhost:8080,https://limaimpro.duckdns.org"
 
 
 class Settings(BaseSettings):
@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     # JWT
     JWT_SECRET: str = DEFAULT_JWT_SECRET
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 480  # 8 hours — allows Safari (no cross-origin cookies) to work for a full session
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     # Refresh token secret — intentionally same as JWT_SECRET in development.
     # Set to a distinct value in staging/production for independent rotation.

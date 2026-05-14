@@ -24,6 +24,8 @@ class EventBase(BaseModel):
     away_city: Optional[str] = None
     away_opponent: Optional[str] = None
     notes: Optional[str] = None
+    match_report: Optional[str] = None
+    allow_registration: bool = False
     visibility: EventVisibility = "all"
 
 
@@ -32,6 +34,7 @@ class EventCreate(EventBase):
 
 
 class EventUpdate(BaseModel):
+    season_id: Optional[uuid.UUID] = None
     venue_id: Optional[uuid.UUID] = None
     title: Optional[str] = None
     event_type: Optional[EventType] = None
@@ -41,15 +44,49 @@ class EventUpdate(BaseModel):
     away_city: Optional[str] = None
     away_opponent: Optional[str] = None
     notes: Optional[str] = None
+    match_report: Optional[str] = None
+    allow_registration: Optional[bool] = None
     visibility: Optional[EventVisibility] = None
+
+
+class RegistrationRead(BaseModel):
+    id: uuid.UUID
+    member_id: uuid.UUID
+    first_name: str
+    last_name: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
 class EventRead(EventBase):
     id: uuid.UUID
     created_at: datetime
     updated_at: datetime
+    cover_url: Optional[str] = None
 
     model_config = {"from_attributes": True}
+
+
+class EventPhotoRead(BaseModel):
+    id: uuid.UUID
+    event_id: uuid.UUID
+    url: str
+    caption: Optional[str] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class GalleryPhotoRead(BaseModel):
+    id: uuid.UUID
+    event_id: uuid.UUID
+    event_title: str
+    event_type: str
+    event_date: datetime
+    url: str
+    caption: Optional[str] = None
+    created_at: datetime
 
 
 class CalendarImportReport(BaseModel):

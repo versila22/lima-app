@@ -1,11 +1,12 @@
-import { Calendar, CalendarDays, Home, User } from "lucide-react";
+import { Calendar, CalendarDays, Home, User, Images } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
 import { cn } from "@/lib/utils";
 
 const items = [
-  { icon: Home, label: "Accueil", path: "/cabaret" },
+  { icon: Home, label: "Accueil", path: "/" },
   { icon: Calendar, label: "Agenda", path: "/agenda" },
+  { icon: Images, label: "Galerie", path: "/galerie" },
   { icon: CalendarDays, label: "Planning", path: "/mon-planning" },
   { icon: User, label: "Profil", path: "/mon-profil" },
 ];
@@ -15,7 +16,7 @@ export function MobileBottomNav() {
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur md:hidden pb-[env(safe-area-inset-bottom)]">
-      <div className="grid grid-cols-4 h-14">
+      <div className="grid grid-cols-5 h-14">
         {items.map((item) => {
           const isActive = location.pathname === item.path;
 

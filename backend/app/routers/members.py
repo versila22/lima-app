@@ -1,6 +1,9 @@
 """Members router — admin management + CSV import."""
 
+import logging
 from datetime import datetime, timedelta
+
+logger = logging.getLogger(__name__)
 from typing import List, Optional
 from uuid import UUID
 
@@ -13,7 +16,7 @@ from app.config import settings
 from app.database import get_db
 from app.models.alignment import Alignment, AlignmentAssignment, AlignmentEvent
 from app.models.commission import Commission, MemberCommission
-from app.models.event import Event
+from app.models.event import Event, EventRegistration
 from app.models.member import Member
 from app.models.member_season import MemberSeason
 from app.models.season import Season
@@ -35,6 +38,34 @@ from app.services.email_service import send_activation_email
 from app.utils.deps import get_current_user, require_admin
 
 router = APIRouter(prefix="/members", tags=["members"])
+
+
+@router.get("/uninvited")
+async def list_uninvited(
+    db: AsyncSession = Depends(get_db),
+    _: Member = Depends(require_admin),
+):
+    """Admin-only: list active members who have never had a successful login event."""
+    from app.models.activity_log import ActivityLog
+
+    # Members who have at least one successful login in the activity log
+    logged_in_subq = (
+        select(ActivityLog.user_id)
+        .where(ActivityLog.user_id.is_not(None))
+        .where(ActivityLog.status_code < 400)
+        .distinct()
+    )
+
+    result = await db.execute(
+        select(Member.id, Member.first_name, Member.last_name, Member.email)
+        .where(Member.is_active.is_(True))
+        .where(Member.id.not_in(logged_in_subq))
+        .order_by(Member.last_name, Member.first_name)
+    )
+    return [
+        {"id": str(r.id), "first_name": r.first_name, "last_name": r.last_name, "email": r.email}
+        for r in result.all()
+    ]
 
 
 async def _get_member_for_response(db: AsyncSession, member_id: UUID) -> Member:
@@ -114,7 +145,7 @@ async def _build_member_profile(db: AsyncSession, member_id: UUID) -> MemberProf
 @router.get("", response_model=List[MemberSummary])
 async def list_members(
     season_id: Optional[UUID] = Query(None, description="Filtrer par saison"),
-    is_active: Optional[bool] = Query(None),
+    is_active: Optional[bool] = Query(True),
     db: AsyncSession = Depends(get_db),
     _: Member = Depends(get_current_user),
 ):
@@ -177,13 +208,11 @@ async def get_member_profile(
 ):
     """Retrieve the enriched profile of a member.
 
-    A member can view their own profile; admins can view any member.
+    The full profile contains personal data (email, phone, address, date_of_birth).
+    Restricted to the member themselves or an admin.
     """
-    if not current_user.is_admin and current_user.id != member_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Accès réservé à votre profil",
-        )
+    if current_user.id != member_id and current_user.app_role != "admin":
+        raise HTTPException(status_code=403, detail="Accès refusé")
 
     result = await db.execute(select(Member.id).where(Member.id == member_id))
     if result.scalar_one_or_none() is None:
@@ -248,12 +277,15 @@ async def create_member(
 
     # Generate activation token
     token = await auth_service.generate_activation_token(db, member)
-    await send_activation_email(
-        to=member.email,
-        first_name=member.first_name,
-        token=token,
-        base_url=settings.FRONTEND_URL,
-    )
+    try:
+        await send_activation_email(
+            to=member.email,
+            first_name=member.first_name,
+            token=token,
+            base_url=settings.FRONTEND_URL,
+        )
+    except Exception as exc:
+        logger.warning("Could not send activation email to %s: %s", member.email, exc)
 
     return await _get_member_for_response(db, member.id)
 
@@ -297,6 +329,33 @@ async def update_member(
 import boto3
 from botocore.exceptions import ClientError
 from fastapi.concurrency import run_in_threadpool
+from pydantic import BaseModel as _BaseModel
+
+
+class PhotoDataPayload(_BaseModel):
+    data: str  # data:image/jpeg;base64,...
+
+
+@router.post("/{member_id}/photo-data", status_code=status.HTTP_200_OK)
+async def upload_member_photo_data(
+    member_id: UUID,
+    payload: PhotoDataPayload,
+    db: AsyncSession = Depends(get_db),
+    current_user: Member = Depends(get_current_user),
+):
+    """Store a base64-encoded profile photo (max ~300×300 JPEG sent by client)."""
+    if not current_user.is_admin and current_user.id != member_id:
+        raise HTTPException(status_code=403, detail="Accès réservé à votre profil")
+    if not payload.data.startswith("data:image/"):
+        raise HTTPException(status_code=400, detail="Format invalide — data URI attendu")
+    result = await db.execute(select(Member).where(Member.id == member_id))
+    member = result.scalar_one_or_none()
+    if member is None:
+        raise HTTPException(status_code=404, detail="Membre introuvable")
+    member.photo_url = payload.data
+    await db.commit()
+    return {"photo_url": payload.data}
+
 
 @router.post("/{member_id}/photo", status_code=status.HTTP_200_OK)
 async def upload_member_photo(
@@ -458,59 +517,229 @@ async def import_members(
     return report
 
 
+async def _build_member_planning(db: AsyncSession, member_id: UUID) -> MemberPlanning:
+    from datetime import timezone
+    now = datetime.now(timezone.utc)
+    # Event.start_at column is declared TIMESTAMP WITHOUT TIME ZONE in SQLAlchemy,
+    # so asyncpg rejects tz-aware datetimes for filter parameters. Use naive UTC
+    # for the SQL WHERE, keep aware UTC for Python comparisons (the rows returned
+    # are aware because the underlying postgres column is timestamptz).
+    three_months_ago_naive = (now - timedelta(days=90)).replace(tzinfo=None)
+
+    try:
+        align_stmt = (
+            select(AlignmentAssignment, Alignment, Event)
+            .join(Alignment, AlignmentAssignment.alignment_id == Alignment.id)
+            .join(Event, AlignmentAssignment.event_id == Event.id)
+            .where(AlignmentAssignment.member_id == member_id)
+            .where(Event.start_at >= three_months_ago_naive)
+            .order_by(Event.start_at.asc())
+        )
+        align_rows = (await db.execute(align_stmt)).all()
+
+        # Registrations: pull the Event objects via join (no need to keep the registration row)
+        reg_event_stmt = (
+            select(Event)
+            .join(EventRegistration, EventRegistration.event_id == Event.id)
+            .where(EventRegistration.member_id == member_id)
+            .where(Event.start_at >= three_months_ago_naive)
+            .order_by(Event.start_at.asc())
+        )
+        reg_events = (await db.execute(reg_event_stmt)).scalars().all()
+
+        venue_cache: dict[UUID, Optional[str]] = {}
+
+        async def venue_name_for(event: Event) -> Optional[str]:
+            if not event.venue_id:
+                return None
+            if event.venue_id not in venue_cache:
+                venue = await db.get(Venue, event.venue_id)
+                venue_cache[event.venue_id] = venue.name if venue else None
+            return venue_cache[event.venue_id]
+
+        upcoming: list[PlanningEvent] = []
+        past: list[PlanningEvent] = []
+        assigned_event_ids: set[UUID] = set()
+
+        def _is_upcoming(start_at: datetime) -> bool:
+            # Normalize both sides to naive (interpret naive db values as UTC)
+            ref = start_at.replace(tzinfo=None) if start_at.tzinfo else start_at
+            return ref >= now.replace(tzinfo=None)
+
+        for assignment, alignment, event in align_rows:
+            assigned_event_ids.add(event.id)
+            pe = PlanningEvent(
+                event_id=event.id,
+                title=event.title,
+                event_type=event.event_type,
+                start_at=event.start_at,
+                end_at=event.end_at,
+                venue_name=await venue_name_for(event),
+                source="alignment",
+                role=assignment.role,
+                alignment_name=alignment.name,
+                alignment_status=alignment.status,
+            )
+            if _is_upcoming(event.start_at):
+                upcoming.append(pe)
+            else:
+                past.append(pe)
+
+        attendance_count = 0
+        for event in reg_events:
+            if event.id in assigned_event_ids:
+                continue
+            attendance_count += 1
+            pe = PlanningEvent(
+                event_id=event.id,
+                title=event.title,
+                event_type=event.event_type,
+                start_at=event.start_at,
+                end_at=event.end_at,
+                venue_name=await venue_name_for(event),
+                source="registration",
+            )
+            if _is_upcoming(event.start_at):
+                upcoming.append(pe)
+            else:
+                past.append(pe)
+
+        upcoming.sort(key=lambda e: e.start_at)
+        past.sort(key=lambda e: e.start_at, reverse=True)
+
+        return MemberPlanning(
+            upcoming=upcoming,
+            past=past,
+            total_shows=len(align_rows),
+            total_attendances=attendance_count,
+        )
+    except Exception:
+        logger.exception("Failed to build planning for member %s", member_id)
+        raise
+
+
 @router.get("/me/planning", response_model=MemberPlanning)
 async def get_my_planning(
     current_user: Member = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Return the current member's planning: upcoming and past show assignments."""
-    from datetime import timezone
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-    three_months_ago = now - timedelta(days=90)
+    return await _build_member_planning(db, current_user.id)
 
-    # Query all assignments for this member with event + alignment data
-    # Note: alignment_assignments.event_id is a direct FK to events (no alignment_event join needed)
+
+@router.get("/{member_id}/planning", response_model=MemberPlanning)
+async def get_member_planning(
+    member_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: Member = Depends(get_current_user),
+):
+    """Return a member's planning: upcoming and past show assignments."""
+    return await _build_member_planning(db, member_id)
+
+
+@router.post("/me/ical-token")
+async def regenerate_my_ical_token(
+    db: AsyncSession = Depends(get_db),
+    current_user: Member = Depends(get_current_user),
+):
+    """Generate (or rotate) a personal token used to subscribe to the iCal feed.
+
+    Returns the token + the absolute URL to register in a calendar app.
+    Calling again invalidates the previous one.
+    """
+    import secrets
+
+    token = secrets.token_urlsafe(32)
+    current_user.ical_token = token
+    await db.commit()
+    return {
+        "token": token,
+        "path": f"/members/{current_user.id}/planning.ics?token={token}",
+    }
+
+
+@router.get("/{member_id}/planning.ics")
+async def get_member_planning_ical(
+    member_id: UUID,
+    token: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Public iCal feed (token-protected). No JWT — calendar apps don't auth.
+
+    The token is the per-member secret returned by POST /members/me/ical-token.
+    """
+    from fastapi import Response
+    from app.utils.ical import ICalEvent, render_calendar
+
+    member = (await db.execute(select(Member).where(Member.id == member_id))).scalar_one_or_none()
+    if member is None or not member.ical_token or member.ical_token != token:
+        raise HTTPException(status_code=404, detail="Calendrier introuvable")
+
+    planning = await _build_member_planning(db, member_id)
+    events: list[ICalEvent] = []
+    for entry in [*planning.upcoming, *planning.past]:
+        summary = entry.title
+        if entry.source == "registration":
+            summary = f"[Présent] {entry.title}"
+        elif entry.role:
+            summary = f"[{entry.role}] {entry.title}"
+        events.append(
+            ICalEvent(
+                uid=f"{entry.event_id}-{entry.source}@lima",
+                start=entry.start_at,
+                end=entry.end_at,
+                summary=summary,
+                location=entry.venue_name,
+                description=(entry.alignment_name or None),
+            )
+        )
+
+    body = render_calendar(name=f"Planning LIMA — {member.first_name}", events=events)
+    return Response(
+        content=body,
+        media_type="text/calendar; charset=utf-8",
+        headers={"Content-Disposition": f'inline; filename="lima-{member.first_name.lower()}.ics"'},
+    )
+
+
+@router.get("/me/stats")
+async def get_my_stats(
+    db: AsyncSession = Depends(get_db),
+    current_user: Member = Depends(get_current_user),
+):
+    """Return show participation stats for the current member (all time)."""
+    return await _build_member_stats(db, current_user.id)
+
+
+@router.get("/{member_id}/stats")
+async def get_member_stats(
+    member_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: Member = Depends(get_current_user),
+):
+    """Return show participation stats for a member (all time)."""
+    return await _build_member_stats(db, member_id)
+
+
+async def _build_member_stats(db: AsyncSession, member_id: UUID) -> dict:
     stmt = (
-        select(AlignmentAssignment, Alignment, Event)
-        .join(Alignment, AlignmentAssignment.alignment_id == Alignment.id)
+        select(AlignmentAssignment.role, Event.event_type)
         .join(Event, AlignmentAssignment.event_id == Event.id)
-        .where(AlignmentAssignment.member_id == current_user.id)
-        .where(Event.start_at >= three_months_ago)
-        .order_by(Event.start_at.asc())
+        .join(Alignment, AlignmentAssignment.alignment_id == Alignment.id)
+        .where(AlignmentAssignment.member_id == member_id)
+        .where(Alignment.status == "published")
     )
     result = await db.execute(stmt)
     rows = result.all()
 
-    upcoming: list[PlanningEvent] = []
-    past: list[PlanningEvent] = []
+    by_type: dict[str, int] = {}
+    by_role: dict[str, int] = {}
+    for role, event_type in rows:
+        by_type[event_type] = by_type.get(event_type, 0) + 1
+        by_role[role] = by_role.get(role, 0) + 1
 
-    for assignment, alignment, event in rows:
-        # Get venue name
-        venue_name = None
-        if event.venue_id:
-            venue = await db.get(Venue, event.venue_id)
-            venue_name = venue.name if venue else None
-
-        pe = PlanningEvent(
-            event_id=event.id,
-            title=event.title,
-            event_type=event.event_type,
-            start_at=event.start_at,
-            end_at=event.end_at,
-            venue_name=venue_name,
-            role=assignment.role,
-            alignment_name=alignment.name,
-            alignment_status=alignment.status,
-        )
-        if event.start_at >= now:
-            upcoming.append(pe)
-        else:
-            past.append(pe)
-
-    past.sort(key=lambda e: e.start_at, reverse=True)
-
-    return MemberPlanning(
-        upcoming=upcoming,
-        past=past,
-        total_shows=len(rows),
-    )
+    return {
+        "total_shows": len(rows),
+        "by_type": by_type,
+        "by_role": by_role,
+    }

@@ -102,7 +102,7 @@ class AlignmentAssignment(Base):
         ForeignKey("members.id", ondelete="CASCADE"),
         nullable=False,
     )
-    # JR | DJ | MJ_MC | AR | COACH
+    # JR | DJ | MJ_MC | AR | COACH | BENEVOLE
     role: Mapped[str] = mapped_column(String(10), nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(default=func.now())

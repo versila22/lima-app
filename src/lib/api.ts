@@ -9,6 +9,8 @@ import type {
   AssignmentRole,
   DailyActiveUserStat,
   EndpointStat,
+  EventPhoto,
+  GalleryPhoto,
   LoginAttempt,
   LoginStats,
   MemberPlanning,
@@ -31,10 +33,25 @@ export const API_BASE_URL = _env_url && _env_url.length > 0
   ? _env_url
   : "http://localhost:8000";
 
-// Token management moved to httpOnly cookies — no client-side token storage.
+// Token management: primary via httpOnly cookies; sessionStorage as fallback for Safari
+// (Safari's ITP blocks cross-origin cookies — bearer token stored in sessionStorage works around this).
 // A 401 interceptor in _doRequest() handles silent refresh via POST /auth/refresh.
 let _isRefreshing = false;
 let _refreshQueue: Array<(success: boolean) => void> = [];
+
+const _SESSION_KEY = "lima_access_token";
+
+export function setSessionToken(token: string): void {
+  try { sessionStorage.setItem(_SESSION_KEY, token); } catch { /* quota or security */ }
+}
+
+export function clearSessionToken(): void {
+  try { sessionStorage.removeItem(_SESSION_KEY); } catch { /* ignore */ }
+}
+
+function _getSessionToken(): string | null {
+  try { return sessionStorage.getItem(_SESSION_KEY); } catch { return null; }
+}
 
 // ---- Core request helper ----
 interface RequestOptions extends Omit<RequestInit, "body"> {
@@ -61,6 +78,37 @@ async function request<T>(
   return _doRequest<T>(method, path, options, false);
 }
 
+// FastAPI 422 returns `detail` as an array of {loc, msg, type, ...} objects.
+// Convert it to a readable French string. For string `detail`, returns as-is.
+function _formatApiErrorDetail(detail: unknown): string | undefined {
+  if (detail == null) return undefined;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((item) => {
+        if (typeof item === "string") return item;
+        if (item && typeof item === "object") {
+          const obj = item as Record<string, unknown>;
+          const msg = typeof obj.msg === "string" ? obj.msg : null;
+          const loc = Array.isArray(obj.loc) ? obj.loc.slice(1).join(".") : null;
+          if (msg && loc) return `${loc} : ${msg}`;
+          return msg ?? JSON.stringify(item);
+        }
+        return String(item);
+      })
+      .filter(Boolean);
+    return messages.length > 0 ? messages.join(" ; ") : undefined;
+  }
+  if (typeof detail === "object") {
+    try {
+      return JSON.stringify(detail);
+    } catch {
+      return undefined;
+    }
+  }
+  return String(detail);
+}
+
 async function _doRequest<T>(
   method: string,
   path: string,
@@ -82,6 +130,12 @@ async function _doRequest<T>(
     ...(extraHeaders as Record<string, string>),
   };
 
+  // Add Bearer header from sessionStorage when available (Safari cross-origin cookie workaround)
+  const sessionToken = _getSessionToken();
+  if (sessionToken && !headers["Authorization"]) {
+    headers["Authorization"] = `Bearer ${sessionToken}`;
+  }
+
   let bodyInit: BodyInit | undefined;
   if (body instanceof FormData) {
     bodyInit = body;
@@ -98,7 +152,7 @@ async function _doRequest<T>(
     ...rest,
   });
 
-  if (response.status === 401 && !isRetry) {
+  if (response.status === 401 && !isRetry && path !== "/auth/login") {
     const refreshed = await _tryRefresh();
     if (refreshed) {
       return _doRequest<T>(method, path, { body, params, headers: extraHeaders, ...rest }, true);
@@ -111,7 +165,7 @@ async function _doRequest<T>(
     let detail = `HTTP ${response.status}`;
     try {
       const err = await response.json();
-      detail = err?.detail ?? detail;
+      detail = _formatApiErrorDetail(err?.detail) ?? detail;
     } catch {
       // ignore JSON parse errors
     }
@@ -138,6 +192,7 @@ async function _tryRefresh(): Promise<boolean> {
       credentials: "include",
     });
     if (!res.ok) {
+      clearSessionToken();
       _refreshQueue.forEach((cb) => cb(false));
       _refreshQueue = [];
       return false;
@@ -146,6 +201,7 @@ async function _tryRefresh(): Promise<boolean> {
     _refreshQueue = [];
     return true;
   } catch {
+    clearSessionToken();
     _refreshQueue.forEach((cb) => cb(false));
     _refreshQueue = [];
     return false;
@@ -217,7 +273,7 @@ function normalizeDailyActiveUsers(value: unknown): DailyActiveUserStat[] {
         const obj = item as Record<string, unknown>;
         return {
           date: String(obj.date ?? obj.day ?? obj.label ?? ""),
-          count: Number(obj.count ?? obj.users ?? obj.value ?? 0),
+          count: Number(obj.count ?? obj.unique_users ?? obj.users ?? obj.value ?? 0),
         };
       }
 
@@ -240,14 +296,15 @@ function normalizeRecentActivity(value: unknown): ActivityLog[] {
     .map((item): ActivityLog | null => {
       if (!item || typeof item !== "object") return null;
       const obj = item as Record<string, unknown>;
-      const firstName = typeof obj.first_name === "string" ? obj.first_name : "";
-      const lastName = typeof obj.last_name === "string" ? obj.last_name : "";
+      const nested = obj.user && typeof obj.user === "object" ? (obj.user as Record<string, unknown>) : null;
+      const firstName = typeof obj.first_name === "string" ? obj.first_name : typeof nested?.first_name === "string" ? nested.first_name : "";
+      const lastName = typeof obj.last_name === "string" ? obj.last_name : typeof nested?.last_name === "string" ? nested.last_name : "";
       const fullName = `${firstName} ${lastName}`.trim();
 
       return {
-        id: typeof obj.id === "string" ? obj.id : undefined,
+        id: typeof obj.id === "string" ? obj.id : typeof obj.id === "number" ? String(obj.id) : undefined,
         user_id: typeof obj.user_id === "string" ? obj.user_id : null,
-        email: typeof obj.email === "string" ? obj.email : null,
+        email: typeof obj.email === "string" ? obj.email : typeof nested?.email === "string" ? nested.email : null,
         name: typeof obj.name === "string" ? obj.name : fullName || null,
         path: String(obj.path ?? obj.endpoint ?? obj.url ?? ""),
         method: typeof obj.method === "string" ? obj.method : null,
@@ -271,15 +328,18 @@ function normalizeLoginAttempts(value: unknown): LoginStats {
   const toAttempt = (item: unknown, successFallback?: boolean): LoginAttempt | null => {
     if (!item || typeof item !== "object") return null;
     const obj = item as Record<string, unknown>;
-    const firstName = typeof obj.first_name === "string" ? obj.first_name : "";
-    const lastName = typeof obj.last_name === "string" ? obj.last_name : "";
+    const nested = obj.user && typeof obj.user === "object" ? (obj.user as Record<string, unknown>) : null;
+    const firstName = typeof obj.first_name === "string" ? obj.first_name : typeof nested?.first_name === "string" ? nested.first_name : "";
+    const lastName = typeof obj.last_name === "string" ? obj.last_name : typeof nested?.last_name === "string" ? nested.last_name : "";
     const fullName = `${firstName} ${lastName}`.trim();
     const inferredSuccess =
       typeof obj.success === "boolean"
         ? obj.success
-        : typeof obj.status === "string"
-          ? obj.status.toLowerCase() === "success"
-          : successFallback ?? false;
+        : typeof obj.status_code === "number"
+          ? obj.status_code < 400
+          : typeof obj.status === "string"
+            ? obj.status.toLowerCase() === "success"
+            : successFallback ?? false;
 
     const createdAt = String(obj.created_at ?? obj.timestamp ?? obj.last_attempt_at ?? obj.date ?? "");
     if (!createdAt) return null;
@@ -287,7 +347,7 @@ function normalizeLoginAttempts(value: unknown): LoginStats {
     return {
       id: typeof obj.id === "string" ? obj.id : undefined,
       user_id: typeof obj.user_id === "string" ? obj.user_id : null,
-      email: typeof obj.email === "string" ? obj.email : null,
+      email: typeof obj.email === "string" ? obj.email : typeof nested?.email === "string" ? nested.email : null,
       name: typeof obj.name === "string" ? obj.name : fullName || null,
       success: inferredSuccess,
       created_at: createdAt,
@@ -343,33 +403,62 @@ export async function fetchMyProfile(): Promise<MemberProfileRead> {
   return api.get<MemberProfileRead>("/auth/me");
 }
 
-export async function uploadMemberPhoto(memberId: string, file: File): Promise<{ photo_url: string }> {
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const fullUrl = API_BASE_URL ? `${API_BASE_URL}/members/${memberId}/photo` : `/members/${memberId}/photo`;
-
-  const res = await fetch(fullUrl, {
-    method: "POST",
-    body: formData,
-    credentials: "include",
+function resizeToDataUrl(file: File, maxPx = 300, quality = 0.82): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = reject;
+    img.src = url;
   });
+}
 
-  if (!res.ok) {
-    let detail = "Erreur lors de l'upload";
-    try {
-      const errorData = await res.json();
-      if (errorData.detail) detail = errorData.detail;
-    } catch (e) {}
-    throw new ApiError(res.status, detail);
-  }
-  return res.json();
+export async function uploadMemberPhoto(memberId: string, file: File): Promise<{ photo_url: string }> {
+  const dataUrl = await resizeToDataUrl(file);
+  return api.post<{ photo_url: string }>(`/members/${memberId}/photo-data`, { data: dataUrl });
+}
+
+// ---- Event photo helpers ----
+
+export function listEventPhotos(eventId: string): Promise<EventPhoto[]> {
+  return api.get<EventPhoto[]>(`/events/${eventId}/photos`);
+}
+
+export function uploadEventPhoto(eventId: string, file: File, caption?: string): Promise<EventPhoto> {
+  const form = new FormData();
+  form.append("file", file);
+  if (caption) form.append("caption", caption);
+  return api.postForm<EventPhoto>(`/events/${eventId}/photos`, form);
+}
+
+export function deleteEventPhoto(eventId: string, photoId: string): Promise<void> {
+  return api.delete<void>(`/events/${eventId}/photos/${photoId}`);
+}
+
+export function listGalleryPhotos(params?: { event_type?: string; venue_id?: string }): Promise<GalleryPhoto[]> {
+  const qs = new URLSearchParams();
+  if (params?.event_type) qs.set("event_type", params.event_type);
+  if (params?.venue_id) qs.set("venue_id", params.venue_id);
+  const q = qs.toString();
+  return api.get<GalleryPhoto[]>(`/events/photos${q ? `?${q}` : ""}`);
 }
 
 // ---- Members CRUD helpers ----
 
 export function getMemberProfile(id: string): Promise<MemberProfileRead> {
   return api.get<MemberProfileRead>(`/members/${id}/profile`);
+}
+
+export function getMemberPlanning(id: string): Promise<MemberPlanning> {
+  return api.get<MemberPlanning>(`/members/${id}/planning`);
 }
 
 export function updateMember(id: string, data: MemberUpdate): Promise<MemberRead> {

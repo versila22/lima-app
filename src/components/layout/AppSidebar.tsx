@@ -14,18 +14,18 @@ import {
   Facebook,
   LogOut,
   X,
-  LayoutGrid,
-  Sun,
-  Moon,
+  Images,
+  MessageSquareWarning,
+  Gift,
 } from "lucide-react";
+import { FeedbackDialog } from "@/components/FeedbackDialog";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useTheme } from "next-themes";
-
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 import limaLogo from "@/assets/logo-lima.jpg";
+import logoLimaCouleur from "@/assets/posters/logo-lima-couleur.png";
 
 interface AppSidebarProps {
   collapsed: boolean;
@@ -36,13 +36,16 @@ interface AppSidebarProps {
 }
 
 const menuItems = [
+  { icon: Home, label: "Accueil", path: "/" },
   { icon: Sparkles, label: "Organisateur Cabaret", path: "/cabaret" },
   { icon: Calendar, label: "Agenda", path: "/agenda" },
   { icon: User, label: "Mon Profil", path: "/mon-profil" },
   { icon: CalendarDays, label: "Mon Planning", path: "/mon-planning" },
+  { icon: Images, label: "Galerie", path: "/galerie" },
   { icon: Users, label: "Membres", path: "/membres" },
-  { icon: LayoutGrid, label: "Alignements", path: "/alignements", adminOnly: true },
+  // { icon: LayoutGrid, label: "Alignements", path: "/alignements", adminOnly: true }, // masqué jusqu'en septembre
   { icon: BarChart3, label: "Statistiques", path: "/stats", adminOnly: true },
+  { icon: MessageSquareWarning, label: "Remarques / bugs", path: "/admin/feedback", adminOnly: true },
   { icon: Settings, label: "Paramètres", path: "/settings", adminOnly: true },
 ];
 
@@ -57,8 +60,6 @@ export function AppSidebar({
   const navigate = useNavigate();
   const { user, logout, isAuthenticated } = useAuth();
   const isAdmin = user?.app_role === "admin";
-  const { theme, setTheme } = useTheme();
-
   const handleLogout = () => {
     logout();
     onMobileOpenChange?.(false);
@@ -88,15 +89,19 @@ export function AppSidebar({
       <div className="border-b border-sidebar-border p-4">
         <div className="mb-3 flex items-center justify-between gap-2 md:mb-0">
           <div className="flex items-center gap-3 min-w-0">
-            <img
-              src={limaLogo}
-              alt="LIMA"
-              className="w-10 h-10 rounded-lg object-contain bg-white shrink-0"
-            />
-            {(!collapsed || isMobile) && (
-              <div className="overflow-hidden">
-                <h1 className="truncate text-lg font-bold gradient-text">LIMA</h1>
-                <p className="truncate text-xs text-muted-foreground">Gestion &amp; Spectacles</p>
+            {(collapsed && !isMobile) ? (
+              <img
+                src={limaLogo}
+                alt="LIMA"
+                className="w-10 h-10 rounded-lg object-contain bg-white shrink-0"
+              />
+            ) : (
+              <div className="bg-white rounded-xl px-3 py-1.5 shrink-0">
+                <img
+                  src={logoLimaCouleur}
+                  alt="LIMA"
+                  className="h-9 w-auto object-contain"
+                />
               </div>
             )}
           </div>
@@ -155,6 +160,44 @@ export function AppSidebar({
           return content;
         })}
       </nav>
+
+      {/* Feedback / bug report */}
+      <div className="border-t border-sidebar-border p-2">
+        {collapsed && !isMobile ? (
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <FeedbackDialog
+                trigger={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="w-full text-muted-foreground hover:text-primary hover:bg-primary/10"
+                    aria-label="Remarques / bugs"
+                  >
+                    <MessageSquareWarning className="w-4 h-4" />
+                  </Button>
+                }
+              />
+            </TooltipTrigger>
+            <TooltipContent side="right" className="bg-popover border-border">
+              Remarques / bugs
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <FeedbackDialog
+            trigger={
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start gap-2 text-muted-foreground hover:text-primary hover:bg-primary/10"
+              >
+                <MessageSquareWarning className="w-4 h-4 shrink-0" />
+                <span className="truncate">Remarques / bugs</span>
+              </Button>
+            }
+          />
+        )}
+      </div>
 
       {isAuthenticated && (
         <div className="border-t border-sidebar-border p-2">
@@ -237,20 +280,21 @@ export function AppSidebar({
         </Tooltip>
         <Tooltip delayDuration={0}>
           <TooltipTrigger asChild>
-            <button
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              aria-label="Basculer le thème"
-              className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+            <a
+              href="https://ko-fi.com/jeromejacq"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg p-2 text-rose-400/80 transition-colors hover:bg-rose-500/10 hover:text-rose-400"
+              aria-label="Soutenir le développeur"
             >
-              {theme === "dark" ? (
-                <Sun className="w-5 h-5" />
-              ) : (
-                <Moon className="w-5 h-5" />
-              )}
-            </button>
+              <Gift className="w-5 h-5" />
+            </a>
           </TooltipTrigger>
-          <TooltipContent side="right">
-            {theme === "dark" ? "Mode clair" : "Mode sombre"}
+          <TooltipContent side="right" className="bg-popover border-border max-w-[220px]">
+            <p className="font-medium">Soutenir le développeur</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Don personnel à Jérôme — ne va pas à LIMA
+            </p>
           </TooltipContent>
         </Tooltip>
       </div>

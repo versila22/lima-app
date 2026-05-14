@@ -18,6 +18,7 @@ from app.models.activity_log import ActivityLog
 from app.models.alignment import Alignment, AlignmentAssignment, AlignmentEvent
 from app.models.commission import Commission, MemberCommission
 from app.models.event import Event
+from app.models.feedback import Feedback
 from app.models.member import Member
 from app.models.member_season import MemberSeason
 from app.models.season import Season
@@ -25,7 +26,9 @@ from app.models.show_plan import ShowPlan
 from app.models.venue import Venue
 from app.utils.security import create_access_token, hash_password
 
-TEST_DB_PATH = Path("/data/.openclaw/workspace/lima/backend/tests/test.db")
+# Use a relative path under the tests directory so the test suite runs
+# anywhere (local dev, VPS, GitHub Actions). Resolved against this conftest's location.
+TEST_DB_PATH = Path(__file__).resolve().parent / "test.db"
 TEST_DATABASE_URL = f"sqlite+aiosqlite:///{TEST_DB_PATH}"
 
 engine = create_async_engine(
@@ -73,6 +76,7 @@ async def setup_test_database():
 async def clean_db():
     async with TestingSessionLocal() as session:
         for model in [
+            Feedback,
             ActivityLog,
             AlignmentAssignment,
             AlignmentEvent,

@@ -29,6 +29,9 @@ const MonPlanning = lazy(() => import("./pages/MonPlanning"));
 const MonProfil = lazy(() => import("./pages/MonProfil"));
 const Alignements = lazy(() => import("./pages/Alignements"));
 const AlignementEditor = lazy(() => import("./pages/AlignementEditor"));
+const Home = lazy(() => import("./pages/Home"));
+const Galerie = lazy(() => import("./pages/Galerie"));
+const AdminFeedback = lazy(() => import("./pages/AdminFeedback"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -51,15 +54,26 @@ function PageLoader() {
 }
 
 // ---- AuthLogoutHandler ----
+// Only shows "Session expirée" toast when the user *had* an authenticated session.
+// On first load with no prior session, /auth/me 401s — we navigate silently.
 function AuthLogoutHandler() {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const handlingRef = React.useRef(false);
+  const wasAuthedRef = React.useRef(false);
+
+  useEffect(() => {
+    if (isAuthenticated) wasAuthedRef.current = true;
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const handler = () => {
       if (handlingRef.current) return;
       handlingRef.current = true;
-      toast.error("Session expirée, veuillez vous reconnecter.");
+      if (wasAuthedRef.current) {
+        toast.error("Session expirée, veuillez vous reconnecter.");
+        wasAuthedRef.current = false;
+      }
       navigate("/login", { replace: true });
       setTimeout(() => { handlingRef.current = false; }, 2000);
     };
@@ -112,11 +126,12 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         >
-          <Route path="/" element={<Navigate to="/agenda" replace />} />
+          <Route path="/" element={<Home />} />
           <Route path="/cabaret" element={<CabaretOrganizer />} />
           <Route path="/agenda" element={<Agenda />} />
           <Route path="/mon-profil" element={<MonProfil />} />
           <Route path="/mon-planning" element={<MonPlanning />} />
+          <Route path="/galerie" element={<Galerie />} />
           <Route path="/membres" element={<Members />} />
           <Route
             path="/alignements"
@@ -147,6 +162,14 @@ function AppRoutes() {
             element={
               <ProtectedRoute adminOnly>
                 <Settings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/feedback"
+            element={
+              <ProtectedRoute adminOnly>
+                <AdminFeedback />
               </ProtectedRoute>
             }
           />

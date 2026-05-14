@@ -26,9 +26,8 @@ from app.utils.deps import require_admin
 router = APIRouter(tags=["admin"])
 
 
-def _utcnow_naive() -> datetime:
-    """Return naive UTC datetimes to match SQLite TIMESTAMP behavior."""
-    return datetime.now(UTC).replace(tzinfo=None)
+def _utcnow() -> datetime:
+    return datetime.now(UTC)
 
 
 def _normalize_day(value: str | date) -> date:
@@ -66,7 +65,7 @@ async def get_activity_stats(
     _: Member = Depends(require_admin),
 ):
     """Return aggregate activity statistics for the given period."""
-    since = _utcnow_naive() - timedelta(days=days)
+    since = _utcnow() - timedelta(days=days)
     base_filter = ActivityLog.created_at >= since
 
     total_requests = await db.scalar(
@@ -129,7 +128,7 @@ async def get_login_attempts(
     _: Member = Depends(require_admin),
 ):
     """Return login attempts and success/failure summary for the given period."""
-    since = _utcnow_naive() - timedelta(days=days)
+    since = _utcnow() - timedelta(days=days)
     login_filter = and_(
         ActivityLog.created_at >= since,
         ActivityLog.method == "POST",

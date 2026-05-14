@@ -31,7 +31,7 @@ class Member(Base):
     address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     postal_code: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
     city: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    photo_url: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    photo_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # App role
     app_role: Mapped[str] = mapped_column(
@@ -48,6 +48,9 @@ class Member(Base):
     # Reset password
     reset_token: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     reset_expires_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
+
+    # Per-member secret used to subscribe to /members/{id}/planning.ics from calendar apps
+    ical_token: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, unique=True)
 
     created_at: Mapped[datetime] = mapped_column(default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

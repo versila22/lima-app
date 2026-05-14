@@ -1,16 +1,17 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, Mail, Phone, ShieldCheck, UserX, UserCheck, Send } from "lucide-react";
+import { Loader2, Mail, Phone, ShieldCheck, UserX, UserCheck, Send, Calendar, MapPin } from "lucide-react";
 
 import {
   getMemberProfile,
+  getMemberPlanning,
   deactivateMember,
   reactivateMember,
   resendInvite,
   API_BASE_URL,
 } from "@/lib/api";
-import type { MemberSummary, MemberProfileRead } from "@/types";
+import type { MemberSummary, MemberProfileRead, MemberPlanning } from "@/types";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -25,10 +26,25 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { MemberEditDialog } from "./MemberEditDialog";
 
+const STATUS_LABELS: Record<string, string> = {
+  M: "Match",
+  C: "Cabaret",
+  L: "Loisirs",
+  A: "Adhérent",
+};
+
 function getPhotoUrl(url?: string | null) {
   if (!url) return undefined;
-  if (url.startsWith("http")) return url;
+  if (url.startsWith("http") || url.startsWith("data:")) return url;
   return `${API_BASE_URL}${url}`;
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("fr-FR", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
 }
 
 interface MemberDetailDrawerProps {
@@ -47,11 +63,18 @@ export function MemberDetailDrawer({
   const queryClient = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
 
-  const { data: profile, isLoading } = useQuery<MemberProfileRead>({
+  const { data: profile, isLoading, isError } = useQuery<MemberProfileRead>({
     queryKey: ["member-profile", member?.id],
     queryFn: () => getMemberProfile(member!.id),
     enabled: open && !!member,
     staleTime: 30_000,
+  });
+
+  const { data: planning } = useQuery<MemberPlanning>({
+    queryKey: ["member-planning", member?.id],
+    queryFn: () => getMemberPlanning(member!.id),
+    enabled: open && !!member,
+    staleTime: 60_000,
   });
 
   const deactivateMutation = useMutation({
@@ -102,6 +125,10 @@ export function MemberDetailDrawer({
           {isLoading ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          ) : isError ? (
+            <div className="text-center py-16 text-destructive text-sm">
+              Impossible de charger le profil.
             </div>
           ) : profile ? (
             <div className="space-y-6">
@@ -159,7 +186,7 @@ export function MemberDetailDrawer({
                   <div className="space-y-2 text-sm">
                     <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Saison courante</p>
                     {profile.player_status && (
-                      <p>Statut joueur : <span className="font-medium">{profile.player_status}</span></p>
+                      <p>Statut joueur : <span className="font-medium">{STATUS_LABELS[profile.player_status] ?? profile.player_status}</span></p>
                     )}
                     {profile.asso_role && (
                       <p>Rôle asso : <span className="font-medium">{profile.asso_role}</span></p>
@@ -167,6 +194,32 @@ export function MemberDetailDrawer({
                     {profile.commissions && profile.commissions.length > 0 && (
                       <p>Commissions : <span className="font-medium">{profile.commissions.join(", ")}</span></p>
                     )}
+                  </div>
+                </>
+              )}
+
+              {/* Prochains spectacles */}
+              {planning && planning.upcoming.length > 0 && (
+                <>
+                  <Separator className="bg-border/50" />
+                  <div className="space-y-3">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Prochains spectacles</p>
+                    {planning.upcoming.map((ev) => (
+                      <div key={ev.event_id} className="flex gap-3 text-sm">
+                        <Calendar className="w-4 h-4 shrink-0 mt-0.5 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium">{ev.title}</p>
+                          <p className="text-muted-foreground text-xs">
+                            {formatDate(ev.start_at)}
+                            {ev.venue_name && (
+                              <span className="ml-2 inline-flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />{ev.venue_name}
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </>
               )}

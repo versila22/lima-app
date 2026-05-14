@@ -16,7 +16,8 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, type ApiError, fetchMyProfile, API_BASE_URL, uploadMemberPhoto } from "@/lib/api";
 import { Camera } from "lucide-react";
-import type { MemberProfileRead, MemberUpdate, PlayerStatus } from "@/types";
+import type { MemberProfileRead, MemberStats, MemberUpdate, PlayerStatus } from "@/types";
+import { EVENT_TYPE_CONFIG } from "./Agenda";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -34,26 +35,31 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+// Light mode: saturated bg-200 + dark text; dark mode: keep current translucent style.
 const STATUS_CONFIG: Record<PlayerStatus, { label: string; emoji: string; className: string }> = {
   M: {
     label: "Match",
     emoji: "🎭",
-    className: "border-fuchsia-500/30 bg-fuchsia-500/15 text-fuchsia-200",
+    className:
+      "bg-fuchsia-200 text-fuchsia-900 border-fuchsia-500 font-medium dark:bg-fuchsia-500/20 dark:text-fuchsia-100 dark:border-fuchsia-500/50",
   },
   C: {
     label: "Cabaret",
     emoji: "🎪",
-    className: "border-amber-500/30 bg-amber-500/15 text-amber-200",
+    className:
+      "bg-amber-200 text-amber-900 border-amber-600 font-medium dark:bg-amber-500/20 dark:text-amber-100 dark:border-amber-500/50",
   },
   L: {
     label: "Loisir",
     emoji: "🎈",
-    className: "border-sky-500/30 bg-sky-500/15 text-sky-200",
+    className:
+      "bg-sky-200 text-sky-900 border-sky-500 font-medium dark:bg-sky-500/20 dark:text-sky-100 dark:border-sky-500/50",
   },
   A: {
     label: "Adhérent",
     emoji: "👋",
-    className: "border-emerald-500/30 bg-emerald-500/15 text-emerald-200",
+    className:
+      "bg-emerald-200 text-emerald-900 border-emerald-600 font-medium dark:bg-emerald-500/20 dark:text-emerald-100 dark:border-emerald-500/50",
   },
 };
 
@@ -66,12 +72,12 @@ const ASSO_ROLE_LABELS: Record<string, string> = {
 };
 
 const COMMISSION_CONFIG: Record<string, string> = {
-  comspec: "border-violet-500/30 bg-violet-500/15 text-violet-200",
-  comprog: "border-cyan-500/30 bg-cyan-500/15 text-cyan-200",
-  comform: "border-emerald-500/30 bg-emerald-500/15 text-emerald-200",
-  comadh: "border-amber-500/30 bg-amber-500/15 text-amber-200",
-  comcom: "border-rose-500/30 bg-rose-500/15 text-rose-200",
-  ca: "border-fuchsia-500/30 bg-fuchsia-500/15 text-fuchsia-200",
+  comspec: "bg-violet-200 text-violet-900 border-violet-500 font-medium dark:bg-violet-500/20 dark:text-violet-100 dark:border-violet-500/50",
+  comprog: "bg-cyan-200 text-cyan-900 border-cyan-600 font-medium dark:bg-cyan-500/20 dark:text-cyan-100 dark:border-cyan-500/50",
+  comform: "bg-emerald-200 text-emerald-900 border-emerald-600 font-medium dark:bg-emerald-500/20 dark:text-emerald-100 dark:border-emerald-500/50",
+  comadh: "bg-amber-200 text-amber-900 border-amber-600 font-medium dark:bg-amber-500/20 dark:text-amber-100 dark:border-amber-500/50",
+  comcom: "bg-rose-200 text-rose-900 border-rose-500 font-medium dark:bg-rose-500/20 dark:text-rose-100 dark:border-rose-500/50",
+  ca: "bg-fuchsia-200 text-fuchsia-900 border-fuchsia-500 font-medium dark:bg-fuchsia-500/20 dark:text-fuchsia-100 dark:border-fuchsia-500/50",
 };
 
 function getInitials(firstName?: string | null, lastName?: string | null) {
@@ -84,7 +90,7 @@ function getFullName(profile: Pick<MemberProfileRead, "first_name" | "last_name"
 
 function getPhotoUrl(url?: string | null) {
   if (!url) return undefined;
-  if (url.startsWith("http")) return url;
+  if (url.startsWith("http") || url.startsWith("data:")) return url;
   return `${API_BASE_URL}${url}`;
 }
 
@@ -137,6 +143,11 @@ export default function MonProfil() {
   const { data: profile, isLoading, error } = useQuery<MemberProfileRead>({
     queryKey: ["my-profile"],
     queryFn: fetchMyProfile,
+  });
+
+  const { data: stats } = useQuery<MemberStats>({
+    queryKey: ["my-stats"],
+    queryFn: () => api.get<MemberStats>("/members/me/stats"),
   });
 
   useEffect(() => {
@@ -465,6 +476,50 @@ export default function MonProfil() {
           )}
         </CardContent>
       </Card>
+
+      {stats && stats.total_shows > 0 && (
+        <Card className="border-border/70 bg-card/80 backdrop-blur-sm">
+          <CardHeader>
+            <CardTitle>Statistiques de participation</CardTitle>
+            <CardDescription>
+              {stats.total_shows} prestation{stats.total_shows > 1 ? "s" : ""} dans les alignements publiés.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {Object.keys(stats.by_type).length > 0 && (
+              <div>
+                <p className="text-sm font-medium mb-2">Par type d'événement</p>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(stats.by_type)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([type, count]) => {
+                      const cfg = EVENT_TYPE_CONFIG[(type as keyof typeof EVENT_TYPE_CONFIG) ?? "other"] ?? EVENT_TYPE_CONFIG.other;
+                      return (
+                        <span key={type} className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium ${cfg.color}`}>
+                          {cfg.label} — {count}
+                        </span>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+            {Object.keys(stats.by_role).length > 0 && (
+              <div>
+                <p className="text-sm font-medium mb-2">Par rôle</p>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(stats.by_role)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([role, count]) => (
+                      <span key={role} className="inline-flex items-center gap-1 rounded-md border border-border/70 bg-muted/40 px-2.5 py-1 text-xs font-medium">
+                        {role} — {count}
+                      </span>
+                    ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

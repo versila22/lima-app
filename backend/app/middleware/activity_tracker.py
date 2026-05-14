@@ -21,11 +21,15 @@ SKIPPED_PATHS = {"/health", "/health/db", "/health/migrations", "/docs", "/redoc
 class ActivityTrackerMiddleware:
     """Pure ASGI middleware — avoids BaseHTTPMiddleware which breaks SQLAlchemy async greenlets."""
 
+    # Class-level kill switch — tests disable this to avoid background DB writes
+    # leaking past test event-loop teardown.
+    enabled: bool = True
+
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http":
+        if scope["type"] != "http" or not self.enabled:
             await self.app(scope, receive, send)
             return
 

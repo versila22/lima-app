@@ -126,15 +126,17 @@ class PlanningEvent(BaseModel):
     start_at: datetime
     end_at: Optional[datetime] = None
     venue_name: Optional[str] = None
-    role: str
-    alignment_name: str
-    alignment_status: Literal["draft", "published"]
+    source: Literal["alignment", "registration"] = "alignment"
+    role: Optional[str] = None
+    alignment_name: Optional[str] = None
+    alignment_status: Optional[Literal["draft", "published"]] = None
 
 
 class MemberPlanning(BaseModel):
     upcoming: List[PlanningEvent] = []
     past: List[PlanningEvent] = []
     total_shows: int = 0
+    total_attendances: int = 0
 
 
 # ---------- Import report ----------
