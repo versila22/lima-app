@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, useLocation } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -29,6 +29,8 @@ import {
   isSameMonth,
   addMonths,
   subMonths,
+  addWeeks,
+  subWeeks,
   getDay,
   parseISO,
   setHours,
@@ -52,6 +54,9 @@ import { AgendaFilterChips } from "@/components/agenda/AgendaFilterChips";
 import { AgendaMobileHeader } from "@/components/agenda/AgendaMobileHeader";
 import { AgendaTimelineCard } from "@/components/agenda/AgendaTimelineCard";
 import { AgendaFAB } from "@/components/agenda/AgendaFAB";
+import { useSwipeNavigation } from "@/hooks/use-swipe-navigation";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { haptic } from "@/lib/haptics";
 import type {
   EventRead,
   EventCreate,
@@ -1400,11 +1405,22 @@ function AddEventDialog({
 interface AgendaListViewProps {
   events: EventRead[];
   onEventClick: (event: EventRead) => void;
+  anchorWeek?: Date | null;
 }
 
-function AgendaListView({ events, onEventClick }: AgendaListViewProps) {
+function AgendaListView({ events, onEventClick, anchorWeek }: AgendaListViewProps) {
   const isMobile = useIsMobile();
-  const sorted = [...events].sort(
+  const visibleEvents = anchorWeek
+    ? events.filter((e) => {
+        const d = parseISO(e.start_at);
+        const start = new Date(anchorWeek);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(start);
+        end.setDate(end.getDate() + 7);
+        return d >= start && d < end;
+      })
+    : events;
+  const sorted = [...visibleEvents].sort(
     (a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime()
   );
 
@@ -1577,6 +1593,47 @@ export default function Agenda() {
       }),
     [events, filterType, filterVisibility]
   );
+
+  const listContainerRef = useRef<HTMLDivElement>(null);
+  const [anchorWeek, setAnchorWeek] = useState<Date | null>(null);
+  const heavyMonth = filteredEvents.filter((e) => {
+    const d = parseISO(e.start_at);
+    return isSameMonth(d, currentMonth);
+  }).length > 6;
+
+  useSwipeNavigation(listContainerRef, {
+    enabled: isMobile && viewMode === "list",
+    onSwipeLeft: () => {
+      haptic("tap");
+      if (heavyMonth && anchorWeek) {
+        setAnchorWeek(addWeeks(anchorWeek, 1));
+      } else if (heavyMonth) {
+        setAnchorWeek(addWeeks(new Date(), 1));
+      } else {
+        setCurrentMonth((m) => addMonths(m, 1));
+        setAnchorWeek(null);
+      }
+    },
+    onSwipeRight: () => {
+      haptic("tap");
+      if (heavyMonth && anchorWeek) {
+        setAnchorWeek(subWeeks(anchorWeek, 1));
+      } else if (heavyMonth) {
+        setAnchorWeek(subWeeks(new Date(), 1));
+      } else {
+        setCurrentMonth((m) => subMonths(m, 1));
+        setAnchorWeek(null);
+      }
+    },
+  });
+
+  const { pullDistance, refreshing } = usePullToRefresh({
+    enabled: isMobile && viewMode === "list",
+    onRefresh: async () => {
+      haptic("refresh");
+      await queryClient.invalidateQueries({ queryKey: ["events"] });
+    },
+  });
 
   // Calendar grid
   const monthStart = startOfMonth(currentMonth);
@@ -1791,10 +1848,24 @@ export default function Agenda() {
           <Loader2 className="w-6 h-6 animate-spin text-primary" />
         </div>
       ) : viewMode === "list" ? (
-        <AgendaListView
-          events={filteredEvents}
-          onEventClick={setSelectedEvent}
-        />
+        <div ref={listContainerRef} style={{ touchAction: "pan-y" }} className="relative">
+          {(pullDistance > 0 || refreshing) && (
+            <div
+              className="md:hidden absolute left-0 right-0 flex justify-center pointer-events-none transition-opacity"
+              style={{ top: 0, height: pullDistance, opacity: refreshing ? 1 : Math.min(pullDistance / 70, 1) }}
+            >
+              <Loader2 className={cn("w-6 h-6 text-primary", refreshing && "animate-spin")} />
+            </div>
+          )}
+          <AgendaListView
+            events={filteredEvents}
+            onEventClick={(ev) => {
+              haptic("tap");
+              setSelectedEvent(ev);
+            }}
+            anchorWeek={anchorWeek}
+          />
+        </div>
       ) : (
         /* Calendar grid */
         <div className="overflow-x-auto">

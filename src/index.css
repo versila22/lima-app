@@ -138,3 +138,8 @@
     background-clip: text;
   }
 }
+
+/* Disable Android Chrome native pull-to-refresh; our hook handles it. */
+html, body {
+  overscroll-behavior-y: contain;
+}

@@ -1,4 +1,5 @@
 import { Plus } from "lucide-react";
+import { haptic } from "@/lib/haptics";
 
 interface AgendaFABProps {
   onClick: () => void;
@@ -9,7 +10,10 @@ export function AgendaFAB({ onClick, disabled }: AgendaFABProps) {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => {
+        haptic("fab");
+        onClick();
+      }}
       disabled={disabled}
       aria-label="Ajouter un événement"
       className="md:hidden fixed right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full shadow-lg bg-gradient-to-br from-cabaret-purple to-cabaret-gold text-background hover:shadow-xl active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
