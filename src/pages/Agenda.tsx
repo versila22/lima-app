@@ -52,7 +52,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { AgendaFilterChips } from "@/components/agenda/AgendaFilterChips";
 import { AgendaMobileHeader } from "@/components/agenda/AgendaMobileHeader";
-import { AgendaTimelineCard } from "@/components/agenda/AgendaTimelineCard";
 import { AgendaFAB } from "@/components/agenda/AgendaFAB";
 import { useSwipeNavigation } from "@/hooks/use-swipe-navigation";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
@@ -1409,7 +1408,6 @@ interface AgendaListViewProps {
 }
 
 function AgendaListView({ events, onEventClick, anchorWeek }: AgendaListViewProps) {
-  const isMobile = useIsMobile();
   const visibleEvents = anchorWeek
     ? events.filter((e) => {
         const d = parseISO(e.start_at);
@@ -1448,60 +1446,42 @@ function AgendaListView({ events, onEventClick, anchorWeek }: AgendaListViewProp
     <div className="space-y-6">
       {groups.map((group) => (
         <section key={group.label}>
-          <h2
-            className={
-              isMobile
-                ? "sticky top-0 z-10 -mx-4 px-4 py-2 bg-background/95 backdrop-blur text-sm font-semibold text-foreground uppercase tracking-wide capitalize"
-                : "text-sm font-medium text-muted-foreground uppercase tracking-wide mb-3 capitalize"
-            }
-          >
+          <h2 className="sticky top-0 z-10 -mx-4 px-4 py-2 bg-background/95 backdrop-blur text-sm font-semibold text-foreground uppercase tracking-wide capitalize md:static md:mx-0 md:px-0 md:bg-transparent md:backdrop-blur-none md:text-muted-foreground md:font-medium md:mb-3">
             {group.label}
           </h2>
-          {isMobile ? (
-            <div className="space-y-3 pt-3">
-              {group.items.map((ev) => (
-                <AgendaTimelineCard
+          <div className="space-y-1.5 pt-2 md:pt-0">
+            {group.items.map((ev) => {
+              const cfg = EVENT_TYPE_CONFIG[ev.event_type] ?? EVENT_TYPE_CONFIG.other;
+              const startDate = parseISO(ev.start_at);
+              return (
+                <button
                   key={ev.id}
-                  event={ev}
+                  type="button"
                   onClick={() => onEventClick(ev)}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              {group.items.map((ev) => {
-                const cfg = EVENT_TYPE_CONFIG[ev.event_type] ?? EVENT_TYPE_CONFIG.other;
-                const startDate = parseISO(ev.start_at);
-                return (
-                  <button
-                    key={ev.id}
-                    type="button"
-                    onClick={() => onEventClick(ev)}
-                    className={`w-full flex items-center gap-3 text-left px-3 py-2.5 rounded-lg border ${cfg.color} hover:opacity-80 transition-opacity`}
-                  >
-                    <div className="shrink-0 text-center min-w-[2.5rem]">
-                      <p className="text-sm font-semibold leading-none">
-                        {format(startDate, "d", { locale: fr })}
-                      </p>
-                      <p className="text-xs text-muted-foreground capitalize">
-                        {format(startDate, "EEE", { locale: fr })}
-                      </p>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium truncate">{ev.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {format(startDate, "HH:mm")}
-                        {ev.is_away && ev.away_city ? ` · Déplacement — ${ev.away_city}` : ""}
-                      </p>
-                    </div>
-                    <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded border ${cfg.color}`}>
-                      {cfg.label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
+                  className={`w-full flex items-center gap-3 text-left px-3 py-3 md:py-2.5 rounded-lg border ${cfg.color} hover:opacity-80 transition-opacity`}
+                >
+                  <div className="shrink-0 text-center min-w-[2.5rem]">
+                    <p className="text-base md:text-sm font-semibold leading-none">
+                      {format(startDate, "d", { locale: fr })}
+                    </p>
+                    <p className="text-sm md:text-xs text-muted-foreground capitalize">
+                      {format(startDate, "EEE", { locale: fr })}
+                    </p>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-base md:text-sm font-medium truncate">{ev.title}</p>
+                    <p className="text-sm md:text-xs text-muted-foreground">
+                      {format(startDate, "HH:mm")}
+                      {ev.is_away && ev.away_city ? ` · Déplacement — ${ev.away_city}` : ""}
+                    </p>
+                  </div>
+                  <span className={`shrink-0 text-xs md:text-[10px] px-2 md:px-1.5 py-1 md:py-0.5 rounded border ${cfg.color}`}>
+                    {cfg.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </section>
       ))}
     </div>
