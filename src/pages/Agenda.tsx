@@ -782,7 +782,7 @@ function EventDetailDrawer({
         className={cn(
           "bg-card border-border",
           isMobile
-            ? "h-screen max-h-screen rounded-t-none"
+            ? "!inset-0 !mt-0 !h-[100dvh] !max-h-[100dvh] !rounded-none [&>div:first-child]:!hidden"
             : "max-h-[85vh]",
         )}
       >
