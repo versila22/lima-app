@@ -177,7 +177,8 @@ async def trigger_reminders(
     _: Member = Depends(require_admin),
 ):
     """Trigger 24h reminder emails for events happening tomorrow (admin only)."""
-    import sys, os
+    import os
+    import sys
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
     from scripts.send_reminders import send_due_reminders
     sent, failed = await send_due_reminders(db)

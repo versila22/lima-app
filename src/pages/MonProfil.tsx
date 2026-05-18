@@ -265,8 +265,9 @@ export default function MonProfil() {
                         await uploadMemberPhoto(profile.id, file);
                         queryClient.invalidateQueries({ queryKey: ["my-profile"] });
                         toast.success("Photo mise à jour !", { id: loadingToast });
-                      } catch (err: any) {
-                        toast.error(err.detail ?? "Erreur lors de l'upload");
+                      } catch (err) {
+                        const detail = err instanceof Error ? err.message : (err as { detail?: string })?.detail;
+                        toast.error(detail ?? "Erreur lors de l'upload");
                       }
                     }}
                   />

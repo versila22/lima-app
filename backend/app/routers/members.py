@@ -2,19 +2,21 @@
 
 import logging
 from datetime import datetime, timedelta
-
-logger = logging.getLogger(__name__)
 from typing import List, Optional
 from uuid import UUID
 
+import boto3
+from botocore.exceptions import ClientError
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
-from sqlalchemy import func, select
+from fastapi.concurrency import run_in_threadpool
+from pydantic import BaseModel as _BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.config import settings
 from app.database import get_db
-from app.models.alignment import Alignment, AlignmentAssignment, AlignmentEvent
+from app.models.alignment import Alignment, AlignmentAssignment
 from app.models.commission import Commission, MemberCommission
 from app.models.event import Event, EventRegistration
 from app.models.member import Member
@@ -36,6 +38,8 @@ from app.schemas.member import (
 from app.services import auth_service, import_service
 from app.services.email_service import send_activation_email
 from app.utils.deps import get_current_user, require_admin
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/members", tags=["members"])
 
@@ -324,12 +328,6 @@ async def update_member(
     await db.flush()
     await db.commit()
     return await _get_member_for_response(db, member.id)
-
-
-import boto3
-from botocore.exceptions import ClientError
-from fastapi.concurrency import run_in_threadpool
-from pydantic import BaseModel as _BaseModel
 
 
 class PhotoDataPayload(_BaseModel):

@@ -1,8 +1,5 @@
 """Shared rate limiting configuration."""
 
-import ipaddress
-import os
-
 from starlette.requests import Request
 from slowapi import Limiter
 

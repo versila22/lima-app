@@ -223,7 +223,6 @@ async def import_csv_helloasso(
                 select(Member).where(Member.email == email)
             )
             member = existing.scalar_one_or_none()
-            is_new_member = member is None
 
             phone = adh.get("phone") or jou.get("phone")
             if member is None:

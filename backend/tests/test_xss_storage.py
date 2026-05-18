@@ -81,7 +81,7 @@ async def test_sql_injection_attempt_in_query_param_is_safe(client, seeded_data)
 
     # path_prefix accepts any string and is used in a LIKE clause via ORM.
     resp = await client.get(
-        "/admin/activity/recent",
+        "/api/admin/activity/recent",
         headers=headers,
         params={"path_prefix": "'; DROP TABLE members; --"},
     )

@@ -195,7 +195,7 @@ function generateIntroSpeech(
   djNames: string[]
 ): string {
   const venue = venueName || "ce magnifique lieu";
-  const themeText = theme ? `, sur le thème \"${theme}\"` : "";
+  const themeText = theme ? `, sur le thème "${theme}"` : "";
 
   if (showType === "match") {
     const team1 = teams?.[0]?.name || "Équipe 1";

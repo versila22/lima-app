@@ -275,7 +275,7 @@ export default function Stats() {
               />
               <StatsCard
                 title="Utilisateurs actifs (7j)"
-                value={(pageWindow === 7 ? pageStats?.unique_users : sevenDayStats?.unique_users ?? 0).toLocaleString("fr-FR")}
+                value={((pageWindow === 7 ? pageStats?.unique_users : sevenDayStats?.unique_users) ?? 0).toLocaleString("fr-FR")}
                 description="Basé sur l'activité observée"
                 icon={MousePointerClick}
               />
