@@ -4,7 +4,7 @@ import uuid
 from datetime import date, datetime
 from typing import Optional
 
-from sqlalchemy import Date, ForeignKey, Index, Integer, String, UniqueConstraint, func
+from sqlalchemy import Date, DateTime, ForeignKey, Index, Integer, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -36,9 +36,9 @@ class Alignment(Base):
         nullable=True,
     )
 
-    created_at: Mapped[datetime] = mapped_column(default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
-        default=func.now(), onupdate=func.now()
+        DateTime(timezone=True), default=func.now(), onupdate=func.now()
     )
 
     # Relationships
@@ -105,7 +105,7 @@ class AlignmentAssignment(Base):
     # JR | DJ | MJ_MC | AR | COACH | BENEVOLE
     role: Mapped[str] = mapped_column(String(10), nullable=False)
 
-    created_at: Mapped[datetime] = mapped_column(default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
 
     # Relationships
     alignment = relationship("Alignment", back_populates="assignments")

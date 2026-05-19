@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, String, func
+from sqlalchemy import JSON, DateTime, String, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -20,6 +20,7 @@ class AppSetting(Base):
         default=dict,
     )
     updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
         default=func.now(),
         onupdate=func.now(),
     )

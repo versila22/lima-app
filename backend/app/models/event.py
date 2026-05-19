@@ -52,9 +52,9 @@ class Event(Base):
     # Visibility: all | match | cabaret | loisir | admin
     visibility: Mapped[str] = mapped_column(String(20), default="all")
 
-    created_at: Mapped[datetime] = mapped_column(default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
-        default=func.now(), onupdate=func.now()
+        DateTime(timezone=True), default=func.now(), onupdate=func.now()
     )
 
     # Relationships
@@ -81,7 +81,7 @@ class EventPhoto(Base):
     url: Mapped[str] = mapped_column(Text, nullable=False)
     s3_key: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     caption: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
 
     event = relationship("Event", back_populates="photos")
 
@@ -106,7 +106,7 @@ class EventRegistration(Base):
         ForeignKey("members.id", ondelete="CASCADE"),
         nullable=False,
     )
-    created_at: Mapped[datetime] = mapped_column(default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
 
     event = relationship("Event", back_populates="registrations")
     member = relationship("Member")

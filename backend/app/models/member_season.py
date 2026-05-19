@@ -5,7 +5,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import DECIMAL, ForeignKey, String, UniqueConstraint, func
+from sqlalchemy import DECIMAL, DateTime, ForeignKey, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -49,7 +49,7 @@ class MemberSeason(Base):
     # Rôle asso
     asso_role: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
 
     # Relationships
     member = relationship("Member", back_populates="member_seasons")
