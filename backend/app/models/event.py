@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Boolean, ForeignKey, Index, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -37,8 +37,9 @@ class Event(Base):
     # Types: match | cabaret | training_show | training_leisure | welsh | formation | ag | other
     event_type: Mapped[str] = mapped_column(String(30), nullable=False)
 
-    start_at: Mapped[datetime] = mapped_column(nullable=False)
-    end_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
+    # DB column is TIMESTAMPTZ — without timezone=True asyncpg rejects tz-aware writes.
+    start_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    end_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     is_away: Mapped[bool] = mapped_column(Boolean, default=False)
     away_city: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)

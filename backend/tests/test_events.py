@@ -133,14 +133,24 @@ async def test_create_event_validation_returns_422(auth_client, seeded_data):
 
 @pytest.mark.asyncio
 async def test_update_event_success(auth_client, seeded_data):
+    # `.000Z` matches what JS `Date.prototype.toISOString()` sends from the frontend —
+    # this format used to 500 on Postgres because the Event model didn't declare
+    # DateTime(timezone=True) and asyncpg's TIMESTAMP codec rejects tz-aware values.
     response = await auth_client.put(
         f"/events/{seeded_data['public_event'].id}",
-        json={"title": "Match renommé", "visibility": "admin"},
+        json={
+            "title": "Match renommé",
+            "visibility": "admin",
+            "start_at": "2026-05-29T20:00:00.000Z",
+            "end_at": "2026-05-29T23:00:00.000Z",
+        },
     )
 
     assert response.status_code == 200
     assert response.json()["title"] == "Match renommé"
     assert response.json()["visibility"] == "admin"
+    assert response.json()["start_at"].startswith("2026-05-29T20:00:00")
+    assert response.json()["end_at"].startswith("2026-05-29T23:00:00")
 
 
 @pytest.mark.asyncio
