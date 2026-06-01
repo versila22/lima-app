@@ -250,9 +250,9 @@ export default function Stats() {
           </p>
         </div>
 
-        {loginStatsLoading || monthlyStatsLoading ? (
+        {loginStatsLoading ? (
           <SectionSkeleton />
-        ) : loginStatsError || monthlyStatsError ? (
+        ) : loginStatsError ? (
           <Card className="border-destructive/30 bg-destructive/5">
             <CardContent className="pt-6 text-sm text-destructive">
               Impossible de charger les statistiques de connexion.
