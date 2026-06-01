@@ -950,13 +950,20 @@ interface AgendaListViewProps {
 }
 
 function AgendaListView({ events, onEventClick }: AgendaListViewProps) {
-  const sorted = [...events].sort(
+  const [showPast, setShowPast] = useState(false);
+
+  const allSorted = [...events].sort(
     (a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime()
   );
 
+  const currentMonthStart = startOfMonth(new Date());
+  const upcoming = allSorted.filter(e => parseISO(e.start_at) >= currentMonthStart);
+  const past = allSorted.filter(e => parseISO(e.start_at) < currentMonthStart);
+  const displayed = showPast ? allSorted : upcoming;
+
   // Group by "MMMM yyyy"
   const groups: { label: string; items: EventRead[] }[] = [];
-  for (const ev of sorted) {
+  for (const ev of displayed) {
     const label = format(parseISO(ev.start_at), "MMMM yyyy", { locale: fr });
     const last = groups[groups.length - 1];
     if (last && last.label === label) {
@@ -968,14 +975,28 @@ function AgendaListView({ events, onEventClick }: AgendaListViewProps) {
 
   if (groups.length === 0) {
     return (
-      <p className="text-center text-muted-foreground py-16 text-sm">
-        Aucun événement pour cette saison.
-      </p>
+      <div className="space-y-4">
+        {past.length > 0 && (
+          <button type="button" onClick={() => setShowPast(true)}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+            ▼ Voir les {past.length} événement(s) passé(s)
+          </button>
+        )}
+        <p className="text-center text-muted-foreground py-12 text-sm">
+          Aucun événement à venir pour cette saison.
+        </p>
+      </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      {past.length > 0 && (
+        <button type="button" onClick={() => setShowPast(!showPast)}
+          className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+          {showPast ? "▲ Masquer les événements passés" : `▼ ${past.length} événement(s) passé(s)`}
+        </button>
+      )}
       {groups.map((group) => (
         <section key={group.label}>
           <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-3 capitalize">
@@ -1031,7 +1052,9 @@ export default function Agenda() {
   const [addOpen, setAddOpen] = useState(false);
   const [editEvent, setEditEvent] = useState<EventRead | null>(null);
   const [deleteEvent, setDeleteEvent] = useState<EventRead | null>(null);
-  const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
+  const [viewMode, setViewMode] = useState<"calendar" | "list">(
+    () => window.innerWidth < 768 ? "list" : "calendar"
+  );
   const [searchParams, setSearchParams] = useSearchParams();
   const filterType = (searchParams.get("type") as EventType) || null;
   const filterVisibility = (searchParams.get("visibility") as EventVisibility) || null;
