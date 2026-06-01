@@ -77,13 +77,13 @@ export function AppSidebar({
   return (
     <aside
       className={cn(
-        "top-0 h-screen border-r border-sidebar-border bg-sidebar transition-all duration-300 z-50 flex flex-col",
+        "top-0 h-screen border-r border-sidebar-border bg-sidebar transition-all duration-300 z-50",
         isMobile
           ? cn(
-              "fixed left-0 w-72 max-w-[85vw] transform shadow-2xl",
+              "fixed left-0 flex flex-col w-72 max-w-[85vw] transform shadow-2xl",
               mobileOpen ? "translate-x-0" : "-translate-x-full"
             )
-          : cn("fixed left-0", collapsed ? "w-16" : "w-64")
+          : cn("fixed left-0 hidden md:flex flex-col", collapsed ? "w-16" : "w-64")
       )}
     >
       <div className="border-b border-sidebar-border p-4">

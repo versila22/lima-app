@@ -1408,7 +1408,9 @@ interface AgendaListViewProps {
 }
 
 function AgendaListView({ events, onEventClick, anchorWeek }: AgendaListViewProps) {
-  const visibleEvents = anchorWeek
+  const [showPast, setShowPast] = useState(false);
+
+  const baseEvents = anchorWeek
     ? events.filter((e) => {
         const d = parseISO(e.start_at);
         const start = new Date(anchorWeek);
@@ -1418,9 +1420,14 @@ function AgendaListView({ events, onEventClick, anchorWeek }: AgendaListViewProp
         return d >= start && d < end;
       })
     : events;
-  const sorted = [...visibleEvents].sort(
+
+  const currentMonthStart = startOfMonth(new Date());
+  const allSorted = [...baseEvents].sort(
     (a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime()
   );
+  const past = anchorWeek ? [] : allSorted.filter(e => parseISO(e.start_at) < currentMonthStart);
+  const upcoming = anchorWeek ? allSorted : allSorted.filter(e => parseISO(e.start_at) >= currentMonthStart);
+  const sorted = showPast ? allSorted : upcoming;
 
   // Group by "MMMM yyyy"
   const groups: { label: string; items: EventRead[] }[] = [];
@@ -1436,14 +1443,28 @@ function AgendaListView({ events, onEventClick, anchorWeek }: AgendaListViewProp
 
   if (groups.length === 0) {
     return (
-      <p className="text-center text-muted-foreground py-16 text-sm">
-        Aucun événement pour cette saison.
-      </p>
+      <div className="space-y-4">
+        {past.length > 0 && (
+          <button type="button" onClick={() => setShowPast(true)}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+            ▼ {past.length} événement(s) passé(s)
+          </button>
+        )}
+        <p className="text-center text-muted-foreground py-12 text-sm">
+          Aucun événement à venir pour cette saison.
+        </p>
+      </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      {past.length > 0 && (
+        <button type="button" onClick={() => setShowPast(!showPast)}
+          className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+          {showPast ? "▲ Masquer les événements passés" : `▼ ${past.length} événement(s) passé(s)`}
+        </button>
+      )}
       {groups.map((group) => (
         <section key={group.label}>
           <h2 className="sticky top-0 z-10 -mx-4 px-4 py-2 bg-background/95 backdrop-blur text-sm font-semibold text-foreground uppercase tracking-wide capitalize md:static md:mx-0 md:px-0 md:bg-transparent md:backdrop-blur-none md:text-muted-foreground md:font-medium md:mb-3">

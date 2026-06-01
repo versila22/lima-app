@@ -23,7 +23,7 @@ const PAGE_TITLES: Record<string, string> = {
 export function DashboardLayout() {
   const isMobile = useIsMobile();
   const location = useLocation();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const pageTitle = PAGE_TITLES[location.pathname] ?? "LIMA";
   const { theme, setTheme } = useTheme();
