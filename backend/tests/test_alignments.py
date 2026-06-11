@@ -1,4 +1,5 @@
 import pytest
+from datetime import datetime
 
 from app.routers import alignments as alignments_router
 
@@ -242,3 +243,131 @@ async def test_publish_alignment_success(auth_client, seeded_data):
 async def test_delete_alignment_not_found(auth_client, seeded_data):
     response = await auth_client.delete("/alignments/00000000-0000-0000-0000-000000000001")
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_assign_on_draft_alignment_sends_no_email(
+    auth_client, seeded_data, monkeypatch
+):
+    sent = []
+
+    async def fake_send(*args, **kwargs):
+        sent.append(kwargs)
+
+    monkeypatch.setattr(
+        "app.routers.alignments.send_cast_assignment_email", fake_send
+    )
+    resp = await auth_client.post(
+        f"/alignments/{seeded_data['draft_alignment'].id}/assign",
+        json={
+            "event_id": str(seeded_data["public_event"].id),
+            "member_id": str(seeded_data["regular"].id),
+            "role": "JR",
+        },
+    )
+    assert resp.status_code == 201
+    assert sent == []
+
+
+@pytest.mark.asyncio
+async def test_assign_on_published_alignment_sends_email(
+    auth_client, seeded_data, monkeypatch
+):
+    sent = []
+
+    async def fake_send(*args, **kwargs):
+        sent.append(kwargs)
+
+    monkeypatch.setattr(
+        "app.routers.alignments.send_cast_assignment_email", fake_send
+    )
+    resp = await auth_client.post(
+        f"/alignments/{seeded_data['published_alignment'].id}/assign",
+        json={
+            "event_id": str(seeded_data["public_event"].id),
+            "member_id": str(seeded_data["regular"].id),
+            "role": "JR",
+        },
+    )
+    assert resp.status_code == 201
+    assert len(sent) == 1
+    assert sent[0]["to"] == seeded_data["regular"].email
+
+
+@pytest.mark.asyncio
+async def test_publish_sends_one_digest_per_member(
+    auth_client, seeded_data, db_session, monkeypatch
+):
+    from app.models.alignment import AlignmentAssignment, AlignmentEvent
+    from app.models.event import Event
+
+    # Un 2e événement dans la grille brouillon, le même membre affecté aux deux
+    extra_event = Event(
+        season_id=seeded_data["current_season"].id,
+        venue_id=seeded_data["venue"].id,
+        title="Cabaret de février",
+        event_type="cabaret",
+        start_at=datetime(2026, 2, 20, 20, 0),
+        visibility="all",
+    )
+    db_session.add(extra_event)
+    await db_session.flush()
+    db_session.add(
+        AlignmentEvent(
+            alignment_id=seeded_data["draft_alignment"].id,
+            event_id=extra_event.id,
+            sort_order=1,
+        )
+    )
+    db_session.add_all([
+        AlignmentAssignment(
+            alignment_id=seeded_data["draft_alignment"].id,
+            event_id=seeded_data["public_event"].id,
+            member_id=seeded_data["regular"].id,
+            role="JR",
+        ),
+        AlignmentAssignment(
+            alignment_id=seeded_data["draft_alignment"].id,
+            event_id=extra_event.id,
+            member_id=seeded_data["regular"].id,
+            role="DJ",
+        ),
+    ])
+    await db_session.commit()
+
+    sent = []
+
+    async def fake_digest(**kwargs):
+        sent.append(kwargs)
+
+    monkeypatch.setattr(
+        "app.services.notification_service.send_alignment_digest_email", fake_digest
+    )
+
+    resp = await auth_client.put(
+        f"/alignments/{seeded_data['draft_alignment'].id}/publish"
+    )
+    assert resp.status_code == 200
+
+    # 1 seul email pour le membre, contenant ses 2 événements
+    assert len(sent) == 1
+    assert sent[0]["to"] == seeded_data["regular"].email
+    assert len(sent[0]["events"]) == 2
+    assert sent[0]["ics_content"] and "BEGIN:VCALENDAR" in sent[0]["ics_content"]
+
+
+@pytest.mark.asyncio
+async def test_republish_sends_nothing(auth_client, seeded_data, monkeypatch):
+    sent = []
+
+    async def fake_digest(**kwargs):
+        sent.append(kwargs)
+
+    monkeypatch.setattr(
+        "app.services.notification_service.send_alignment_digest_email", fake_digest
+    )
+    resp = await auth_client.put(
+        f"/alignments/{seeded_data['published_alignment'].id}/publish"
+    )
+    assert resp.status_code == 200
+    assert sent == []

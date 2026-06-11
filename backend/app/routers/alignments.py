@@ -205,7 +205,7 @@ async def assign_member(
     )
     alignment = alignment_result.scalar_one_or_none()
 
-    if member and event and alignment and member.email:
+    if member and event and alignment and member.email and alignment.status == "published":
         background_tasks.add_task(
             send_cast_assignment_email,
             to=member.email,
@@ -258,7 +258,7 @@ async def remove_assignment(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    if member and event and alignment and member.email:
+    if member and event and alignment and member.email and alignment.status == "published":
         background_tasks.add_task(
             send_cast_unassignment_email,
             to=member.email,
