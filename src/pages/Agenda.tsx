@@ -1095,6 +1095,18 @@ function EventDetailDrawer({
     };
   }, [isMobile, open]);
 
+  // Close on Escape key while mobile overlay is open
+  useEffect(() => {
+    if (!isMobile || !open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isMobile, open, onClose]);
+
   const bodyProps = {
     event, cast, castLoading, byRole, roleOrder, visibleNotes,
     showParticipation, isTraining, registrations, regLoading,
@@ -1106,7 +1118,12 @@ function EventDetailDrawer({
     if (!open) return null;
     return (
       <>
-        <div className="fixed inset-0 z-50 flex flex-col bg-card">
+        <div
+          className="fixed inset-0 z-50 flex flex-col bg-card"
+          role="dialog"
+          aria-modal="true"
+          aria-label={event.title}
+        >
           <EventDetailBanner
             event={event}
             bannerBg={bannerBg}
