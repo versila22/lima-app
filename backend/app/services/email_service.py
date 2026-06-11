@@ -268,6 +268,16 @@ async def send_alignment_digest_email(
     `events`: list of dicts with keys title, date_str, role, venue_name (optional).
     """
     planning_link = f"{base_url.rstrip('/')}/mon-planning"
+    ics_note = (
+        """
+        <p>
+          📅 Le fichier joint ajoute directement ces dates à ton agenda
+          (Google Agenda, Apple Calendrier, Outlook…).
+        </p>
+        """
+        if ics_content
+        else ""
+    )
     rows = "".join(
         f"""
         <tr>
@@ -306,10 +316,7 @@ async def send_alignment_digest_email(
             Voir mon planning
           </a>
         </p>
-        <p>
-          📅 Le fichier joint ajoute directement ces dates à ton agenda
-          (Google Agenda, Apple Calendrier, Outlook…).
-        </p>
+        {ics_note}
         <p>À très vite sur scène 🎭</p>
       </body>
     </html>
