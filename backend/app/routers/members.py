@@ -229,9 +229,15 @@ async def get_member_profile(
 async def get_member(
     member_id: UUID,
     db: AsyncSession = Depends(get_db),
-    _: Member = Depends(get_current_user),
+    current_user: Member = Depends(get_current_user),
 ):
-    """Retrieve full details of a member by ID."""
+    """Retrieve full details of a member by ID.
+
+    Contains personal data (phone, date_of_birth, address) — restricted
+    to the member themselves or an admin (same rule as /profile).
+    """
+    if current_user.id != member_id and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Accès refusé")
     result = await db.execute(
         select(Member)
         .options(selectinload(Member.member_seasons).selectinload(MemberSeason.season))
@@ -469,7 +475,7 @@ async def resend_activation(
         token=token,
         base_url=settings.FRONTEND_URL,
     )
-    return {"detail": "Email d'activation envoyé", "token": token}
+    return {"detail": "Email d'activation envoyé"}
 
 
 @router.put("/{member_id}/role", response_model=MemberRead)
