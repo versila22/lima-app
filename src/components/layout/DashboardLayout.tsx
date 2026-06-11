@@ -56,7 +56,10 @@ export function DashboardLayout() {
 
         <main
           className={cn(
-            "flex-1 transition-all duration-300",
+            // min-w-0: sans lui, le contenu large (ex. rangée de filtres de l'agenda)
+            // impose sa largeur min au flex item et étire le layout viewport sur mobile,
+            // ce qui fait basculer useIsMobile() en mode desktop sur téléphone.
+            "min-w-0 flex-1 transition-all duration-300",
             !isMobile && (collapsed ? "md:ml-16" : "md:ml-64")
           )}
         >
