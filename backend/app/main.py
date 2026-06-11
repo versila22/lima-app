@@ -49,7 +49,6 @@ from contextlib import asynccontextmanager
 from app.run_migrations import run_migrations
 
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # On startup

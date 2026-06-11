@@ -215,7 +215,7 @@ async def get_member_profile(
     The full profile contains personal data (email, phone, address, date_of_birth).
     Restricted to the member themselves or an admin.
     """
-    if current_user.id != member_id and current_user.app_role != "admin":
+    if current_user.id != member_id and not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Accès refusé")
 
     result = await db.execute(select(Member.id).where(Member.id == member_id))
