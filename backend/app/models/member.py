@@ -38,6 +38,8 @@ class Member(Base):
         String(20), nullable=False, default="member"
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Opt-out des emails de rappel J-7/J-1 (le digest de publication reste envoyé)
+    email_reminders_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     # Activation
     activation_token: Mapped[Optional[str]] = mapped_column(
