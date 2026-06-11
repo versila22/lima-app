@@ -274,17 +274,49 @@ async def remove_assignment(
 @router.put("/{alignment_id}/publish", response_model=AlignmentRead)
 async def publish_alignment(
     alignment_id: UUID,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     _: Member = Depends(require_admin),
 ):
-    """Publish a grid to make it visible to all members (admin only)."""
+    """Publish a grid and send each assigned member a digest email (admin only).
+
+    Re-publishing an already-published grid is a no-op for emails.
+    """
     result = await db.execute(
         select(Alignment).where(Alignment.id == alignment_id)
     )
     alignment = result.scalar_one_or_none()
     if alignment is None:
         raise HTTPException(status_code=404, detail="Grille introuvable")
+
+    was_published = alignment.status == "published"
     alignment.status = "published"
     await db.flush()
+    await db.commit()
     await db.refresh(alignment)
+
+    if not was_published:
+        background_tasks.add_task(
+            _send_publish_digests_task, alignment_id=alignment.id
+        )
+
     return alignment
+
+
+async def _send_publish_digests_task(alignment_id: UUID) -> None:
+    """Background task: open a fresh session and send the digests."""
+    # Résolution tardive : conftest.py remplace app_database.AsyncSessionLocal par la
+    # factory de test (`app_database.AsyncSessionLocal = TestingSessionLocal`). Un
+    # `from app.database import AsyncSessionLocal` figerait l'original — ne pas changer.
+    import app.database as app_database
+    from app.services import notification_service
+
+    async with app_database.AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(Alignment).where(Alignment.id == alignment_id)
+        )
+        alignment = result.scalar_one_or_none()
+        if alignment is not None:
+            await notification_service.send_publish_digests(
+                db, alignment, base_url=settings.FRONTEND_URL
+            )
