@@ -17,6 +17,7 @@ import {
   Images,
   MessageSquareWarning,
   Gift,
+  Shield,
 } from "lucide-react";
 import { FeedbackDialog } from "@/components/FeedbackDialog";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -232,6 +233,34 @@ export function AppSidebar({
           )}
         </div>
       )}
+
+      {/* Données personnelles */}
+      <div className="border-t border-sidebar-border px-2 pt-2 pb-1">
+        {collapsed && !isMobile ? (
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <Link
+                to="/donnees-personnelles"
+                className="flex justify-center rounded-lg p-2 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+                aria-label="Données personnelles"
+              >
+                <Shield className="w-4 h-4" />
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="bg-popover border-border">
+              Données personnelles
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <Link
+            to="/donnees-personnelles"
+            className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+          >
+            <Shield className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Données personnelles</span>
+          </Link>
+        )}
+      </div>
 
       <div
         className={cn(

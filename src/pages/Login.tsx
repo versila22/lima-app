@@ -134,6 +134,12 @@ export default function Login() {
           </form>
         </CardContent>
       </Card>
+
+      <p className="text-center text-xs text-muted-foreground mt-4">
+        <Link to="/donnees-personnelles" className="hover:text-foreground underline underline-offset-2">
+          Données personnelles
+        </Link>
+      </p>
     </div>
   );
 }
