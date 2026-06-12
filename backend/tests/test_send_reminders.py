@@ -3,6 +3,7 @@ from datetime import datetime
 import pytest
 from sqlalchemy import delete
 
+from app.config import settings
 from app.models.alignment import AlignmentAssignment, AlignmentEvent
 from app.models.event import Event
 from app.services import reminder_service
@@ -87,6 +88,7 @@ async def test_send_due_reminders_sends_email_for_each_due_assignment(
         "app.services.reminder_service.send_event_reminder_email",
         fake_send_event_reminder_email,
     )
+    monkeypatch.setattr(settings, "SMTP_HOST", "smtp.test")
 
     sent, failed = await reminder_service.send_due_reminders(
         db_session,
@@ -152,6 +154,7 @@ async def test_reminders_are_idempotent(seeded_data, db_session, monkeypatch):
     monkeypatch.setattr(
         "app.services.reminder_service.send_event_reminder_email", fake_send
     )
+    monkeypatch.setattr(settings, "SMTP_HOST", "smtp.test")
 
     now = datetime(2026, 2, 9, 22, 0)
     sent1, _ = await reminder_service.send_due_reminders(db_session, kind="J1", now=now)
@@ -159,6 +162,35 @@ async def test_reminders_are_idempotent(seeded_data, db_session, monkeypatch):
     assert sent1 == 1
     assert sent2 == 0
     assert len(calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_no_email_log_written_when_smtp_unconfigured(
+    seeded_data, db_session, monkeypatch
+):
+    """Sans SMTP, le run est ignoré SANS marquer les rappels comme envoyés."""
+    from sqlalchemy import select
+
+    from app.models.alignment import AlignmentAssignment
+    from app.models.email_log import EmailLog
+
+    db_session.add(
+        AlignmentAssignment(
+            alignment_id=seeded_data["published_alignment"].id,
+            event_id=seeded_data["public_event"].id,
+            member_id=seeded_data["regular"].id,
+            role="JR",
+        )
+    )
+    await db_session.commit()
+
+    monkeypatch.setattr(settings, "SMTP_HOST", "")
+    sent, failed = await reminder_service.send_due_reminders(
+        db_session, kind="J1", now=datetime(2026, 2, 9, 22, 0)
+    )
+    assert (sent, failed) == (0, 0)
+    logs = (await db_session.execute(select(EmailLog))).scalars().all()
+    assert logs == []
 
 
 @pytest.mark.asyncio

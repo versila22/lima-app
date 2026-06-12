@@ -127,6 +127,12 @@ async def send_due_reminders(
     now: datetime | None = None,
     base_url: str | None = None,
 ) -> tuple[int, int]:
+    if not settings.SMTP_HOST:
+        # Sans SMTP, send_email no-op : ne PAS marquer les rappels comme envoyés
+        # dans email_logs, sinon ils seraient définitivement supprimés.
+        logger.warning("SMTP non configuré : run de rappels %s ignoré sans traçage", kind)
+        return 0, 0
+
     reminders = await get_due_reminders(db=db, kind=kind, now=now)
     frontend_url = (base_url or settings.FRONTEND_URL).rstrip("/")
 
