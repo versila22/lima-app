@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import time
+from http.cookies import CookieError, SimpleCookie
 from typing import Optional
 from uuid import UUID
 
@@ -67,11 +68,11 @@ class ActivityTrackerMiddleware:
             asyncio.ensure_future(self._write_activity_log(activity_data))
 
     def _extract_user_id(self, headers: dict) -> Optional[UUID]:
-        authorization = (headers.get(b"authorization") or b"").decode("utf-8", errors="replace")
-        if not authorization:
-            return None
-        scheme, _, token = authorization.partition(" ")
-        if scheme.lower() != "bearer" or not token:
+        # Auth is cookie-based (httpOnly access_token) with a Bearer header
+        # fallback. Reading both is required so logged-in traffic is attributed
+        # to its user — otherwise DAU and login attribution stay near-zero.
+        token = self._token_from_authorization(headers) or self._token_from_cookie(headers)
+        if not token:
             return None
         try:
             payload = decode_access_token(token)
@@ -84,6 +85,29 @@ class ActivityTrackerMiddleware:
             return UUID(str(subject))
         except (TypeError, ValueError):
             return None
+
+    @staticmethod
+    def _token_from_authorization(headers: dict) -> Optional[str]:
+        authorization = (headers.get(b"authorization") or b"").decode("utf-8", errors="replace")
+        if not authorization:
+            return None
+        scheme, _, token = authorization.partition(" ")
+        if scheme.lower() != "bearer" or not token:
+            return None
+        return token
+
+    @staticmethod
+    def _token_from_cookie(headers: dict) -> Optional[str]:
+        cookie_header = (headers.get(b"cookie") or b"").decode("utf-8", errors="replace")
+        if not cookie_header:
+            return None
+        jar: SimpleCookie = SimpleCookie()
+        try:
+            jar.load(cookie_header)
+        except CookieError:
+            return None
+        morsel = jar.get("access_token")
+        return morsel.value if morsel else None
 
     def _extract_ip(self, headers: dict, scope: Scope) -> Optional[str]:
         forwarded_for = (headers.get(b"x-forwarded-for") or b"").decode("utf-8", errors="replace")

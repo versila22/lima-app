@@ -111,6 +111,35 @@ async def test_login_attempts_groups_success_and_failure(auth_client, seeded_dat
 
 
 @pytest.mark.asyncio
+async def test_login_attempts_empty_returns_zero_summary(auth_client, seeded_data):
+    """Regression: the endpoint must return 200 even with no login rows
+    (the conditional-aggregation summary always yields success+failure groups)."""
+    response = await auth_client.get("/api/admin/activity/logins", params={"days": 7})
+
+    assert response.status_code == 200
+    body = response.json()
+    outcomes = {item["outcome"]: item["count"] for item in body["summary"]}
+    assert outcomes == {"success": 0, "failure": 0}
+
+
+@pytest.mark.asyncio
+async def test_trigger_reminders_endpoint_runs(auth_client, seeded_data):
+    """Regression: the admin 'send reminders' endpoint must not import the
+    emptied script module — it delegates to reminder_service."""
+    response = await auth_client.post("/api/admin/reminders/send")
+    assert response.status_code == 200
+    body = response.json()
+    assert set(body) == {"sent", "failed", "total"}
+    assert body["total"] == body["sent"] + body["failed"]
+
+
+@pytest.mark.asyncio
+async def test_trigger_reminders_requires_admin(regular_client, seeded_data):
+    response = await regular_client.post("/api/admin/reminders/send")
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
 async def test_purge_old_activity_logs(db_session):
     from datetime import UTC, datetime, timedelta
 
