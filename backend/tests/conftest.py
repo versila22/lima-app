@@ -17,6 +17,7 @@ from app.middleware.activity_tracker import ActivityTrackerMiddleware
 from app.models.activity_log import ActivityLog
 from app.models.alignment import Alignment, AlignmentAssignment, AlignmentEvent
 from app.models.commission import Commission, MemberCommission
+from app.models.email_log import EmailLog
 from app.models.event import Event
 from app.models.feedback import Feedback
 from app.models.member import Member
@@ -76,6 +77,7 @@ async def setup_test_database():
 async def clean_db():
     async with TestingSessionLocal() as session:
         for model in [
+            EmailLog,
             Feedback,
             ActivityLog,
             AlignmentAssignment,

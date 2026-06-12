@@ -61,8 +61,17 @@ async def lifespan(app: FastAPI):
         print(f"WARN:     Migrations failed (continuing anyway for diagnostics): {e}")
         print(traceback.format_exc())
 
+    scheduler_task = None
+    if not settings.is_development:
+        import asyncio
+        from app.scheduler import scheduler_loop
+        scheduler_task = asyncio.create_task(scheduler_loop())
+
     yield
+
     # On shutdown
+    if scheduler_task is not None:
+        scheduler_task.cancel()
     print("INFO:     Shutting down.")
 
 

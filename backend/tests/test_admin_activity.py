@@ -108,3 +108,31 @@ async def test_login_attempts_groups_success_and_failure(auth_client, seeded_dat
     assert outcomes["success"] == 1
     assert outcomes["failure"] == 1
     assert len(body["attempts"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_purge_old_activity_logs(db_session):
+    from datetime import UTC, datetime, timedelta
+
+    from app.models.activity_log import ActivityLog
+    from app.services.maintenance_service import purge_old_activity_logs
+
+    now = datetime.now(UTC).replace(tzinfo=None)
+    old = ActivityLog(
+        method="GET", path="/old", status_code=200, duration_ms=10,
+        created_at=now - timedelta(days=400),
+    )
+    recent = ActivityLog(
+        method="GET", path="/recent", status_code=200, duration_ms=10,
+        created_at=now - timedelta(days=10),
+    )
+    db_session.add_all([old, recent])
+    await db_session.commit()
+
+    deleted = await purge_old_activity_logs(db_session)
+    assert deleted == 1
+
+    from sqlalchemy import select
+    remaining = (await db_session.execute(select(ActivityLog))).scalars().all()
+    assert len(remaining) == 1
+    assert remaining[0].path == "/recent"

@@ -203,3 +203,32 @@ async def test_resend_activation_does_not_leak_token(auth_client, seeded_data):
     )
     assert resp.status_code == 200
     assert "token" not in resp.json()
+
+
+@pytest.mark.asyncio
+async def test_member_list_photo_urls_are_presigned(
+    auth_client, seeded_data, db_session, monkeypatch
+):
+    from app.config import settings
+    from app.models.member import Member
+    from app.services import storage
+
+    monkeypatch.setattr(settings, "S3_PUBLIC_URL", "https://pub-test.r2.dev")
+    monkeypatch.setattr(settings, "S3_BUCKET_NAME", "lima-photos")
+    monkeypatch.setattr(settings, "S3_ENDPOINT_URL", "https://test.r2.cloudflarestorage.com")
+    monkeypatch.setattr(settings, "S3_ACCESS_KEY_ID", "k")
+    monkeypatch.setattr(settings, "S3_SECRET_ACCESS_KEY", "s")
+    storage._s3_client.cache_clear()
+
+    member = await db_session.get(Member, seeded_data["regular"].id)
+    member.photo_url = "https://pub-test.r2.dev/photos/test.jpg"
+    await db_session.commit()
+
+    resp = await auth_client.get("/members")
+    assert resp.status_code == 200
+    target = next(m for m in resp.json() if m["email"] == "member@example.com")
+    assert "X-Amz-Signature" in target["photo_url"]
+
+    # La valeur stockée en DB n'a PAS été remplacée par l'URL signée
+    await db_session.refresh(member)
+    assert member.photo_url == "https://pub-test.r2.dev/photos/test.jpg"

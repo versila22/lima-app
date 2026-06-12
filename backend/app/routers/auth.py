@@ -8,6 +8,7 @@ from jose import JWTError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sqlalchemy.orm.attributes import set_committed_value
 
 from app.config import settings
 from app.database import get_db
@@ -27,6 +28,7 @@ from app.schemas.auth import (
 )
 from app.schemas.member import MemberProfileRead, MemberProfileUpdate, MemberRead, SeasonHistoryEntry
 from app.services import auth_service
+from app.services.storage import sign_photo_url
 from app.services.auth_service import AuthenticationError
 from app.services.email_service import send_password_reset_email
 from app.utils.deps import get_current_user
@@ -51,6 +53,7 @@ async def _build_member_profile(db: AsyncSession, member_id: UUID) -> MemberProf
         .where(Member.id == member_id)
     )
     member = member_result.scalar_one()
+    set_committed_value(member, "photo_url", sign_photo_url(member.photo_url))
 
     current_season_result = await db.execute(
         select(Season).where(Season.is_current.is_(True)).limit(1)

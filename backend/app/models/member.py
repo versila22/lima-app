@@ -4,7 +4,7 @@ import uuid
 from datetime import date, datetime
 from typing import Optional
 
-from sqlalchemy import Boolean, Date, DateTime, Index, String, Text, func
+from sqlalchemy import Boolean, Date, DateTime, Index, String, Text, func, true
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -38,6 +38,10 @@ class Member(Base):
         String(20), nullable=False, default="member"
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Opt-out des emails de rappel J-7/J-1 (le digest de publication reste envoyé)
+    email_reminders_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default=true(), nullable=False
+    )
 
     # Activation
     activation_token: Mapped[Optional[str]] = mapped_column(

@@ -32,6 +32,7 @@ const AlignementEditor = lazy(() => import("./pages/AlignementEditor"));
 const Home = lazy(() => import("./pages/Home"));
 const Galerie = lazy(() => import("./pages/Galerie"));
 const AdminFeedback = lazy(() => import("./pages/AdminFeedback"));
+const DonneesPersonnelles = lazy(() => import("./pages/DonneesPersonnelles"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -117,6 +118,7 @@ function AppRoutes() {
         <Route path="/activate" element={<Activate />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/donnees-personnelles" element={<DonneesPersonnelles />} />
 
         {/* Protected */}
         <Route

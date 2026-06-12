@@ -10,7 +10,13 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
-async def send_email(to: str, subject: str, html_body: str) -> None:
+async def send_email(
+    to: str,
+    subject: str,
+    html_body: str,
+    ics_attachment: str | None = None,
+    ics_filename: str = "planning-lima.ics",
+) -> None:
     """Send a HTML email via SMTP, or skip when SMTP is not configured."""
     if not settings.SMTP_HOST:
         logger.warning(
@@ -26,6 +32,13 @@ async def send_email(to: str, subject: str, html_body: str) -> None:
     message["Subject"] = subject
     message.set_content("Votre client email ne supporte pas le HTML.")
     message.add_alternative(html_body, subtype="html")
+    if ics_attachment:
+        message.add_attachment(
+            ics_attachment.encode("utf-8"),
+            maintype="text",
+            subtype="calendar",
+            filename=ics_filename,
+        )
 
     await aiosmtplib.send(
         message,
@@ -188,10 +201,11 @@ async def send_event_reminder_email(
     role: str,
     venue_name: str | None,
     base_url: str,
+    when_label: str = "demain",
 ) -> None:
-    """Send a 24h reminder email for an upcoming assigned event."""
+    """Send a reminder email for an upcoming assigned event."""
     planning_link = f"{base_url.rstrip('/')}/mon-planning"
-    subject = f"LIMA — Rappel : {event_title} demain"
+    subject = f"LIMA — Rappel : {event_title} {when_label}"
     venue_block = (
         f"<strong>Lieu :</strong> {venue_name}<br>" if venue_name else ""
     )
@@ -200,7 +214,7 @@ async def send_event_reminder_email(
       <body style="font-family: Arial, sans-serif; color: #1f2937; line-height: 1.6;">
         <p>Bonjour {first_name},</p>
         <p>
-          Petit rappel : tu es attendu(e) demain pour l'événement
+          Petit rappel : tu es attendu(e) {when_label} pour l'événement
           <strong>{event_title}</strong>.
         </p>
         <p>
@@ -221,7 +235,95 @@ async def send_event_reminder_email(
           <a href="{planning_link}">{planning_link}</a>
         </p>
         <p>À très vite sur scène 🎭</p>
+        <p style="font-size: 12px; color: #6b7280;">
+          Tu peux désactiver ces rappels automatiques depuis la page
+          « Mon profil » du portail membres.
+        </p>
       </body>
     </html>
     """
     await send_email(to, subject, html_body)
+
+
+ROLE_LABELS = {
+    "JR": "Joueur·euse",
+    "MJ_MC": "MJ / MC",
+    "DJ": "DJ",
+    "AR": "Arbitre",
+    "COACH": "Coach",
+    "BENEVOLE": "Bénévole",
+}
+
+
+async def send_alignment_digest_email(
+    to: str,
+    first_name: str,
+    alignment_name: str,
+    events: list[dict],
+    base_url: str,
+    ics_content: str | None = None,
+) -> None:
+    """Send the per-member digest when an alignment grid is published.
+
+    `events`: list of dicts with keys title, date_str, role, venue_name (optional).
+    """
+    planning_link = f"{base_url.rstrip('/')}/mon-planning"
+    ics_note = (
+        """
+        <p>
+          📅 Le fichier joint ajoute directement ces dates à ton agenda
+          (Google Agenda, Apple Calendrier, Outlook…).
+        </p>
+        """
+        if ics_content
+        else ""
+    )
+    rows = "".join(
+        f"""
+        <tr>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb;">{e["date_str"]}</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb;"><strong>{e["title"]}</strong></td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb;">{ROLE_LABELS.get(e["role"], e["role"])}</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb;">{e.get("venue_name") or "—"}</td>
+        </tr>
+        """
+        for e in events
+    )
+    html_body = f"""
+    <html>
+      <body style="font-family: Arial, sans-serif; color: #1f2937; line-height: 1.6;">
+        <p>Bonjour {first_name},</p>
+        <p>
+          La grille <strong>{alignment_name}</strong> vient d'être publiée.
+          Voici tes affectations pour la période :
+        </p>
+        <table style="border-collapse: collapse; width: 100%; font-size: 14px;">
+          <thead>
+            <tr style="background: #f3f4f6; text-align: left;">
+              <th style="padding: 8px 12px;">Date</th>
+              <th style="padding: 8px 12px;">Événement</th>
+              <th style="padding: 8px 12px;">Rôle</th>
+              <th style="padding: 8px 12px;">Lieu</th>
+            </tr>
+          </thead>
+          <tbody>{rows}</tbody>
+        </table>
+        <p style="margin: 24px 0;">
+          <a
+            href="{planning_link}"
+            style="background: #7c3aed; color: white; text-decoration: none; padding: 12px 18px; border-radius: 8px; display: inline-block;"
+          >
+            Voir mon planning
+          </a>
+        </p>
+        {ics_note}
+        <p>À très vite sur scène 🎭</p>
+      </body>
+    </html>
+    """
+    await send_email(
+        to,
+        f"LIMA — Tes spectacles : {alignment_name}",
+        html_body,
+        ics_attachment=ics_content,
+    )
