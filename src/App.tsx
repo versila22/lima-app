@@ -57,6 +57,15 @@ function PageLoader() {
 // ---- AuthLogoutHandler ----
 // Only shows "Session expirée" toast when the user *had* an authenticated session.
 // On first load with no prior session, /auth/me 401s — we navigate silently.
+// Public routes are exempt: an anonymous 401 must not bounce them to /login.
+const PUBLIC_PATHS = [
+  "/login",
+  "/activate",
+  "/forgot-password",
+  "/reset-password",
+  "/donnees-personnelles",
+];
+
 function AuthLogoutHandler() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
@@ -75,7 +84,9 @@ function AuthLogoutHandler() {
         toast.error("Session expirée, veuillez vous reconnecter.");
         wasAuthedRef.current = false;
       }
-      navigate("/login", { replace: true });
+      if (!PUBLIC_PATHS.includes(window.location.pathname)) {
+        navigate("/login", { replace: true });
+      }
       setTimeout(() => { handlingRef.current = false; }, 2000);
     };
     window.addEventListener("auth:logout", handler);
