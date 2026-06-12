@@ -281,16 +281,20 @@ function combineDateAndTime(date: Date | undefined, hour: string, minute: string
   return withTime.toISOString();
 }
 
-function getInitialDateTimeState(value?: string | null): {
-  date: Date;
+function getInitialDateTimeState(value?: string | null, required = false): {
+  date: Date | undefined;
   hour: string;
   minute: string;
 } {
-  const parsed = parseDateTimeValue(value) ?? getDefaultDateTime();
+  // An empty optional field stays empty (no fabricated default date); a required
+  // field falls back to a sensible default so it always has a value to show.
+  const parsed = parseDateTimeValue(value);
+  const date = parsed ?? (required ? getDefaultDateTime() : undefined);
+  const fmtSource = date ?? getDefaultDateTime();
   return {
-    date: parsed,
-    hour: format(parsed, "HH"),
-    minute: MINUTE_OPTIONS.includes(format(parsed, "mm")) ? format(parsed, "mm") : "00",
+    date,
+    hour: format(fmtSource, "HH"),
+    minute: MINUTE_OPTIONS.includes(format(fmtSource, "mm")) ? format(fmtSource, "mm") : "00",
   };
 }
 
@@ -317,25 +321,32 @@ function DateTimeField({
   onChange: (value?: string) => void;
   required?: boolean;
 }) {
-  const initialState = useMemo(() => getInitialDateTimeState(value), [value]);
+  const initialState = useMemo(() => getInitialDateTimeState(value, required), [value, required]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(initialState.date);
   const [hour, setHour] = useState(initialState.hour);
   const [minute, setMinute] = useState(initialState.minute);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    const nextState = getInitialDateTimeState(value);
+    const nextState = getInitialDateTimeState(value, required);
     setSelectedDate(nextState.date);
     setHour(nextState.hour);
     setMinute(nextState.minute);
-  }, [value]);
+  }, [value, required]);
 
-  const sync = (date: Date | undefined, nextHour: string, nextMinute: string) => {
+  const emit = (date: Date | undefined, nextHour: string, nextMinute: string) => {
     setSelectedDate(date);
     setHour(nextHour);
     setMinute(nextMinute);
     onChange(combineDateAndTime(date, nextHour, nextMinute));
   };
+
+  const clearDate = () => {
+    setSelectedDate(undefined);
+    onChange(undefined);
+  };
+
+  const hasDate = !!selectedDate;
 
   return (
     <div className="space-y-2">
@@ -344,33 +355,51 @@ function DateTimeField({
         {required ? " *" : ""}
       </Label>
       <div className="space-y-2">
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
+        <div className="flex gap-2">
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1 justify-between bg-background/50 text-left font-normal hover:bg-background/70"
+              >
+                <span className={cn(!hasDate && "text-muted-foreground")}>
+                  {hasDate
+                    ? displayDateTime(selectedDate, hour, minute)
+                    : required
+                      ? "Choisir une date"
+                      : "Aucune date de fin"}
+                </span>
+                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto border-border bg-popover p-0" align="start">
+              <Calendar
+                mode="single"
+                locale={fr}
+                selected={selectedDate}
+                onSelect={(date) => {
+                  emit(date ?? getDefaultDateTime(), hour, minute);
+                  setOpen(false);
+                }}
+                initialFocus
+                className="bg-popover"
+              />
+            </PopoverContent>
+          </Popover>
+          {!required && hasDate && (
             <Button
               type="button"
               variant="outline"
-              className="w-full justify-between bg-background/50 text-left font-normal hover:bg-background/70"
+              size="icon"
+              onClick={clearDate}
+              aria-label="Retirer la date de fin"
+              className="shrink-0 bg-background/50 text-muted-foreground hover:text-destructive"
             >
-              <span className={cn(!selectedDate && "text-muted-foreground")}>
-                {displayDateTime(selectedDate, hour, minute)}
-              </span>
-              <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+              <XIcon className="h-4 w-4" />
             </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto border-border bg-popover p-0" align="start">
-            <Calendar
-              mode="single"
-              locale={fr}
-              selected={selectedDate}
-              onSelect={(date) => {
-                sync(date ?? getDefaultDateTime(), hour, minute);
-                setOpen(false);
-              }}
-              initialFocus
-              className="bg-popover"
-            />
-          </PopoverContent>
-        </Popover>
+          )}
+        </div>
 
         <div className="grid grid-cols-[1fr_auto] gap-2">
           <Input
@@ -379,17 +408,23 @@ function DateTimeField({
             max={23}
             inputMode="numeric"
             value={hour}
+            disabled={!hasDate}
             onChange={(e) => {
               const raw = e.target.value;
               const nextHour = raw === "" ? "" : String(Math.min(23, Math.max(0, Number(raw)))).padStart(2, "0");
-              sync(selectedDate ?? getDefaultDateTime(), nextHour, minute || "00");
+              if (selectedDate) emit(selectedDate, nextHour, minute || "00");
+              else setHour(nextHour);
             }}
             className="bg-background/50"
             placeholder="Heure (0-23)"
           />
           <Select
             value={minute}
-            onValueChange={(nextMinute) => sync(selectedDate ?? getDefaultDateTime(), hour || "00", nextMinute)}
+            disabled={!hasDate}
+            onValueChange={(nextMinute) => {
+              if (selectedDate) emit(selectedDate, hour || "00", nextMinute);
+              else setMinute(nextMinute);
+            }}
           >
             <SelectTrigger className="w-[120px] bg-background/50">
               <SelectValue placeholder="Minutes" />
@@ -1256,7 +1291,7 @@ function EditEventDialog({
       event_type: eventType,
       is_away: isAway,
       start_at: startAt,
-      end_at: endAt || undefined,
+      end_at: endAt || null,
       notes: notes || undefined,
       match_report: matchReport || undefined,
       allow_registration: allowRegistration,
@@ -1469,7 +1504,7 @@ function AddEventDialog({
       title,
       event_type: eventType,
       start_at: startAt,
-      end_at: endAt || undefined,
+      end_at: endAt || null,
       notes: notes || undefined,
       allow_registration: allowRegistration,
     });
