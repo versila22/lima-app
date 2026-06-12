@@ -31,7 +31,8 @@ from app.schemas.event import (
     GalleryPhotoRead,
     RegistrationRead,
 )
-from app.services import import_service
+from app.schemas.alignment import AssignmentRole
+from app.services import cast_service, import_service
 from app.services.storage import sign_photo_url
 from app.utils.deps import get_current_user, require_admin
 
@@ -43,6 +44,11 @@ class EventCastMember(BaseModel):
     first_name: str
     last_name: str
     role: str
+
+
+class EventCastAssign(BaseModel):
+    member_id: UUID
+    role: AssignmentRole
 
 
 @router.get("/photos", response_model=List[GalleryPhotoRead])
@@ -210,6 +216,51 @@ async def get_event_cast(
         )
         for member_id, first_name, last_name, role in result.all()
     ]
+
+
+@router.post(
+    "/{event_id}/cast",
+    response_model=EventCastMember,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_event_cast_member(
+    event_id: UUID,
+    data: EventCastAssign,
+    db: AsyncSession = Depends(get_db),
+    _: Member = Depends(require_admin),
+):
+    """Ajoute ou recase un membre dans le casting d'un événement (admin, silencieux)."""
+    try:
+        assignment = await cast_service.set_event_cast_member(
+            db, event_id, data.member_id, data.role
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    member_result = await db.execute(select(Member).where(Member.id == data.member_id))
+    member = member_result.scalar_one()
+    return EventCastMember(
+        member_id=member.id,
+        first_name=member.first_name,
+        last_name=member.last_name,
+        role=assignment.role,
+    )
+
+
+@router.delete(
+    "/{event_id}/cast/{member_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def remove_event_cast_member(
+    event_id: UUID,
+    member_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: Member = Depends(require_admin),
+):
+    """Retire un membre du casting d'un événement (admin, silencieux)."""
+    removed = await cast_service.remove_event_cast_member(db, event_id, member_id)
+    if not removed:
+        raise HTTPException(status_code=404, detail="Membre non assigné à cet événement")
 
 
 @router.post("", response_model=EventRead, status_code=status.HTTP_201_CREATED)

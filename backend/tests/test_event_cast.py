@@ -113,3 +113,92 @@ async def test_set_event_cast_member_unknown_event_raises(db_session):
         await cast_service.set_event_cast_member(
             db_session, uuid.uuid4(), uuid.uuid4(), "JR"
         )
+
+
+@pytest.mark.asyncio
+async def test_add_cast_member_requires_admin(regular_client, seeded_data):
+    resp = await regular_client.post(
+        f"/events/{seeded_data['public_event'].id}/cast",
+        json={"member_id": str(seeded_data["regular"].id), "role": "JR"},
+    )
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_add_cast_member_creates_assignment(auth_client, seeded_data):
+    resp = await auth_client.post(
+        f"/events/{seeded_data['public_event'].id}/cast",
+        json={"member_id": str(seeded_data["regular"].id), "role": "JR"},
+    )
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["member_id"] == str(seeded_data["regular"].id)
+    assert body["role"] == "JR"
+
+    cast = await auth_client.get(f"/events/{seeded_data['public_event'].id}/cast")
+    assert cast.status_code == 200
+    members = {(m["member_id"], m["role"]) for m in cast.json()}
+    assert (str(seeded_data["regular"].id), "JR") in members
+
+
+@pytest.mark.asyncio
+async def test_add_cast_member_upsert_changes_role(auth_client, seeded_data):
+    url = f"/events/{seeded_data['public_event'].id}/cast"
+    body = {"member_id": str(seeded_data["regular"].id), "role": "JR"}
+    await auth_client.post(url, json=body)
+    await auth_client.post(url, json={**body, "role": "MC"})
+
+    cast = (await auth_client.get(url)).json()
+    rows = [m for m in cast if m["member_id"] == str(seeded_data["regular"].id)]
+    assert len(rows) == 1
+    assert rows[0]["role"] == "MC"
+
+
+@pytest.mark.asyncio
+async def test_add_cast_member_rejects_legacy_role(auth_client, seeded_data):
+    resp = await auth_client.post(
+        f"/events/{seeded_data['public_event'].id}/cast",
+        json={"member_id": str(seeded_data["regular"].id), "role": "MJ_MC"},
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_add_cast_member_unknown_event_404(auth_client, seeded_data):
+    resp = await auth_client.post(
+        "/events/00000000-0000-0000-0000-000000000009/cast",
+        json={"member_id": str(seeded_data["regular"].id), "role": "JR"},
+    )
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_remove_cast_member(auth_client, seeded_data):
+    url = f"/events/{seeded_data['public_event'].id}/cast"
+    await auth_client.post(url, json={"member_id": str(seeded_data["regular"].id), "role": "JR"})
+
+    resp = await auth_client.delete(f"{url}/{seeded_data['regular'].id}")
+    assert resp.status_code == 204
+
+    cast = (await auth_client.get(url)).json()
+    assert all(m["member_id"] != str(seeded_data["regular"].id) for m in cast)
+
+
+@pytest.mark.asyncio
+async def test_remove_cast_member_not_assigned_404(auth_client, seeded_data):
+    resp = await auth_client.delete(
+        f"/events/{seeded_data['public_event'].id}/cast/{seeded_data['regular'].id}"
+    )
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_auto_alignment_excluded_from_list(auth_client, seeded_data):
+    await auth_client.post(
+        f"/events/{seeded_data['public_event'].id}/cast",
+        json={"member_id": str(seeded_data["regular"].id), "role": "JR"},
+    )
+    resp = await auth_client.get("/alignments")
+    assert resp.status_code == 200
+    names = [a["name"] for a in resp.json()]
+    assert "Casting" not in names
