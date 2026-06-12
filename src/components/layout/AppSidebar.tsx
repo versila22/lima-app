@@ -27,6 +27,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useAuth } from "@/contexts/AuthContext";
 import limaLogo from "@/assets/logo-lima.jpg";
 import logoLimaCouleur from "@/assets/posters/logo-lima-couleur.png";
+import { LIMA_WEBSITE, LIMA_FACEBOOK, LIMA_INSTAGRAM } from "@/lib/socials";
 
 interface AppSidebarProps {
   collapsed: boolean;
@@ -271,7 +272,7 @@ export function AppSidebar({
         <Tooltip delayDuration={0}>
           <TooltipTrigger asChild>
             <a
-              href="https://www.lima.asso.fr"
+              href={LIMA_WEBSITE}
               target="_blank"
               rel="noopener noreferrer"
               className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
@@ -284,7 +285,7 @@ export function AppSidebar({
         <Tooltip delayDuration={0}>
           <TooltipTrigger asChild>
             <a
-              href="https://www.instagram.com/lima_impro_angers/"
+              href={LIMA_INSTAGRAM}
               target="_blank"
               rel="noopener noreferrer"
               className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
@@ -297,7 +298,7 @@ export function AppSidebar({
         <Tooltip delayDuration={0}>
           <TooltipTrigger asChild>
             <a
-              href="https://www.facebook.com/lima.impro"
+              href={LIMA_FACEBOOK}
               target="_blank"
               rel="noopener noreferrer"
               className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
