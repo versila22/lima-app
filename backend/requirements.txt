@@ -9,9 +9,9 @@ pydantic-settings==2.2.1
 python-jose[cryptography]==3.5.0
 passlib[bcrypt]==1.7.4
 bcrypt==4.3.0  # pin: passlib 1.7.4 is incompatible with bcrypt >=5.0 (removed __about__ + no-truncate hard raise). See pyca/bcrypt#1079.
-python-multipart==0.0.20  # GHSA: DoS via unbounded multipart part headers (>=0.0.18 fixed)
+python-multipart==0.0.27  # GHSA: DoS via excessive logging / unbounded multipart headers (fixed >=0.0.22 & >=0.0.27)
 openpyxl==3.1.2
-python-dotenv==1.0.1
+python-dotenv==1.2.2  # GHSA: bump to patched release
 httpx==0.27.0
 email-validator==2.1.1
 greenlet==3.0.3

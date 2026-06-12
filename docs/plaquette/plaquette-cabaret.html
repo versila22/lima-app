@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>LIMA — Pour le plaisir de l'impro</title>
+<style>
+  :root{
+    --indigo:#2e1065;
+    --violet:#6d28d9;
+    --violet-soft:#ede9fe;
+    --yellow:#f59e0b;
+    --coral:#ef4444;
+    --ink:#1f2937;
+    --grey:#4b5563;
+    --line:#e5e7eb;
+  }
+  *{box-sizing:border-box;}
+  @page{size:A4;margin:0;}
+  html{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  body{
+    font-family:"Segoe UI",-apple-system,Helvetica,Arial,sans-serif;
+    color:var(--ink);
+    margin:0;
+    font-size:11pt;
+    line-height:1.45;
+  }
+  .page{
+    width:210mm;
+    padding:11mm 20mm;
+    break-after:page;
+    page-break-after:always;
+    position:relative;
+  }
+  .page:last-child{break-after:auto;page-break-after:auto;}
+  .page--center{min-height:297mm;display:flex;flex-direction:column;justify-content:center;}
+
+  /* ---------- COVER ---------- */
+  .cover{
+    background-color:var(--indigo);
+    background-size:cover;
+    background-position:center;
+    color:#fff;
+    -webkit-print-color-adjust:exact;
+    min-height:297mm;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    position:relative;
+  }
+  .cover::before{
+    content:"";position:absolute;inset:0;
+    background:linear-gradient(160deg,rgba(20,10,55,.66) 0%,rgba(15,8,45,.80) 55%,rgba(12,6,38,.92) 100%);
+  }
+  .cover > *{position:relative;z-index:1;}
+  .cover .brand{
+    font-size:13pt;letter-spacing:.35em;text-transform:uppercase;
+    color:var(--yellow);font-weight:700;margin-bottom:18px;
+  }
+  .cover h1{
+    font-size:40pt;line-height:1.05;margin:0 0 18px;font-weight:800;
+  }
+  .cover .lead{
+    font-size:14pt;max-width:30em;color:#d1c7f0;line-height:1.5;
+  }
+  .cover .season{
+    margin-top:40px;display:inline-block;border:1px solid var(--violet);
+    color:#fff;padding:9px 18px;border-radius:8px;font-size:11pt;
+    letter-spacing:.12em;
+  }
+
+  /* ---------- HEADINGS ---------- */
+  h2{
+    font-size:24pt;color:var(--indigo);margin:0 0 6px;font-weight:800;
+    line-height:1.1;
+  }
+  .eyebrow{
+    font-size:10pt;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--violet);font-weight:700;margin:0 0 4px;
+  }
+  .sub{color:var(--grey);font-style:italic;font-size:10.5pt;margin:0 0 13px;}
+  h3{
+    font-size:13pt;color:var(--indigo);margin:11px 0 6px;font-weight:700;
+    border-left:4px solid var(--violet);padding-left:11px;
+  }
+  p{margin:0 0 10px;}
+  strong{color:var(--indigo);}
+  .accent-y{color:var(--yellow);}
+  .lede{font-size:12pt;color:var(--ink);}
+
+  /* ---------- FICHE TOP (titre + photo) ---------- */
+  .fiche-top{display:flex;gap:14px;align-items:stretch;margin-bottom:6px;}
+  .fiche-top-text{flex:1 1 60%;min-width:0;}
+  .fiche-top-img{
+    flex:0 0 36%;align-self:stretch;width:36%;
+    object-fit:cover;border-radius:10px;min-height:100%;
+    box-shadow:0 2px 10px rgba(0,0,0,.18);
+  }
+
+  ul.clean{list-style:none;padding:0;margin:0 0 8px;}
+  ul.clean li{padding:3px 0 3px 22px;position:relative;}
+  ul.clean li::before{
+    content:"";position:absolute;left:0;top:10px;width:8px;height:8px;
+    background:var(--violet);border-radius:50%;
+  }
+
+  /* ---------- TECH TABLE ---------- */
+  table.tech{width:100%;border-collapse:collapse;margin:6px 0 18px;font-size:10.5pt;}
+  table.tech td{padding:3px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
+  table.tech td.k{width:38%;font-weight:700;color:var(--indigo);}
+
+  /* ---------- CALLOUT ---------- */
+  .callout{
+    background:var(--violet-soft);border-radius:10px;padding:12px 18px;
+    color:var(--indigo);font-size:10.5pt;margin:12px 0;
+  }
+
+  /* ---------- CONTACT ---------- */
+  .contact{
+    margin-top:10px;border-top:2px solid var(--line);padding-top:10px;
+    font-size:10.5pt;color:var(--grey);
+  }
+  .contact b{color:var(--indigo);}
+
+  .tag-match{color:var(--coral);}
+  .tag-cab{color:var(--yellow);}
+  .badge{
+    display:inline-block;font-size:9.5pt;font-weight:700;letter-spacing:.08em;
+    text-transform:uppercase;padding:4px 11px;border-radius:20px;margin-bottom:14px;
+  }
+  .badge.match{background:#fee2e2;color:var(--coral);}
+  .badge.cab{background:#fef3c7;color:#b45309;}
+</style>
+</head>
+<body>
+
+<!-- ============ COVER / INTRO ============ -->
+<section class="page cover" style="background-image:url('img/cover-cabaret.jpg')">
+  <div class="brand">LIMA · Ligue d'Improvisation Angevine</div>
+  <h1>Pour le plaisir<br>de l'impro</h1>
+  <p class="lead">Pas de texte, pas de décor, pas de seconde chance. Juste des
+  comédiens, une idée lancée par le public, et tout peut arriver.</p>
+  <span class="season">Saison 2026 / 2027</span>
+</section>
+
+<!-- ============ QUI SOMMES-NOUS ============ -->
+<section class="page page--center">
+  <p class="eyebrow">La troupe</p>
+  <h2>Qui sommes-nous ?</h2>
+  <p class="sub">La plus ancienne troupe d'improvisation d'Angers — depuis 1994.</p>
+
+  <p class="lede">Née à Angers en 1994, la LIMA est la plus ancienne troupe
+  d'improvisation de la ville. Trente ans plus tard, on est plus de
+  <strong>soixante</strong> à monter sur scène — du gamin de 9 ans au retraité —
+  réunis par la même idée&nbsp;: une histoire inventée en direct, ça ne se
+  raconte pas, ça se vit ensemble.</p>
+
+  <p>On défend une impro <strong>bienveillante et accessible</strong>. On n'est
+  pas là pour briller tout seuls&nbsp;: on est là pour embarquer la salle, faire
+  monter le rire et repartir avec une soirée que personne n'oubliera.</p>
+
+  <p>On joue partout où il y a un public&nbsp;: salles de spectacle, bars,
+  cafés-concerts, salles des fêtes, soirées d'association ou de mairie.
+  <strong>Deux formats</strong>, selon le lieu et l'ambiance que vous cherchez.</p>
+
+  <h3>Le Match d'impro</h3>
+  <p>Spectaculaire, sportif, grande jauge. Deux équipes s'affrontent sur des
+  thèmes tirés au sort, le public vote. <strong>Pour 200 à 400 spectateurs.</strong></p>
+
+  <h3>Le Cabaret</h3>
+  <p>Intime, convivial, au cœur du public. Les comédiens jouent au milieu de la
+  salle sur des thèmes lancés en direct. <strong>Pour 30 à 50 personnes.</strong></p>
+
+  <p style="margin-top:18px;color:var(--grey);font-style:italic;">La fiche qui suit
+  détaille le format proposé, son déroulé et tout ce qu'il faut pour l'accueillir.</p>
+</section>
+
+<!-- ============ FICHE CABARET ============ -->
+<section class="page">
+  <div class="fiche-top">
+    <div class="fiche-top-text">
+      <span class="badge cab">Format intime</span>
+      <h2>Le Cabaret d'impro</h2>
+      <p class="sub">Bars, cafés-concerts, salles d'association, soirées privées · 30 à 50 personnes.</p>
+      <p class="lede">L'impro au plus près du public. Les comédiens jouent
+      <strong>au milieu de la salle</strong>, à quelques mètres des spectateurs, sur
+      des thèmes lancés en direct. On improvise le verre à la main, on rebondit sur
+      une réplique du premier rang, et chaque soir est différent.</p>
+    </div>
+    <img class="fiche-top-img" src="img/photo-cabaret.jpg" alt="Cabaret d'impro LIMA">
+  </div>
+
+  <p>Pas besoin de grand-chose&nbsp;: un coin de salle, un micro, et l'envie de
+  passer une bonne soirée. Le Cabaret transforme n'importe quel bar ou salle en
+  scène d'improvisation.</p>
+
+  <h3>Pour le public</h3>
+  <ul class="clean">
+    <li><strong>Une ambiance apéro.</strong> On sirote son verre pendant que l'histoire se déroule à portée de main.</li>
+    <li><strong>Le public co-créateur.</strong> Ce sont les spectateurs qui proposent les thèmes.</li>
+    <li><strong>De la proximité.</strong> Pas de quatrième mur&nbsp;: on joue avec vous, pas devant vous.</li>
+  </ul>
+
+  <h3>Pour le lieu</h3>
+  <p>Un Cabaret LIMA, c'est une soirée qui <strong>remplit en semaine</strong> et
+  un public qui arrive tôt et reste tard. Pour un bar, ça veut dire des gens qui
+  consomment entre les scènes et qui restent après le spectacle. On joue en deux
+  parties d'environ 40 minutes, pour laisser le bar respirer entre les temps
+  forts. On a déjà posé nos valises à la salle <strong>Giffard</strong>
+  (Avrillé), au <strong>Welsh</strong> et au <strong>Blue Monkey</strong>
+  (Angers), et à la <strong>salle AGIS</strong> (Mûrs-Érigné).</p>
+
+  <h3>Fiche technique</h3>
+  <table class="tech">
+    <tr><td class="k">Format</td><td>Comédiens + meneur de jeu + musicien (selon formule)</td></tr>
+    <tr><td class="k">Durée</td><td>~1h30, en deux parties d'environ 40 min</td></tr>
+    <tr><td class="k">Jauge conseillée</td><td>30 à 50 personnes</td></tr>
+    <tr><td class="k">Public</td><td>Tout public dès 9 ans</td></tr>
+    <tr><td class="k">Espace scénique</td><td>Un coin de 3 × 2 m, à plat, suffit</td></tr>
+    <tr><td class="k">À fournir par le lieu</td><td>Un micro + une petite sono ; éclairage suffisant pour voir les visages</td></tr>
+    <tr><td class="k">Apporté par la LIMA</td><td>Comédiens, meneur de jeu, musicien et son clavier (selon formule)</td></tr>
+    <tr><td class="k">Montage / démontage</td><td>Rapide, sans interrompre votre service</td></tr>
+  </table>
+
+  <div class="callout">Votre lieu est atypique&nbsp;? Tant mieux. On s'adapte à
+  l'espace plutôt que l'inverse. Dites-nous ce que vous avez, on trouve comment
+  jouer dedans.</div>
+
+  <div class="contact">
+    <b>Contact</b> · president@lima.asso.fr · lima.asso.fr · @lima_impro_angers
+  </div>
+</section>
+
+</body>
+</html>
