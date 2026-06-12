@@ -213,3 +213,15 @@ async def test_change_password_validation_returns_422(regular_client, seeded_dat
     )
 
     assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_update_me_reminder_opt_out(regular_client, seeded_data):
+    resp = await regular_client.put(
+        "/auth/me", json={"email_reminders_enabled": False}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["email_reminders_enabled"] is False
+
+    me = await regular_client.get("/auth/me")
+    assert me.json()["email_reminders_enabled"] is False

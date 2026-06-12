@@ -63,6 +63,7 @@ export interface MemberRead {
   updated_at: string;
   member_seasons: MemberSeasonRead[];
   photo_url?: string | null;
+  email_reminders_enabled: boolean;
 }
 
 export interface MemberProfileSeasonHistory {
@@ -86,6 +87,7 @@ export interface MemberProfileRead {
   season_history: MemberProfileSeasonHistory[];
   member_seasons: MemberSeasonRead[];
   photo_url?: string | null;
+  email_reminders_enabled: boolean;
 }
 
 export interface MemberSummary {

@@ -72,6 +72,7 @@ class MemberProfileUpdate(BaseModel):
     postal_code: Optional[str] = None
     city: Optional[str] = None
     photo_url: Optional[str] = None
+    email_reminders_enabled: Optional[bool] = None
 
 
 class MemberRoleUpdate(BaseModel):
@@ -88,6 +89,7 @@ class MemberRead(MemberBase):
     player_status: Optional[Literal["M", "C", "L", "A"]] = None
     asso_role: Optional[str] = None
     commissions: List[str] = []
+    email_reminders_enabled: bool = True
 
     model_config = {"from_attributes": True}
 

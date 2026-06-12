@@ -26,6 +26,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -169,6 +170,18 @@ export default function MonProfil() {
     },
     onError: (err) => {
       toast.error(err.detail ?? "Erreur lors de la mise à jour du profil");
+    },
+  });
+
+  const remindersMutation = useMutation<MemberProfileRead, ApiError, boolean>({
+    mutationFn: (enabled: boolean) =>
+      api.put<MemberProfileRead>("/auth/me", { email_reminders_enabled: enabled }),
+    onSuccess: (updatedProfile) => {
+      queryClient.setQueryData(["my-profile"], updatedProfile);
+      toast.success("Préférences de notifications mises à jour");
+    },
+    onError: (err) => {
+      toast.error(err.detail ?? "Erreur lors de la mise à jour des notifications");
     },
   });
 
@@ -521,6 +534,25 @@ export default function MonProfil() {
           </CardContent>
         </Card>
       )}
+
+      <Card className="border-border/70 bg-card/80 backdrop-blur-sm">
+        <CardHeader>
+          <CardTitle className="text-base">Notifications</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium">Rappels avant mes spectacles</p>
+            <p className="text-xs text-muted-foreground">
+              Un email 7 jours avant et la veille de chaque événement où tu es affecté(e).
+            </p>
+          </div>
+          <Switch
+            checked={profile.email_reminders_enabled ?? true}
+            onCheckedChange={(checked) => remindersMutation.mutate(checked)}
+            disabled={remindersMutation.isPending}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }
