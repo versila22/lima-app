@@ -42,7 +42,7 @@ import {
 } from "date-fns";
 import { fr } from "date-fns/locale";
 
-import { api, ApiError, uploadEventPhoto, deleteEventPhoto } from "@/lib/api";
+import { api, ApiError, uploadEventPhoto, deleteEventPhoto, type EventCastMember } from "@/lib/api";
 import bgCabaret from "@/assets/posters/bg-cabaret.jpg";
 import bgMatch from "@/assets/posters/bg-match.jpg";
 import bgFormation from "@/assets/posters/bg-formation.jpg";
@@ -111,6 +111,7 @@ import { Switch } from "@/components/ui/switch";
 
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
+import { CastEditor } from "@/components/CastEditor";
 import {
   Popover,
   PopoverContent,
@@ -903,6 +904,7 @@ function EventDetailBody({
             })}
           </div>
         ) : null}
+        {isAdmin && <CastEditor eventId={event.id} cast={cast as EventCastMember[]} />}
       {showParticipation && (
         <div className="pt-2 border-t border-border space-y-3">
           <div className="flex items-center justify-between">
