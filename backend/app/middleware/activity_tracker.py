@@ -15,7 +15,7 @@ from app.utils.security import decode_access_token
 
 logger = logging.getLogger(__name__)
 
-SKIPPED_PATHS = {"/health", "/health/db", "/health/migrations", "/docs", "/redoc", "/openapi.json"}
+SKIPPED_PATHS = {"/health", "/docs", "/redoc", "/openapi.json"}
 
 
 class ActivityTrackerMiddleware:

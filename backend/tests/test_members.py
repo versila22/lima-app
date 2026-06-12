@@ -19,8 +19,8 @@ async def test_list_members_filters_by_season(regular_client, seeded_data):
 
 
 @pytest.mark.asyncio
-async def test_get_member_returns_404_for_unknown_id(regular_client, seeded_data):
-    response = await regular_client.get("/members/00000000-0000-0000-0000-000000000001")
+async def test_get_member_returns_404_for_unknown_id(auth_client, seeded_data):
+    response = await auth_client.get("/members/00000000-0000-0000-0000-000000000001")
     assert response.status_code == 404
 
 
@@ -152,11 +152,11 @@ async def test_deactivate_member_not_found(auth_client, seeded_data):
 
 
 @pytest.mark.asyncio
-async def test_resend_activation_returns_token(auth_client, seeded_data):
+async def test_resend_activation_returns_200(auth_client, seeded_data):
     response = await auth_client.post(f"/members/{seeded_data['pending'].id}/resend-activation")
 
     assert response.status_code == 200
-    assert response.json()["token"]
+    assert response.json()["detail"] == "Email d'activation envoyé"
 
 
 @pytest.mark.asyncio
@@ -174,3 +174,32 @@ async def test_update_member_role_success(auth_client, seeded_data):
 
     assert response.status_code == 200
     assert response.json()["app_role"] == "admin"
+
+
+@pytest.mark.asyncio
+async def test_get_member_forbidden_for_other_member(regular_client, seeded_data):
+    """A regular member must not read another member's personal data."""
+    resp = await regular_client.get(f"/members/{seeded_data['admin'].id}")
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_get_member_allowed_for_self(regular_client, seeded_data):
+    resp = await regular_client.get(f"/members/{seeded_data['regular'].id}")
+    assert resp.status_code == 200
+    assert resp.json()["email"] == "member@example.com"
+
+
+@pytest.mark.asyncio
+async def test_get_member_allowed_for_admin(auth_client, seeded_data):
+    resp = await auth_client.get(f"/members/{seeded_data['regular'].id}")
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_resend_activation_does_not_leak_token(auth_client, seeded_data):
+    resp = await auth_client.post(
+        f"/members/{seeded_data['pending'].id}/resend-activation"
+    )
+    assert resp.status_code == 200
+    assert "token" not in resp.json()
