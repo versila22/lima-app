@@ -199,7 +199,7 @@ export interface EventCreate {
   title: string;
   event_type: EventType;
   start_at: string;
-  end_at?: string;
+  end_at?: string | null;
   is_away?: boolean;
   away_city?: string;
   away_opponent?: string;
@@ -214,7 +214,7 @@ export interface EventUpdate {
   title?: string;
   event_type?: EventType;
   start_at?: string;
-  end_at?: string;
+  end_at?: string | null;
   is_away?: boolean;
   away_city?: string;
   away_opponent?: string;
