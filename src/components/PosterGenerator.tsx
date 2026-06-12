@@ -80,7 +80,7 @@ function PosterLayout({
   const cfg = EVENT_TYPE_CONFIG[event.event_type] ?? EVENT_TYPE_CONFIG.other;
   const isStory = height > width;
 
-  const mj = cast.filter((c) => c.role === "MJ_MC");
+  const mj = cast.filter((c) => c.role === "MJ" || c.role === "MC");
   const dj = cast.filter((c) => c.role === "DJ");
   const players = cast.filter((c) => c.role === "JR");
   const hasCast = cast.length > 0;

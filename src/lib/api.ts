@@ -528,3 +528,23 @@ export function assignMember(
 export function removeAssignment(id: string, assignment_id: string): Promise<void> {
   return api.delete<void>(`/alignments/${id}/assign/${assignment_id}`);
 }
+
+// ---- Event cast helpers ----
+
+export interface EventCastMember {
+  member_id: string;
+  first_name: string;
+  last_name: string;
+  role: AssignmentRole;
+}
+
+export function setEventCastMember(
+  eventId: string,
+  data: { member_id: string; role: AssignmentRole }
+): Promise<EventCastMember> {
+  return api.post<EventCastMember>(`/events/${eventId}/cast`, data);
+}
+
+export function removeEventCastMember(eventId: string, memberId: string): Promise<void> {
+  return api.delete<void>(`/events/${eventId}/cast/${memberId}`);
+}

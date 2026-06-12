@@ -205,7 +205,8 @@ const REIMBURSEMENT_URL = "https://form.jotform.com/251113498983061";
 
 const DETAIL_ROLE_LABELS: Record<string, { label: string; emoji: string }> = {
   JR: { label: "Joueur", emoji: "🎭" },
-  MJ_MC: { label: "MJ / MC", emoji: "🎤" },
+  MJ: { label: "MJ", emoji: "🎬" },
+  MC: { label: "MC", emoji: "🎤" },
   DJ: { label: "DJ", emoji: "🎵" },
   AR: { label: "Arbitre", emoji: "⚖️" },
   COACH: { label: "Coach", emoji: "🏋️" },
@@ -1134,7 +1135,7 @@ function EventDetailDrawer({
   }, {});
 
   // Display order
-  const roleOrder = ["JR", "MJ_MC", "DJ", "AR", "COACH", "BENEVOLE"];
+  const roleOrder = ["JR", "MJ", "MC", "DJ", "AR", "COACH", "BENEVOLE"];
   const visibleNotes = formatEventNotes(event.notes);
 
   // Lock background scroll while the mobile fullscreen overlay is open
