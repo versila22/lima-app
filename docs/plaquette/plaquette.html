@@ -26,7 +26,7 @@
   }
   .page{
     width:210mm;
-    padding:13mm 20mm;
+    padding:11mm 20mm;
     break-after:page;
     page-break-after:always;
     position:relative;
@@ -36,14 +36,22 @@
 
   /* ---------- COVER ---------- */
   .cover{
-    background:var(--indigo);
+    background-color:var(--indigo);
+    background-size:cover;
+    background-position:center;
     color:#fff;
     -webkit-print-color-adjust:exact;
     min-height:297mm;
     display:flex;
     flex-direction:column;
     justify-content:center;
+    position:relative;
   }
+  .cover::before{
+    content:"";position:absolute;inset:0;
+    background:linear-gradient(160deg,rgba(20,10,55,.66) 0%,rgba(15,8,45,.80) 55%,rgba(12,6,38,.92) 100%);
+  }
+  .cover > *{position:relative;z-index:1;}
   .cover .brand{
     font-size:13pt;letter-spacing:.35em;text-transform:uppercase;
     color:var(--yellow);font-weight:700;margin-bottom:18px;
@@ -71,13 +79,22 @@
   }
   .sub{color:var(--grey);font-style:italic;font-size:10.5pt;margin:0 0 13px;}
   h3{
-    font-size:13pt;color:var(--indigo);margin:16px 0 7px;font-weight:700;
+    font-size:13pt;color:var(--indigo);margin:11px 0 6px;font-weight:700;
     border-left:4px solid var(--violet);padding-left:11px;
   }
   p{margin:0 0 10px;}
   strong{color:var(--indigo);}
   .accent-y{color:var(--yellow);}
   .lede{font-size:12pt;color:var(--ink);}
+
+  /* ---------- FICHE TOP (titre + photo) ---------- */
+  .fiche-top{display:flex;gap:14px;align-items:stretch;margin-bottom:6px;}
+  .fiche-top-text{flex:1 1 60%;min-width:0;}
+  .fiche-top-img{
+    flex:0 0 36%;align-self:stretch;width:36%;
+    object-fit:cover;border-radius:10px;min-height:100%;
+    box-shadow:0 2px 10px rgba(0,0,0,.18);
+  }
 
   ul.clean{list-style:none;padding:0;margin:0 0 8px;}
   ul.clean li{padding:3px 0 3px 22px;position:relative;}
@@ -88,7 +105,7 @@
 
   /* ---------- TECH TABLE ---------- */
   table.tech{width:100%;border-collapse:collapse;margin:6px 0 18px;font-size:10.5pt;}
-  table.tech td{padding:5px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
+  table.tech td{padding:3px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
   table.tech td.k{width:38%;font-weight:700;color:var(--indigo);}
 
   /* ---------- CALLOUT ---------- */
@@ -117,7 +134,7 @@
 <body>
 
 <!-- ============ COVER / INTRO ============ -->
-<section class="page cover">
+<section class="page cover" style="background-image:url('img/__COVER__')">
   <div class="brand">LIMA · Ligue d'Improvisation Angevine</div>
   <h1>Pour le plaisir<br>de l'impro</h1>
   <p class="lead">Pas de texte, pas de décor, pas de seconde chance. Juste des
@@ -159,14 +176,18 @@
 
 <!-- ============ FICHE MATCH ============ -->
 <section class="page">
-  <span class="badge match">Format grande jauge</span>
-  <h2>Le Match d'impro</h2>
-  <p class="sub">Salles de spectacle, scènes municipales, services culturels, ligues d'impro · 200 à 400 personnes.</p>
-
-  <p class="lede">Deux équipes, des maillots de hockey, une patinoire de théâtre
-  en guise de scène, et un arbitre que le public adore détester. Sur des thèmes
-  tirés au sort, les comédiens improvisent — et c'est la <strong>salle qui
-  vote</strong> pour son équipe préférée.</p>
+  <div class="fiche-top">
+    <div class="fiche-top-text">
+      <span class="badge match">Format grande jauge</span>
+      <h2>Le Match d'impro</h2>
+      <p class="sub">Salles de spectacle, scènes municipales, services culturels, ligues d'impro · 200 à 400 personnes.</p>
+      <p class="lede">Deux équipes, des maillots de hockey, une patinoire de théâtre
+      en guise de scène, et un arbitre que le public adore détester. Sur des thèmes
+      tirés au sort, les comédiens improvisent — et c'est la <strong>salle qui
+      vote</strong> pour son équipe préférée.</p>
+    </div>
+    <img class="fiche-top-img" src="img/photo-match.jpg" alt="Match d'impro LIMA">
+  </div>
 
   <p>Inspiré du hockey sur glace, le Match transforme une soirée de théâtre en
   compétition sportive&nbsp;: on encadre, on encourage, on choisit son camp.
@@ -210,14 +231,18 @@
 
 <!-- ============ FICHE CABARET ============ -->
 <section class="page">
-  <span class="badge cab">Format intime</span>
-  <h2>Le Cabaret d'impro</h2>
-  <p class="sub">Bars, cafés-concerts, salles d'association, soirées privées · 30 à 50 personnes.</p>
-
-  <p class="lede">L'impro au plus près du public. Les comédiens jouent
-  <strong>au milieu de la salle</strong>, à quelques mètres des spectateurs, sur
-  des thèmes lancés en direct. On improvise le verre à la main, on rebondit sur
-  une réplique du premier rang, et chaque soir est différent.</p>
+  <div class="fiche-top">
+    <div class="fiche-top-text">
+      <span class="badge cab">Format intime</span>
+      <h2>Le Cabaret d'impro</h2>
+      <p class="sub">Bars, cafés-concerts, salles d'association, soirées privées · 30 à 50 personnes.</p>
+      <p class="lede">L'impro au plus près du public. Les comédiens jouent
+      <strong>au milieu de la salle</strong>, à quelques mètres des spectateurs, sur
+      des thèmes lancés en direct. On improvise le verre à la main, on rebondit sur
+      une réplique du premier rang, et chaque soir est différent.</p>
+    </div>
+    <img class="fiche-top-img" src="img/photo-cabaret.jpg" alt="Cabaret d'impro LIMA">
+  </div>
 
   <p>Pas besoin de grand-chose&nbsp;: un coin de salle, un micro, et l'envie de
   passer une bonne soirée. Le Cabaret transforme n'importe quel bar ou salle en
