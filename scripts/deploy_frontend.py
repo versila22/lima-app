@@ -7,13 +7,16 @@ Hardened deploy:
 - Auto-stashes tracked dirty files so the pull doesn't refuse mid-deploy.
 - Verifies the rebuilt frontend container's Created timestamp is fresh.
 """
+import os
 import paramiko
 import sys
 import time
 
 HOST = "72.61.196.210"
 USER = "root"
-PASSWORDS = ["Pg.reag22740", "Pg.reag49000"]
+# Auth par clé SSH (les mots de passe root ont été rotés le 2026-05-23).
+# Override possible via la variable d'env LIMA_SSH_KEY.
+KEY_PATH = os.environ.get("LIMA_SSH_KEY", os.path.expanduser("~/.ssh/id_ed25519"))
 PROJECT_DIR = "/docker/openclaw-nmtd/data/.openclaw/workspace/lima-app"
 
 
@@ -32,18 +35,11 @@ def run(client, cmd, timeout=300):
 client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-connected = False
-for pwd in PASSWORDS:
-    try:
-        client.connect(HOST, username=USER, password=pwd, timeout=15)
-        print(f"Connected with password: {pwd[:4]}****")
-        connected = True
-        break
-    except paramiko.AuthenticationException:
-        print(f"Auth failed with {pwd[:4]}****")
-
-if not connected:
-    print("Could not connect — check credentials")
+try:
+    client.connect(HOST, username=USER, key_filename=KEY_PATH, timeout=20)
+    print(f"Connected via SSH key: {KEY_PATH}")
+except Exception as exc:  # noqa: BLE001
+    print(f"Could not connect with key {KEY_PATH}: {exc}")
     sys.exit(1)
 
 # Capture HEAD before
