@@ -135,23 +135,18 @@ async def get_login_attempts(
         ActivityLog.path.in_(["/auth/login", "/api/auth/login"]),
     )
 
-    summary_result = await db.execute(
-        select(
-            case(
-                (ActivityLog.status_code < 400, "success"),
-                else_="failure",
-            ).label("outcome"),
-            func.count(ActivityLog.id).label("count"),
+    # Conditional aggregation over a typed column (id) — avoids GROUP BY on a
+    # CASE built from string bind params, which asyncpg/Postgres rejects with
+    # "could not determine data type of parameter". (sqlite tolerated it, Postgres
+    # did not — hence the section never loaded in prod.)
+    summary_row = (
+        await db.execute(
+            select(
+                func.count(case((ActivityLog.status_code < 400, ActivityLog.id))).label("success"),
+                func.count(case((ActivityLog.status_code >= 400, ActivityLog.id))).label("failure"),
+            ).where(login_filter)
         )
-        .where(login_filter)
-        .group_by(
-            case(
-                (ActivityLog.status_code < 400, "success"),
-                else_="failure",
-            )
-        )
-        .order_by("outcome")
-    )
+    ).one()
 
     attempts_result = await db.execute(
         select(ActivityLog)
@@ -164,8 +159,8 @@ async def get_login_attempts(
     return LoginAttemptsResponse(
         days=days,
         summary=[
-            LoginAttemptGroup(outcome=outcome, count=count)
-            for outcome, count in summary_result.all()
+            LoginAttemptGroup(outcome="success", count=summary_row.success or 0),
+            LoginAttemptGroup(outcome="failure", count=summary_row.failure or 0),
         ],
         attempts=[LoginAttemptRead.model_validate(item) for item in attempts_result.scalars().all()],
     )
@@ -176,10 +171,11 @@ async def trigger_reminders(
     db: AsyncSession = Depends(get_db),
     _: Member = Depends(require_admin),
 ):
-    """Trigger 24h reminder emails for events happening tomorrow (admin only)."""
-    import os
-    import sys
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-    from scripts.send_reminders import send_due_reminders
-    sent, failed = await send_due_reminders(db)
+    """Trigger reminder emails (J-7 and J-1) on demand (admin only)."""
+    from app.services import reminder_service
+
+    sent_j1, failed_j1 = await reminder_service.send_due_reminders(db, kind="J1")
+    sent_j7, failed_j7 = await reminder_service.send_due_reminders(db, kind="J7")
+    sent = sent_j1 + sent_j7
+    failed = failed_j1 + failed_j7
     return {"sent": sent, "failed": failed, "total": sent + failed}

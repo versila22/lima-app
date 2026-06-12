@@ -56,6 +56,7 @@ import { AgendaFAB } from "@/components/agenda/AgendaFAB";
 import { useSwipeNavigation } from "@/hooks/use-swipe-navigation";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import { haptic } from "@/lib/haptics";
+import { LIMA_INSTAGRAM, facebookShareUrl } from "@/lib/socials";
 import type {
   EventRead,
   EventCreate,
@@ -237,6 +238,28 @@ function buildShareText(event: EventRead, helloAssoUrl: string | null): string {
   if (event.is_away && event.away_city) text += `\n📍 ${event.away_city}`;
   if (helloAssoUrl) text += `\n🔗 ${helloAssoUrl}`;
   return text;
+}
+
+/**
+ * Partage un événement vers Facebook ou Instagram (réseaux de la LIMA).
+ * Aucune des deux plateformes ne permet de cibler un post précis : on copie
+ * l'annonce dans le presse-papier (prête à coller) puis on ouvre soit le
+ * partage Facebook de l'événement, soit la page Facebook/Instagram de la LIMA.
+ */
+async function shareEventTo(
+  network: "facebook" | "instagram",
+  event: EventRead,
+  helloAssoUrl: string | null,
+) {
+  const text = buildShareText(event, helloAssoUrl);
+  try {
+    await navigator.clipboard.writeText(text);
+    toast.success("Annonce copiée — colle-la dans ta publication LIMA");
+  } catch {
+    toast.error("Copie impossible — sélectionne et copie le texte manuellement");
+  }
+  const url = network === "facebook" ? facebookShareUrl(helloAssoUrl) : LIMA_INSTAGRAM;
+  window.open(url, "_blank", "noopener,noreferrer");
 }
 
 function parseDateTimeValue(value?: string | null): Date | undefined {
@@ -917,17 +940,16 @@ function EventDetailBody({
       <div className="pt-2 border-t border-border">
         <p className="text-xs text-muted-foreground mb-2">Partager</p>
         <div className="flex gap-2">
-          <a
-            href={`https://www.facebook.com/sharer/sharer.php?${helloAssoUrl ? `u=${encodeURIComponent(helloAssoUrl)}&` : ""}quote=${encodeURIComponent(buildShareText(event, helloAssoUrl))}`}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            type="button"
+            onClick={() => shareEventTo("facebook", event, helloAssoUrl)}
             className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-blue-600/20 text-blue-400 border border-blue-600/30 hover:bg-blue-600/30 transition-colors"
           >
             <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
             </svg>
             Facebook
-          </a>
+          </button>
           <a
             href={`https://wa.me/?text=${encodeURIComponent(buildShareText(event, helloAssoUrl))}`}
             target="_blank"
@@ -941,16 +963,7 @@ function EventDetailBody({
           </a>
           <button
             type="button"
-            onClick={async () => {
-              const text = buildShareText(event, helloAssoUrl);
-              try {
-                await navigator.clipboard.writeText(text);
-                toast.success("Annonce copiée — colle-la dans ton story / post Instagram");
-              } catch {
-                toast.error("Copie impossible — sélectionne et copie le texte manuellement");
-              }
-              window.open("https://www.instagram.com/", "_blank", "noopener,noreferrer");
-            }}
+            onClick={() => shareEventTo("instagram", event, helloAssoUrl)}
             className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-pink-600/20 text-pink-400 border border-pink-600/30 hover:bg-pink-600/30 transition-colors"
           >
             <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -959,6 +972,9 @@ function EventDetailBody({
             Instagram
           </button>
         </div>
+        <p className="text-[11px] text-muted-foreground mt-1.5">
+          Facebook / Instagram : l'annonce est copiée, prête à coller dans ta publication LIMA.
+        </p>
       </div>
       </div>
     </>
