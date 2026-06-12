@@ -4,7 +4,7 @@ import uuid
 from datetime import date, datetime
 from typing import Optional
 
-from sqlalchemy import Date, DateTime, ForeignKey, Index, Integer, String, UniqueConstraint, func
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Integer, String, UniqueConstraint, false, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -30,6 +30,9 @@ class Alignment(Base):
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
     # draft | published
     status: Mapped[str] = mapped_column(String(20), default="draft")
+    is_auto: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=false(), default=False
+    )
     created_by: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("members.id"),
@@ -102,7 +105,7 @@ class AlignmentAssignment(Base):
         ForeignKey("members.id", ondelete="CASCADE"),
         nullable=False,
     )
-    # JR | DJ | MJ_MC | AR | COACH | BENEVOLE
+    # JR | DJ | MJ | MC | AR | COACH | BENEVOLE
     role: Mapped[str] = mapped_column(String(10), nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
