@@ -128,6 +128,20 @@ API available at `http://localhost:8001` · Docs at `http://localhost:8001/docs`
 
 ---
 
+## Emails (Brevo)
+
+L'app envoie : activation/reset de compte, notification d'affectation (grilles publiées
+uniquement), digest à la publication d'une grille (avec .ics joint), rappels J-7 et J-1
+(scheduler quotidien à 09:00 Europe/Paris, idempotent via la table `email_logs`).
+
+Mise en service :
+1. Créer un compte Brevo et valider l'expéditeur (`SMTP_FROM`).
+2. Ajouter les enregistrements SPF/DKIM Brevo dans la zone DNS du domaine expéditeur (Porkbun).
+3. Renseigner SMTP_HOST/PORT/USER/PASSWORD/FROM dans les variables Railway.
+4. Sans `SMTP_HOST`, tous les envois sont silencieusement ignorés (log warning).
+
+---
+
 ## 🧪 Tests
 
 ```bash
