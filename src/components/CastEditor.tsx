@@ -72,7 +72,7 @@ export function CastEditor({
   };
 
   return (
-    <div className="space-y-3 pt-2 border-t border-border">
+    <div className="space-y-3 pt-2 border-t border-border" data-testid="cast-editor">
       <span className="font-semibold text-foreground text-sm">🎬 Casting (édition)</span>
 
       {cast.length > 0 && (
@@ -125,6 +125,7 @@ export function CastEditor({
           type="button"
           size="sm"
           className="h-9"
+          data-testid="cast-add"
           disabled={addMutation.isPending}
           onClick={handleAdd}
         >

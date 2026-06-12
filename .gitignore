@@ -26,3 +26,7 @@ backend/static/
 
 # VSCode extension artifacts
 1/
+
+# local e2e artifacts
+.env.e2e
+backend/*.db
