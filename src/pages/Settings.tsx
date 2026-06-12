@@ -1,8 +1,8 @@
 import { useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { Settings2, Loader2, Save } from "lucide-react";
+import { Settings2, Loader2, Save, Trash2, AlertTriangle } from "lucide-react";
 
 import { api, ApiError } from "@/lib/api";
 import type { AppSettings } from "@/types";
@@ -17,7 +17,21 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Separator } from "@/components/ui/separator";
+
+// Date de coupure de la purge des anciens événements (premier alignement fiable).
+const PURGE_BEFORE = "2026-03-01";
 
 type SettingsFormData = {
   association_name: string;
@@ -62,12 +76,27 @@ export default function Settings() {
     }
   }, [settings, reset]);
 
+  const queryClient = useQueryClient();
+
   // Save mutation
   const saveMutation = useMutation<AppSettings, ApiError, SettingsFormData>({
     mutationFn: (data) =>
       api.put<AppSettings>("/settings", data),
     onSuccess: () => toast.success("Paramètres sauvegardés"),
     onError: (err) => toast.error(err.detail ?? "Erreur lors de la sauvegarde"),
+  });
+
+  // Purge old events
+  const purgeMutation = useMutation<{ deleted: number }, ApiError>({
+    mutationFn: () =>
+      api.post<{ deleted: number }>("/api/admin/events/purge-before", undefined, {
+        before: PURGE_BEFORE,
+      }),
+    onSuccess: (res) => {
+      toast.success(`${res.deleted} ancien(s) événement(s) supprimé(s)`);
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+    },
+    onError: (err) => toast.error(err.detail ?? "Erreur lors de la purge"),
   });
 
   const onSubmit = (data: SettingsFormData) => {
@@ -227,6 +256,54 @@ export default function Settings() {
           </Button>
         </div>
       </form>
+
+      {/* Maintenance */}
+      <Card className="border-destructive/30 bg-card/50">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-destructive" />
+            Maintenance
+          </CardTitle>
+          <CardDescription>
+            Supprimer définitivement les événements antérieurs au 1ᵉʳ mars 2026
+            (avant le premier alignement fiable). Les grilles, affectations,
+            inscriptions et photos liées à ces événements sont aussi supprimées.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button type="button" variant="destructive" disabled={purgeMutation.isPending}>
+                {purgeMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Trash2 className="w-4 h-4 mr-2" />
+                )}
+                Purger les anciens événements
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Purger les anciens événements ?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tous les événements démarrant avant le 1ᵉʳ mars 2026 seront
+                  supprimés définitivement, avec leurs grilles, affectations,
+                  inscriptions et photos. Cette action est irréversible.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Annuler</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => purgeMutation.mutate()}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Supprimer
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </CardContent>
+      </Card>
     </div>
   );
 }
