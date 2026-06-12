@@ -5,7 +5,7 @@
 [![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0%20async-orange)](https://docs.sqlalchemy.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue?logo=postgresql)](https://www.postgresql.org/)
 [![Railway](https://img.shields.io/badge/Deployed%20on-Railway-purple?logo=railway)](https://railway.app)
-[![Tests](https://img.shields.io/badge/Tests-95%20passing-brightgreen)](./tests/)
+[![Tests](https://img.shields.io/badge/Tests-190%20passing-brightgreen)](./tests/)
 [![License](https://img.shields.io/badge/License-MIT-blue)](./LICENSE)
 
 > Production-ready REST API backend for **LIMA** (Ligue d'Improvisation du Maine-et-Loire), an improv theater association managing 60+ members, show seasons, event scheduling, and cast assignments.
@@ -148,7 +148,7 @@ Mise en service :
 JWT_SECRET=test-secret python -m pytest tests/ -v
 ```
 
-**95 tests** covering:
+**190 tests** covering:
 - Auth flows (login, activation, password reset, token expiry)
 - Members, seasons, events, venues, alignments, commissions, show plans
 - Admin activity endpoints
