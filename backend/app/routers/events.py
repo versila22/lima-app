@@ -32,6 +32,7 @@ from app.schemas.event import (
     RegistrationRead,
 )
 from app.services import import_service
+from app.services.storage import sign_photo_url
 from app.utils.deps import get_current_user, require_admin
 
 router = APIRouter(prefix="/events", tags=["events"])
@@ -78,7 +79,7 @@ async def list_gallery_photos(
             event_title=row.event_title,
             event_type=row.event_type,
             event_date=row.event_date,
-            url=row.url,
+            url=sign_photo_url(row.url),
             caption=row.caption,
             created_at=row.created_at,
         )
@@ -141,7 +142,7 @@ async def list_events(
         EventRead.model_validate(
             {
                 **{c.name: getattr(event, c.name) for c in Event.__table__.columns},
-                "cover_url": photo_url,
+                "cover_url": sign_photo_url(photo_url),
             },
         )
         for event, photo_url in result.all()
@@ -173,7 +174,7 @@ async def get_event(
     return EventRead.model_validate(
         {
             **{c.name: getattr(event, c.name) for c in Event.__table__.columns},
-            "cover_url": photo_url,
+            "cover_url": sign_photo_url(photo_url),
         },
     )
 
@@ -279,7 +280,17 @@ async def list_event_photos(
         .where(EventPhoto.event_id == event_id)
         .order_by(EventPhoto.created_at)
     )
-    return result.scalars().all()
+    photos = result.scalars().all()
+    return [
+        EventPhotoRead(
+            id=p.id,
+            event_id=p.event_id,
+            url=sign_photo_url(p.url),
+            caption=p.caption,
+            created_at=p.created_at,
+        )
+        for p in photos
+    ]
 
 
 @router.post("/{event_id}/photos", response_model=EventPhotoRead, status_code=201)
@@ -339,7 +350,13 @@ async def upload_event_photo(
     db.add(photo)
     await db.commit()
     await db.refresh(photo)
-    return photo
+    return EventPhotoRead(
+        id=photo.id,
+        event_id=photo.event_id,
+        url=sign_photo_url(photo.url),
+        caption=photo.caption,
+        created_at=photo.created_at,
+    )
 
 
 @router.delete("/{event_id}/photos/{photo_id}", status_code=204)

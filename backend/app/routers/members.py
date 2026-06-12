@@ -13,6 +13,7 @@ from pydantic import BaseModel as _BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sqlalchemy.orm.attributes import set_committed_value
 
 from app.config import settings
 from app.database import get_db
@@ -36,12 +37,20 @@ from app.schemas.member import (
     SeasonHistoryEntry,
 )
 from app.services import auth_service, import_service
+from app.services.storage import sign_photo_url
 from app.services.email_service import send_activation_email
 from app.utils.deps import get_current_user, require_admin
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/members", tags=["members"])
+
+
+def _sign_member_photo(member: Member) -> Member:
+    """Replace photo_url with a presigned URL WITHOUT dirtying the ORM instance
+    (a plain assignment would risk flushing the presigned URL into the DB)."""
+    set_committed_value(member, "photo_url", sign_photo_url(member.photo_url))
+    return member
 
 
 @router.get("/uninvited")
@@ -78,7 +87,7 @@ async def _get_member_for_response(db: AsyncSession, member_id: UUID) -> Member:
         .options(selectinload(Member.member_seasons).selectinload(MemberSeason.season))
         .where(Member.id == member_id)
     )
-    return result.scalar_one()
+    return _sign_member_photo(result.scalar_one())
 
 
 async def _build_member_profile(db: AsyncSession, member_id: UUID) -> MemberProfileRead:
@@ -198,7 +207,7 @@ async def list_members(
                 app_role=member.app_role,
                 is_active=member.is_active,
                 player_status=player_status,
-                photo_url=member.photo_url,
+                photo_url=sign_photo_url(member.photo_url),
             )
         )
     return summaries
@@ -246,7 +255,7 @@ async def get_member(
     member = result.scalar_one_or_none()
     if member is None:
         raise HTTPException(status_code=404, detail="Membre introuvable")
-    return member
+    return _sign_member_photo(member)
 
 
 @router.post("", response_model=MemberRead, status_code=status.HTTP_201_CREATED)
@@ -415,7 +424,7 @@ async def upload_member_photo(
     member.photo_url = photo_url
     await db.commit()
 
-    return {"photo_url": photo_url}
+    return {"photo_url": sign_photo_url(photo_url)}
 
 
 @router.delete("/{member_id}", status_code=status.HTTP_204_NO_CONTENT)
