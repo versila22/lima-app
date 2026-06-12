@@ -54,14 +54,16 @@ def upgrade() -> None:
             nullable=False,
         ),
     )
-    op.create_index(
-        "ix_email_logs_member_event_kind", "email_logs", ["member_id", "event_id", "kind"]
+    op.create_unique_constraint(
+        "uq_email_logs_member_event_kind",
+        "email_logs",
+        ["member_id", "event_id", "kind"],
     )
     op.create_index("ix_email_logs_sent_at", "email_logs", ["sent_at"])
 
 
 def downgrade() -> None:
     op.drop_index("ix_email_logs_sent_at", table_name="email_logs")
-    op.drop_index("ix_email_logs_member_event_kind", table_name="email_logs")
+    op.drop_constraint("uq_email_logs_member_event_kind", "email_logs", type_="unique")
     op.drop_table("email_logs")
     op.drop_column("members", "email_reminders_enabled")

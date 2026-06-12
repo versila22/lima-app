@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, func
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -14,7 +14,11 @@ from app.database import Base
 class EmailLog(Base):
     __tablename__ = "email_logs"
     __table_args__ = (
-        Index("ix_email_logs_member_event_kind", "member_id", "event_id", "kind"),
+        # Unique pour empêcher un double envoi de rappel (instances concurrentes).
+        # Les digests ont event_id NULL : non contraints (NULLs distincts en Postgres).
+        UniqueConstraint(
+            "member_id", "event_id", "kind", name="uq_email_logs_member_event_kind"
+        ),
         Index("ix_email_logs_sent_at", "sent_at"),
     )
 
