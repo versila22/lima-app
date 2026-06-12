@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams, useLocation } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -1167,36 +1168,43 @@ function EventDetailDrawer({
 
   if (isMobile) {
     if (!open) return null;
+    // Portal to <body> so the fixed overlay is positioned against the viewport.
+    // Rendered inline, an ancestor with transform/filter/backdrop-filter (the
+    // agenda's backdrop-blur headers) becomes its containing block on some mobile
+    // browsers (MIUI/Android) → the overlay lands off-screen, leaving only a veil.
     return (
       <>
-        <div
-          className="fixed inset-0 z-50 flex flex-col bg-card"
-          role="dialog"
-          aria-modal="true"
-          aria-label={event.title}
-        >
-          <EventDetailBanner
-            event={event}
-            bannerBg={bannerBg}
-            inDrawer={false}
-            onClose={onClose}
-            showCloseButton
-          />
-          <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-2">
-            <EventDetailBody {...bodyProps} />
-          </div>
-          <div className="shrink-0 flex flex-row flex-wrap gap-2 border-t border-border px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-card">
-            <EventDetailFooterButtons
+        {createPortal(
+          <div
+            className="fixed inset-0 z-50 flex flex-col bg-card"
+            role="dialog"
+            aria-modal="true"
+            aria-label={event.title}
+          >
+            <EventDetailBanner
               event={event}
-              isAdmin={isAdmin}
-              showPoster={showPoster}
-              onEdit={onEdit}
-              onDelete={onDelete}
+              bannerBg={bannerBg}
+              inDrawer={false}
               onClose={onClose}
-              onOpenPoster={() => setPosterOpen(true)}
+              showCloseButton
             />
-          </div>
-        </div>
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-2">
+              <EventDetailBody {...bodyProps} />
+            </div>
+            <div className="shrink-0 flex flex-row flex-wrap gap-2 border-t border-border px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-card">
+              <EventDetailFooterButtons
+                event={event}
+                isAdmin={isAdmin}
+                showPoster={showPoster}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onClose={onClose}
+                onOpenPoster={() => setPosterOpen(true)}
+              />
+            </div>
+          </div>,
+          document.body,
+        )}
         {posterOpen && (
           <PosterGenerator event={event} cast={cast} open={posterOpen} onClose={() => setPosterOpen(false)} />
         )}
@@ -1629,12 +1637,15 @@ function AgendaListView({ events, onEventClick, anchorWeek }: AgendaListViewProp
       })
     : events;
 
-  const currentMonthStart = startOfMonth(new Date());
+  // Split at the start of *today* so the list opens on the day of consultation,
+  // not the 1st of the month (past days of the current month go under "passés").
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
   const allSorted = [...baseEvents].sort(
     (a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime()
   );
-  const past = anchorWeek ? [] : allSorted.filter(e => parseISO(e.start_at) < currentMonthStart);
-  const upcoming = anchorWeek ? allSorted : allSorted.filter(e => parseISO(e.start_at) >= currentMonthStart);
+  const past = anchorWeek ? [] : allSorted.filter(e => parseISO(e.start_at) < todayStart);
+  const upcoming = anchorWeek ? allSorted : allSorted.filter(e => parseISO(e.start_at) >= todayStart);
   const sorted = showPast ? allSorted : upcoming;
 
   // Group by "MMMM yyyy"

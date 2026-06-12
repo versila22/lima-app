@@ -6,12 +6,17 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import Float, and_, case, cast, distinct, func, select
+from sqlalchemy import delete as sa_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.models.activity_log import ActivityLog
+from app.models.alignment import AlignmentAssignment, AlignmentEvent
+from app.models.email_log import EmailLog
+from app.models.event import Event, EventPhoto, EventRegistration
 from app.models.member import Member
+from app.models.show_plan import ShowPlan
 from app.schemas.activity import (
     ActivityLogRead,
     ActivityStatsResponse,
@@ -164,6 +169,32 @@ async def get_login_attempts(
         ],
         attempts=[LoginAttemptRead.model_validate(item) for item in attempts_result.scalars().all()],
     )
+
+
+@router.post("/events/purge-before", tags=["admin"])
+async def purge_events_before(
+    before: date = Query(..., description="Supprime les événements démarrant avant cette date (YYYY-MM-DD)"),
+    db: AsyncSession = Depends(get_db),
+    _: Member = Depends(require_admin),
+):
+    """Delete every event starting before `before`, with its dependent rows (admin only).
+
+    Mirrors the per-event delete path: dependent rows that have no DB-level cascade
+    (show_plans) are removed explicitly; the rest fall under their own cleanup here
+    so the purge is correct regardless of FK-cascade enforcement.
+    """
+    cutoff = datetime(before.year, before.month, before.day)
+    ids = (
+        await db.execute(select(Event.id).where(Event.start_at < cutoff))
+    ).scalars().all()
+    if not ids:
+        return {"deleted": 0, "before": before.isoformat()}
+
+    for model in (EmailLog, AlignmentAssignment, AlignmentEvent, ShowPlan, EventRegistration, EventPhoto):
+        await db.execute(sa_delete(model).where(model.event_id.in_(ids)))
+    await db.execute(sa_delete(Event).where(Event.id.in_(ids)))
+    await db.commit()
+    return {"deleted": len(ids), "before": before.isoformat()}
 
 
 @router.post("/reminders/send", tags=["admin"])
