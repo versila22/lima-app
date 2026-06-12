@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 
 const SECTIONS = [
@@ -86,16 +86,18 @@ const SECTIONS = [
 ];
 
 export default function DonneesPersonnelles() {
+  const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-2xl mx-auto px-4 py-10">
-        <Link
-          to="/login"
+        <button
+          type="button"
+          onClick={() => (window.history.length > 1 ? navigate(-1) : navigate("/login"))}
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
         >
           <ArrowLeft className="w-4 h-4" />
           Retour
-        </Link>
+        </button>
         <h1 className="text-2xl font-bold mb-2">Données personnelles</h1>
         <p className="text-sm text-muted-foreground mb-8">
           Comment le portail membres de la LIMA utilise tes données.

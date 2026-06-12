@@ -119,11 +119,11 @@ async def test_purge_old_activity_logs(db_session):
 
     now = datetime.now(UTC).replace(tzinfo=None)
     old = ActivityLog(
-        method="GET", path="/agenda", status_code=200, duration_ms=10,
+        method="GET", path="/old", status_code=200, duration_ms=10,
         created_at=now - timedelta(days=400),
     )
     recent = ActivityLog(
-        method="GET", path="/agenda", status_code=200, duration_ms=10,
+        method="GET", path="/recent", status_code=200, duration_ms=10,
         created_at=now - timedelta(days=10),
     )
     db_session.add_all([old, recent])
@@ -135,4 +135,4 @@ async def test_purge_old_activity_logs(db_session):
     from sqlalchemy import select
     remaining = (await db_session.execute(select(ActivityLog))).scalars().all()
     assert len(remaining) == 1
-    assert remaining[0].path == "/agenda"
+    assert remaining[0].path == "/recent"
