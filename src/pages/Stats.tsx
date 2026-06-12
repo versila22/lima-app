@@ -420,11 +420,9 @@ export default function Stats() {
 
         <Card className="border-border/50 bg-card/60">
           <CardHeader>
-            <CardTitle>Tendance DAU</CardTitle>
+            <CardTitle>Utilisateurs actifs par jour</CardTitle>
             <CardDescription>
-              {monthlyStats?.avg_response_time_ms
-                ? `Temps de réponse moyen : ${Math.round(monthlyStats.avg_response_time_ms)} ms`
-                : "Vue sur les 30 derniers jours."}
+              Nombre de membres distincts ayant utilisé l'application chaque jour, sur les 30 derniers jours.
             </CardDescription>
           </CardHeader>
           <CardContent>
