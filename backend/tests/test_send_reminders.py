@@ -74,7 +74,7 @@ async def test_send_due_reminders_sends_email_for_each_due_assignment(
             alignment_id=seeded_data["published_alignment"].id,
             event_id=seeded_data["public_event"].id,
             member_id=seeded_data["regular"].id,
-            role="MJ_MC",
+            role="MJ",
         )
     )
     await db_session.commit()
@@ -101,7 +101,7 @@ async def test_send_due_reminders_sends_email_for_each_due_assignment(
     assert calls[0]["to"] == seeded_data["regular"].email
     assert calls[0]["first_name"] == seeded_data["regular"].first_name
     assert calls[0]["event_title"] == seeded_data["public_event"].title
-    assert calls[0]["role"] == "MJ_MC"
+    assert calls[0]["role"] == "MJ"
     assert calls[0]["base_url"] == "https://lima.example.org"
 
 
