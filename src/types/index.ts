@@ -186,6 +186,8 @@ export interface EventRead {
   away_opponent: string | null;
   notes: string | null;
   match_report: string | null;
+  facebook_url: string | null;
+  ticketing_url: string | null;
   allow_registration: boolean;
   visibility: EventVisibility;
   created_at: string;
@@ -220,6 +222,8 @@ export interface EventUpdate {
   away_opponent?: string;
   notes?: string;
   match_report?: string;
+  facebook_url?: string | null;
+  ticketing_url?: string | null;
   allow_registration?: boolean;
   visibility?: EventVisibility;
 }

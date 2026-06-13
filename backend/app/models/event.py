@@ -47,6 +47,8 @@ class Event(Base):
 
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     match_report: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    facebook_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    ticketing_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     allow_registration: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Visibility: all | match | cabaret | loisir | admin
