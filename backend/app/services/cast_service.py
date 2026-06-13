@@ -118,37 +118,25 @@ async def remove_event_cast_member(
     event_id: UUID,
     member_id: UUID,
 ) -> bool:
-    """Retire un membre du casting (affectation dans l'alignement auto).
+    """Retire un membre du casting d'un événement.
 
-    Renvoie False si l'événement, l'alignement auto ou l'affectation n'existe pas.
+    Supprime TOUTES les affectations (event, member), quelle que soit la grille
+    (alignement auto OU grille manuelle legacy). Le casting affiché est l'union
+    de toutes les grilles, donc la croix doit retirer ce que l'admin voit.
+    Silencieux. Renvoie False si le membre n'a aucune affectation sur cet événement.
     """
-    event_result = await db.execute(select(Event).where(Event.id == event_id))
-    event = event_result.scalar_one_or_none()
-    if event is None:
-        return False
-
-    align_result = await db.execute(
-        select(Alignment).where(
-            Alignment.season_id == event.season_id,
-            Alignment.is_auto.is_(True),
-        )
-    )
-    alignment = align_result.scalar_one_or_none()
-    if alignment is None:
-        return False
-
-    assign_result = await db.execute(
+    result = await db.execute(
         select(AlignmentAssignment).where(
-            AlignmentAssignment.alignment_id == alignment.id,
             AlignmentAssignment.event_id == event_id,
             AlignmentAssignment.member_id == member_id,
         )
     )
-    assignment = assign_result.scalar_one_or_none()
-    if assignment is None:
+    assignments = result.scalars().all()
+    if not assignments:
         return False
 
-    await db.delete(assignment)
+    for assignment in assignments:
+        await db.delete(assignment)
     await db.flush()
     await db.commit()
     return True
