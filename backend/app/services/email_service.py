@@ -247,7 +247,8 @@ async def send_event_reminder_email(
 
 ROLE_LABELS = {
     "JR": "Joueur·euse",
-    "MJ_MC": "MJ / MC",
+    "MJ": "MJ",
+    "MC": "MC",
     "DJ": "DJ",
     "AR": "Arbitre",
     "COACH": "Coach",

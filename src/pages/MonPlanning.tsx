@@ -28,10 +28,15 @@ const ROLE_CONFIG: Record<AssignmentRole, { label: string; emoji: string; classN
     emoji: "🎭",
     className: "bg-fuchsia-500/15 text-fuchsia-200 border-fuchsia-500/30",
   },
-  MJ_MC: {
-    label: "MJ/MC",
-    emoji: "🎤",
+  MJ: {
+    label: "MJ",
+    emoji: "🎬",
     className: "bg-sky-500/15 text-sky-200 border-sky-500/30",
+  },
+  MC: {
+    label: "MC",
+    emoji: "🎤",
+    className: "bg-indigo-500/15 text-indigo-200 border-indigo-500/30",
   },
   DJ: {
     label: "DJ",
@@ -47,6 +52,11 @@ const ROLE_CONFIG: Record<AssignmentRole, { label: string; emoji: string; classN
     label: "Coach",
     emoji: "🏋️",
     className: "bg-emerald-500/15 text-emerald-200 border-emerald-500/30",
+  },
+  BENEVOLE: {
+    label: "Bénévole",
+    emoji: "🙋",
+    className: "bg-rose-500/15 text-rose-200 border-rose-500/30",
   },
 };
 

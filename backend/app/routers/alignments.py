@@ -46,7 +46,11 @@ async def list_alignments(
 
     Non-admin users only see published alignments.
     """
-    query = select(Alignment).order_by(Alignment.start_date.desc())
+    query = (
+        select(Alignment)
+        .where(Alignment.is_auto.is_(False))
+        .order_by(Alignment.start_date.desc())
+    )
     if not current_user.is_admin:
         query = query.where(Alignment.status == "published")
     result = await db.execute(query)

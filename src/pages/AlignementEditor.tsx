@@ -55,8 +55,9 @@ import { Separator } from "@/components/ui/separator";
 
 const ROLE_LABELS: Record<AssignmentRole, string> = {
   JR: "Joueur",
+  MJ: "MJ",
+  MC: "MC",
   DJ: "DJ",
-  MJ_MC: "MJ/MC",
   AR: "Arbitre",
   COACH: "Coach",
   BENEVOLE: "Bénévole",
@@ -64,8 +65,9 @@ const ROLE_LABELS: Record<AssignmentRole, string> = {
 
 const ROLE_CLASSES: Record<AssignmentRole, string> = {
   JR: "border-fuchsia-500/40 text-fuchsia-300",
+  MJ: "border-sky-500/40 text-sky-300",
+  MC: "border-indigo-500/40 text-indigo-300",
   DJ: "border-cyan-500/40 text-cyan-300",
-  MJ_MC: "border-sky-500/40 text-sky-300",
   AR: "border-amber-500/40 text-amber-300",
   COACH: "border-emerald-500/40 text-emerald-300",
   BENEVOLE: "border-rose-500/40 text-rose-300",
