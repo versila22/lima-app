@@ -208,3 +208,22 @@ async def test_import_calendar_requires_admin(regular_client, seeded_data):
     )
 
     assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_update_event_persists_links(auth_client, seeded_data):
+    resp = await auth_client.put(
+        f"/events/{seeded_data['public_event'].id}",
+        json={
+            "facebook_url": "https://facebook.com/events/123",
+            "ticketing_url": "https://billetterie.example/abc",
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["facebook_url"] == "https://facebook.com/events/123"
+    assert body["ticketing_url"] == "https://billetterie.example/abc"
+
+    got = await auth_client.get(f"/events/{seeded_data['public_event'].id}")
+    assert got.json()["facebook_url"] == "https://facebook.com/events/123"
+    assert got.json()["ticketing_url"] == "https://billetterie.example/abc"

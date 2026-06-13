@@ -25,6 +25,8 @@ class EventBase(BaseModel):
     away_opponent: Optional[str] = None
     notes: Optional[str] = None
     match_report: Optional[str] = None
+    facebook_url: Optional[str] = None
+    ticketing_url: Optional[str] = None
     allow_registration: bool = False
     visibility: EventVisibility = "all"
 
@@ -45,6 +47,8 @@ class EventUpdate(BaseModel):
     away_opponent: Optional[str] = None
     notes: Optional[str] = None
     match_report: Optional[str] = None
+    facebook_url: Optional[str] = None
+    ticketing_url: Optional[str] = None
     allow_registration: Optional[bool] = None
     visibility: Optional[EventVisibility] = None
 

@@ -877,6 +877,31 @@ function EventDetailBody({
           </div>
         )}
 
+        {(event.facebook_url || event.ticketing_url) && (
+          <div className="flex flex-wrap gap-3 pt-1">
+            {event.facebook_url && (
+              <a
+                href={event.facebook_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+              >
+                📅 Événement Facebook
+              </a>
+            )}
+            {event.ticketing_url && (
+              <a
+                href={event.ticketing_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+              >
+                🎟️ Billetterie
+              </a>
+            )}
+          </div>
+        )}
+
         {/* Cast */}
         {castLoading ? (
           <div className="flex items-center gap-2 text-muted-foreground py-2">
@@ -1268,6 +1293,8 @@ function EditEventDialog({
   const [endAt, setEndAt] = useState<string | undefined>(event.end_at ?? undefined);
   const [notes, setNotes] = useState(formatEventNotes(event.notes) ?? "");
   const [matchReport, setMatchReport] = useState(event.match_report ?? "");
+  const [facebookUrl, setFacebookUrl] = useState(event.facebook_url ?? "");
+  const [ticketingUrl, setTicketingUrl] = useState(event.ticketing_url ?? "");
   const [allowRegistration, setAllowRegistration] = useState(event.allow_registration ?? false);
 
   useEffect(() => {
@@ -1278,6 +1305,8 @@ function EditEventDialog({
     setEndAt(event.end_at ?? undefined);
     setNotes(formatEventNotes(event.notes) ?? "");
     setMatchReport(event.match_report ?? "");
+    setFacebookUrl(event.facebook_url ?? "");
+    setTicketingUrl(event.ticketing_url ?? "");
     setAllowRegistration(event.allow_registration ?? false);
   }, [event]);
 
@@ -1305,6 +1334,8 @@ function EditEventDialog({
       end_at: endAt || null,
       notes: notes || undefined,
       match_report: matchReport || undefined,
+      facebook_url: facebookUrl.trim() || null,
+      ticketing_url: ticketingUrl.trim() || null,
       allow_registration: allowRegistration,
     });
   };
@@ -1379,6 +1410,32 @@ function EditEventDialog({
               onChange={(e) => setNotes(e.target.value)}
               className="bg-background/50 min-h-28"
             />
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="edit-fb-url">Lien événement Facebook (optionnel)</Label>
+              <Input
+                id="edit-fb-url"
+                type="url"
+                inputMode="url"
+                placeholder="https://www.facebook.com/events/…"
+                value={facebookUrl}
+                onChange={(e) => setFacebookUrl(e.target.value)}
+                className="bg-background/50"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-ticket-url">Lien billetterie (optionnel)</Label>
+              <Input
+                id="edit-ticket-url"
+                type="url"
+                inputMode="url"
+                placeholder="https://…"
+                value={ticketingUrl}
+                onChange={(e) => setTicketingUrl(e.target.value)}
+                className="bg-background/50"
+              />
+            </div>
           </div>
           {eventType === "match" && (
             <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
