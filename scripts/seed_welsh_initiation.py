@@ -3,12 +3,15 @@ Seed Welsh 29/05/2026 alignment and add HelloAsso link to initiation event.
 Usage: python scripts/seed_welsh_initiation.py
 """
 
+import os
 import unicodedata
 import requests
 
 API_BASE = "https://api-production-e15b.up.railway.app"
-ADMIN_EMAIL = "admin@lima-impro.fr"
-ADMIN_PASSWORD = "Admin1234!"
+ADMIN_EMAIL = os.environ.get("LIMA_ADMIN_EMAIL", "admin@lima-impro.fr")
+ADMIN_PASSWORD = os.environ.get("LIMA_ADMIN_PASSWORD")
+if not ADMIN_PASSWORD:
+    raise SystemExit("Definis LIMA_ADMIN_PASSWORD dans l'environnement avant de lancer ce script.")
 
 HELLOASSO_URL = "https://www.helloasso.com/associations/lima/evenements/dimanche-d-initiation-28-juin-2026"
 

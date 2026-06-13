@@ -6,6 +6,7 @@ Portraits are on pages 3-9 (0-indexed: 2-8), 8 per page in a 4×2 grid,
 left→right, top→bottom. Some slots on pages 9-10 are empty frames.
 """
 
+import os
 import sys
 import base64
 import io
@@ -14,8 +15,10 @@ import requests
 from PIL import Image
 
 API_BASE = "https://api-production-e15b.up.railway.app"
-ADMIN_EMAIL = "admin@lima-impro.fr"
-ADMIN_PASSWORD = "Admin1234!"
+ADMIN_EMAIL = os.environ.get("LIMA_ADMIN_EMAIL", "admin@lima-impro.fr")
+ADMIN_PASSWORD = os.environ.get("LIMA_ADMIN_PASSWORD")
+if not ADMIN_PASSWORD:
+    raise SystemExit("Definis LIMA_ADMIN_PASSWORD dans l'environnement avant de lancer ce script.")
 PDF_PATH = r"C:\Users\jerom\Downloads\Lima\Trombinoscope LIMA 2025-2026.pdf"
 
 DRY_RUN = "--dry-run" in sys.argv

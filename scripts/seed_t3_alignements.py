@@ -4,11 +4,14 @@ Creates: season 2024-2025, 9 events, alignment T3, and all assignments from PDF.
 Usage: py scripts/seed_t3_alignements.py
 """
 
+import os
 import requests
 
 API_BASE = "https://api-production-e15b.up.railway.app"
-ADMIN_EMAIL = "admin@lima-impro.fr"
-ADMIN_PASSWORD = "Admin1234!"
+ADMIN_EMAIL = os.environ.get("LIMA_ADMIN_EMAIL", "admin@lima-impro.fr")
+ADMIN_PASSWORD = os.environ.get("LIMA_ADMIN_PASSWORD")
+if not ADMIN_PASSWORD:
+    raise SystemExit("Definis LIMA_ADMIN_PASSWORD dans l'environnement avant de lancer ce script.")
 
 session = requests.Session()
 _logged_in = False
