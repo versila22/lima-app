@@ -18,4 +18,16 @@ if (SENTRY_DSN) {
   });
 }
 
+// Auto-recover from a stale lazy-loaded chunk after a deploy: when a dynamic
+// import fails because the hashed asset no longer exists (a new build shipped
+// while this page was open), reload once to pick up the fresh index.html.
+window.addEventListener("vite:preloadError", () => {
+  const KEY = "vite-preload-reloaded-at";
+  const last = Number(sessionStorage.getItem(KEY) || 0);
+  // Guard against reload loops if the asset is genuinely unreachable.
+  if (Date.now() - last < 10_000) return;
+  sessionStorage.setItem(KEY, String(Date.now()));
+  window.location.reload();
+});
+
 createRoot(document.getElementById("root")!).render(<App />);
