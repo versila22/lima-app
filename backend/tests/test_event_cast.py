@@ -202,3 +202,29 @@ async def test_auto_alignment_excluded_from_list(auth_client, seeded_data):
     assert resp.status_code == 200
     names = [a["name"] for a in resp.json()]
     assert "Casting" not in names
+
+
+@pytest.mark.asyncio
+async def test_remove_cast_member_from_legacy_alignment(auth_client, seeded_data, db_session):
+    # Membre affecté via une grille manuelle (non-auto) publiée, pas l'alignement auto.
+    # published_alignment a déjà un AlignmentEvent pour public_event (cf. conftest).
+    db_session.add(
+        AlignmentAssignment(
+            alignment_id=seeded_data["published_alignment"].id,
+            event_id=seeded_data["public_event"].id,
+            member_id=seeded_data["regular"].id,
+            role="DJ",
+        )
+    )
+    await db_session.commit()
+
+    url = f"/events/{seeded_data['public_event'].id}/cast"
+    cast = (await auth_client.get(url)).json()
+    assert any(m["member_id"] == str(seeded_data["regular"].id) for m in cast)
+
+    # La croix doit retirer le membre même s'il vient d'une grille manuelle.
+    resp = await auth_client.delete(f"{url}/{seeded_data['regular'].id}")
+    assert resp.status_code == 204
+
+    cast2 = (await auth_client.get(url)).json()
+    assert all(m["member_id"] != str(seeded_data["regular"].id) for m in cast2)
