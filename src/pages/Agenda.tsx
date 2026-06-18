@@ -1876,6 +1876,20 @@ export default function Agenda() {
 
   const listContainerRef = useRef<HTMLDivElement>(null);
   const [anchorWeek, setAnchorWeek] = useState<Date | null>(null);
+
+  // Caler le mois affiché quand on change de saison :
+  // - si on est dans la période de la saison (= saison en cours) → mois courant
+  // - sinon (saison future/passée) → mois de début de saison (ex. septembre)
+  useEffect(() => {
+    if (!activeSeason) return;
+    const today = new Date();
+    const start = parseISO(activeSeason.start_date);
+    const end = parseISO(activeSeason.end_date);
+    setCurrentMonth(today >= start && today <= end ? today : start);
+    setAnchorWeek(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSeason?.id]);
+
   const heavyMonth = filteredEvents.filter((e) => {
     const d = parseISO(e.start_at);
     return isSameMonth(d, currentMonth);
