@@ -2,6 +2,7 @@
 Seed events from Excel calendar into LIMA via API.
 Usage: python seed_events.py
 """
+import os
 import json
 import urllib.request
 import urllib.error
@@ -12,8 +13,10 @@ import openpyxl
 
 EXCEL_PATH = r"C:\Users\jerom\Downloads\calendrierlima2526_V12.xlsx"
 API_BASE = "https://api-production-e15b.up.railway.app"
-ADMIN_EMAIL = "admin@lima-impro.fr"
-ADMIN_PASSWORD = "Admin1234!"
+ADMIN_EMAIL = os.environ.get("LIMA_ADMIN_EMAIL", "admin@lima-impro.fr")
+ADMIN_PASSWORD = os.environ.get("LIMA_ADMIN_PASSWORD")
+if not ADMIN_PASSWORD:
+    raise SystemExit("Definis LIMA_ADMIN_PASSWORD dans l'environnement avant de lancer ce script.")
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 

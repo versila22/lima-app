@@ -6,14 +6,17 @@ Seed members from HelloAsso CSV exports into LIMA via API.
 Usage: py scripts/seed_members.py
 """
 
+import os
 import csv
 import requests
 
 COTISATION_CSV = r"C:\Users\jerom\Downloads\export-cotisation-joueur-euse-2025-2026-lima-17_09_2025-31_03_2026.csv"
 ADHESION_CSV = r"C:\Users\jerom\Downloads\export-bulletin-d-adhesion-lima-2025-2026-lima-07_09_2025-31_03_2026.csv"
 API_BASE = "https://api-production-e15b.up.railway.app"
-ADMIN_EMAIL = "admin@lima-impro.fr"
-ADMIN_PASSWORD = "Admin1234!"
+ADMIN_EMAIL = os.environ.get("LIMA_ADMIN_EMAIL", "admin@lima-impro.fr")
+ADMIN_PASSWORD = os.environ.get("LIMA_ADMIN_PASSWORD")
+if not ADMIN_PASSWORD:
+    raise SystemExit("Definis LIMA_ADMIN_PASSWORD dans l'environnement avant de lancer ce script.")
 DEFAULT_PASSWORD = "Lima2526!"
 
 
