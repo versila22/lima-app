@@ -43,3 +43,21 @@ async def scheduler_loop() -> None:
             await run_daily_jobs()
         except Exception:
             logger.exception("Daily jobs failed; will retry tomorrow")
+
+
+CONFIRM_SWEEP_SECONDS = 60
+
+
+async def confirmation_sweep_loop() -> None:
+    import app.database as app_database
+    from app.services import reimbursement_service
+    logger.info("Confirmation sweep started (every %ds)", CONFIRM_SWEEP_SECONDS)
+    while True:
+        try:
+            async with app_database.AsyncSessionLocal() as db:
+                n = await reimbursement_service.finalize_due_confirmations(db)
+                if n:
+                    logger.info("Finalisé %d demande(s) de remboursement", n)
+        except Exception:
+            logger.exception("Confirmation sweep failed; retry in %ds", CONFIRM_SWEEP_SECONDS)
+        await asyncio.sleep(CONFIRM_SWEEP_SECONDS)

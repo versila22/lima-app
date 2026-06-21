@@ -39,6 +39,7 @@ from app.routers import (
     events,
     feedback,
     members,
+    reimbursements,
     seasons,
     settings as settings_router,
     show_plans,
@@ -62,16 +63,20 @@ async def lifespan(app: FastAPI):
         print(traceback.format_exc())
 
     scheduler_task = None
+    sweep_task = None
     if not settings.is_development:
         import asyncio
-        from app.scheduler import scheduler_loop
+        from app.scheduler import scheduler_loop, confirmation_sweep_loop
         scheduler_task = asyncio.create_task(scheduler_loop())
+        sweep_task = asyncio.create_task(confirmation_sweep_loop())
 
     yield
 
     # On shutdown
     if scheduler_task is not None:
         scheduler_task.cancel()
+    if sweep_task is not None:
+        sweep_task.cancel()
     print("INFO:     Shutting down.")
 
 
@@ -113,6 +118,7 @@ app.include_router(commissions.router)
 app.include_router(show_plans.router)
 app.include_router(settings_router.router)
 app.include_router(feedback.router)
+app.include_router(reimbursements.router)
 app.include_router(admin.router, prefix="/api/admin")
 
 # ---------------------------------------------------------------------------

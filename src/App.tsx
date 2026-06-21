@@ -33,6 +33,8 @@ const Home = lazy(() => import("./pages/Home"));
 const Galerie = lazy(() => import("./pages/Galerie"));
 const AdminFeedback = lazy(() => import("./pages/AdminFeedback"));
 const DonneesPersonnelles = lazy(() => import("./pages/DonneesPersonnelles"));
+const Remboursement = lazy(() => import("./pages/Remboursement"));
+const AdminReimbursements = lazy(() => import("./pages/AdminReimbursements"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -145,6 +147,7 @@ function AppRoutes() {
           <Route path="/mon-profil" element={<MonProfil />} />
           <Route path="/mon-planning" element={<MonPlanning />} />
           <Route path="/galerie" element={<Galerie />} />
+          <Route path="/remboursement" element={<Remboursement />} />
           <Route path="/membres" element={<Members />} />
           <Route
             path="/alignements"
@@ -183,6 +186,14 @@ function AppRoutes() {
             element={
               <ProtectedRoute adminOnly>
                 <AdminFeedback />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/remboursements"
+            element={
+              <ProtectedRoute adminOnly>
+                <AdminReimbursements />
               </ProtectedRoute>
             }
           />

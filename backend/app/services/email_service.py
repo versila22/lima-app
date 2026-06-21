@@ -16,6 +16,7 @@ async def send_email(
     html_body: str,
     ics_attachment: str | None = None,
     ics_filename: str = "planning-lima.ics",
+    attachments: list[tuple[str, bytes, str]] | None = None,
 ) -> None:
     """Send a HTML email via SMTP, or skip when SMTP is not configured."""
     if not settings.SMTP_HOST:
@@ -38,6 +39,11 @@ async def send_email(
             maintype="text",
             subtype="calendar",
             filename=ics_filename,
+        )
+    for fname, blob, ctype in (attachments or []):
+        maintype, _, subtype = (ctype or "application/octet-stream").partition("/")
+        message.add_attachment(
+            blob, maintype=maintype or "application", subtype=subtype or "octet-stream", filename=fname,
         )
 
     await aiosmtplib.send(
@@ -328,3 +334,53 @@ async def send_alignment_digest_email(
         html_body,
         ics_attachment=ics_content,
     )
+
+
+def _eur(v) -> str:
+    return f"{float(v):.2f} €".replace(".", ",")
+
+
+def _reimbursement_recap_html(ctx: dict) -> str:
+    funds = "ses propres deniers" if ctx["funds_source"] == "own" else "la caisse / CB Lima"
+    return f"""
+    <ul>
+      <li><b>Demandeur :</b> {ctx['first_name']} {ctx['last_name']} ({ctx['email']})</li>
+      <li><b>Achat :</b> {ctx['purchase_description']}</li>
+      <li><b>Magasin :</b> {ctx.get('store') or '—'}</li>
+      <li><b>Dépenses :</b> {_eur(ctx['direct_expenses'])}</li>
+      <li><b>Km :</b> {ctx['km_distance']} km → {_eur(ctx['km_amount'])} (0,32 €/km)</li>
+      <li><b>Péage :</b> {_eur(ctx['toll'])}</li>
+      <li><b>Fonds avancés :</b> {funds}</li>
+      <li><b>Total à rembourser :</b> <b>{_eur(ctx['total'])}</b></li>
+    </ul>
+    """
+
+
+async def send_reimbursement_confirmation(to: str, ctx: dict, app_url: str) -> None:
+    html = f"""
+    <p>Bonjour {ctx['first_name']},</p>
+    <p>On a bien reçu ta demande de remboursement. Relis-la :</p>
+    {_reimbursement_recap_html(ctx)}
+    <p>Tu as <b>5 minutes</b> pour l'ajuster dans l'app : <a href="{app_url}">{app_url}</a>.<br>
+    Sans action de ta part, elle part automatiquement au trésorier. Merci !</p>
+    """
+    await send_email(to=to, subject="Lima — ta demande de remboursement (à relire)", html_body=html)
+
+
+async def send_reimbursement_notification(
+    to: list[str], ctx: dict, attachments: list[tuple[str, bytes, str]]
+) -> None:
+    recipients = [e.strip() for e in to if e and e.strip()]
+    if not recipients:
+        logger.warning("Aucun email trésorier configuré, notification remboursement non envoyée")
+        return
+    html = f"""
+    <p>Nouvelle demande de remboursement à traiter :</p>
+    {_reimbursement_recap_html(ctx)}
+    <p>Pièces jointes : factures/tickets + RIB ({len(attachments)} fichier(s)).</p>
+    """
+    for addr in recipients:
+        await send_email(
+            to=addr, subject=f"Lima — remboursement {ctx['first_name']} {ctx['last_name']} ({_eur(ctx['total'])})",
+            html_body=html, attachments=attachments,
+        )
