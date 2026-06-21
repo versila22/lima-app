@@ -1095,17 +1095,18 @@ git commit -m "feat(remboursement): balayage scheduler 60s (finalisation restart
 - Modify: `backend/tests/test_reimbursements.py`
 
 **Interfaces:**
-- Consumes: fixtures de `conftest.py` (client auth membre/admin). **Vérifier les noms de fixtures existants** dans `backend/tests/conftest.py` et `test_feedback.py` avant d'écrire (ex. `member_client`, `admin_client`, `client`).
+- Consumes: fixtures **réelles** de `conftest.py` :
+  - `client` — httpx async, **non authentifié**.
+  - `regular_client` — authentifié **membre** (met à jour `client.headers` avec `regular_token`).
+  - `auth_client` — authentifié **admin** (met à jour `client.headers` avec `admin_token`).
+  - `seeded_data` — dict avec `admin`, `regular`, `admin_token`, `regular_token`.
+  - `db_session` — session DB.
+- ⚠️ **Piège** : `auth_client` et `regular_client` mutent le **même** objet `client` → ne JAMAIS demander les deux dans un même test. Pour tester un autre utilisateur, surcharger le header **par requête** : `headers={"Authorization": f"Bearer {seeded_data['admin_token']}"}` (httpx : le header par-requête prime sur celui du client).
+- Note multipart : sans fichier → `data=_form()` ; avec fichier → ajouter `files={"files": ("rib.pdf", b"%PDF-1.4", "application/pdf")}`. Les champs de form inconnus (ex. `total_eur`) sont ignorés par FastAPI (c'est voulu : preuve du recalcul serveur).
 
-- [ ] **Step 1: Lire le conftest + test_feedback pour les fixtures**
-
-Run: `cd backend && grep -n "def client\|def .*client\|fixture\|auth" tests/conftest.py tests/test_feedback.py | head -40`
-Adapter les noms de fixtures ci-dessous au réel.
-
-- [ ] **Step 2: Écrire les tests d'intégration (s'ajoutent aux 3 tests unitaires de Task 2)**
+- [ ] **Step 1: Écrire les tests d'intégration (s'ajoutent aux 3 tests unitaires de Task 2)**
 
 ```python
-import io
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -1125,64 +1126,65 @@ def _form(**over):
 
 
 @pytest.mark.asyncio
-async def test_submit_creates_awaiting_and_computes_total(member_client):
-    r = await member_client.post("/reimbursements", data=_form())
+async def test_submit_creates_awaiting_and_computes_total(regular_client, seeded_data):
+    r = await regular_client.post("/reimbursements", data=_form())
     assert r.status_code == 201, r.text
     body = r.json()
     assert body["status"] == STATUS_AWAITING
-    assert body["km_amount_eur"] == 32.0
-    assert body["total_eur"] == 47.0
+    assert body["km_amount_eur"] == 32.0      # 100 * 0.32
+    assert body["total_eur"] == 47.0          # 10 + 32 + 5
     assert body["confirm_deadline"] is not None
 
 
 @pytest.mark.asyncio
-async def test_submit_ignores_client_totals(member_client):
-    # Le client tente d'imposer un total : ignoré, recalcul serveur
-    r = await member_client.post("/reimbursements", data=_form(total_eur="9999", km_amount_eur="9999"))
+async def test_submit_ignores_client_totals(regular_client, seeded_data):
+    # Le client tente d'imposer un total : champ ignoré, recalcul serveur
+    r = await regular_client.post("/reimbursements", data=_form(total_eur="9999", km_amount_eur="9999"))
     assert r.status_code == 201
     assert r.json()["total_eur"] == 47.0
 
 
 @pytest.mark.asyncio
-async def test_submit_rejects_all_zero(member_client):
-    r = await member_client.post("/reimbursements", data=_form(direct_expenses_eur="0", km_distance="0", toll_eur="0"))
+async def test_submit_rejects_all_zero(regular_client, seeded_data):
+    r = await regular_client.post("/reimbursements", data=_form(direct_expenses_eur="0", km_distance="0", toll_eur="0"))
     assert r.status_code == 422
 
 
 @pytest.mark.asyncio
-async def test_submit_rejects_negative(member_client):
-    r = await member_client.post("/reimbursements", data=_form(direct_expenses_eur="-5"))
+async def test_submit_rejects_negative(regular_client, seeded_data):
+    r = await regular_client.post("/reimbursements", data=_form(direct_expenses_eur="-5"))
     assert r.status_code == 422
 
 
 @pytest.mark.asyncio
-async def test_adjust_resets_deadline_owner_only(member_client, other_member_client):
-    created = (await member_client.post("/reimbursements", data=_form())).json()
+async def test_adjust_resets_total_owner_only(regular_client, seeded_data):
+    created = (await regular_client.post("/reimbursements", data=_form())).json()
     rid = created["id"]
-    # autre membre interdit
-    forbidden = await other_member_client.patch(f"/reimbursements/{rid}", data=_form(km_distance="200"))
+    # Un autre utilisateur (admin, id différent → pas propriétaire) : 403
+    forbidden = await regular_client.patch(
+        f"/reimbursements/{rid}", data=_form(km_distance="200"),
+        headers={"Authorization": f"Bearer {seeded_data['admin_token']}"},
+    )
     assert forbidden.status_code == 403
-    # propriétaire ok, total recalculé
-    ok = await member_client.patch(f"/reimbursements/{rid}", data=_form(km_distance="200"))
+    # Le propriétaire ajuste : total recalculé
+    ok = await regular_client.patch(f"/reimbursements/{rid}", data=_form(km_distance="200"))
     assert ok.status_code == 200
-    assert ok.json()["km_amount_eur"] == 64.0
+    assert ok.json()["km_amount_eur"] == 64.0     # 200 * 0.32
 
 
 @pytest.mark.asyncio
-async def test_confirm_now_finalizes(member_client):
-    rid = (await member_client.post("/reimbursements", data=_form())).json()["id"]
-    r = await member_client.post(f"/reimbursements/{rid}/confirm")
+async def test_confirm_now_finalizes(regular_client, seeded_data):
+    rid = (await regular_client.post("/reimbursements", data=_form())).json()["id"]
+    r = await regular_client.post(f"/reimbursements/{rid}/confirm")
     assert r.status_code == 200
     assert r.json()["status"] == STATUS_PENDING
 
 
 @pytest.mark.asyncio
-async def test_sweep_finalizes_only_past_deadline(member_client, db_session):
+async def test_sweep_finalizes_only_past_deadline(regular_client, seeded_data, db_session):
     from app.services.reimbursement_service import finalize_due_confirmations
-    rid = (await member_client.post("/reimbursements", data=_form())).json()["id"]
-    # pas encore échu
-    assert await finalize_due_confirmations(db_session) == 0
-    # forcer l'échéance dans le passé
+    rid = (await regular_client.post("/reimbursements", data=_form())).json()["id"]
+    assert await finalize_due_confirmations(db_session) == 0      # pas encore échu
     row = (await db_session.execute(select(Reimbursement).where(Reimbursement.id == rid))).scalar_one()
     row.confirm_deadline = datetime.now(timezone.utc) - timedelta(minutes=1)
     await db_session.commit()
@@ -1192,24 +1194,28 @@ async def test_sweep_finalizes_only_past_deadline(member_client, db_session):
 
 
 @pytest.mark.asyncio
-async def test_list_admin_only(member_client, admin_client):
-    assert (await member_client.get("/reimbursements")).status_code in (401, 403)
-    assert (await admin_client.get("/reimbursements")).status_code == 200
+async def test_list_requires_admin(regular_client, seeded_data):
+    # membre : refusé ; admin (header surchargé) : ok
+    assert (await regular_client.get("/reimbursements")).status_code in (401, 403)
+    ok = await regular_client.get(
+        "/reimbursements", headers={"Authorization": f"Bearer {seeded_data['admin_token']}"}
+    )
+    assert ok.status_code == 200
 ```
 
-> **Note fixtures :** si `other_member_client` / `db_session` n'existent pas, les créer dans `conftest.py` en miroir des fixtures membres existantes, OU adapter les tests aux fixtures dispo (ex. créer un 2ᵉ membre via l'API).
+> **Note** : `db_session` du conftest commit dans la même DB de test que le client (override `get_db`). Si un test voit des données figées par cache d'identité SQLAlchemy, faire `db_session.expire_all()` avant la relecture.
 
-- [ ] **Step 3: Lancer la suite**
+- [ ] **Step 2: Lancer la suite**
 
 Run: `cd backend && .venv/Scripts/python -m pytest tests/test_reimbursements.py -v`
 Expected: tous PASS. Corriger jusqu'au vert.
 
-- [ ] **Step 4: Lancer toute la suite backend (non-régression)**
+- [ ] **Step 3: Lancer toute la suite backend (non-régression)**
 
 Run: `cd backend && .venv/Scripts/python -m pytest -q`
-Expected: pas de régression.
+Expected: pas de régression (baseline = 227 tests + les nouveaux).
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add backend/tests/test_reimbursements.py backend/tests/conftest.py
