@@ -127,10 +127,11 @@ async def send_due_reminders(
     now: datetime | None = None,
     base_url: str | None = None,
 ) -> tuple[int, int]:
-    if not settings.SMTP_HOST:
-        # Sans SMTP, send_email no-op : ne PAS marquer les rappels comme envoyés
-        # dans email_logs, sinon ils seraient définitivement supprimés.
-        logger.warning("SMTP non configuré : run de rappels %s ignoré sans traçage", kind)
+    if not (settings.BREVO_API_KEY or settings.SMTP_HOST):
+        # Aucun transport email (ni API Brevo ni SMTP) → send_email no-op : ne PAS
+        # marquer les rappels comme envoyés dans email_logs, sinon ils seraient
+        # définitivement supprimés (perdus pour de bon).
+        logger.warning("Aucun transport email configuré : run de rappels %s ignoré sans traçage", kind)
         return 0, 0
 
     reminders = await get_due_reminders(db=db, kind=kind, now=now)
