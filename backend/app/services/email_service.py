@@ -1,13 +1,63 @@
 """Async email service for member notifications and account emails."""
 
+import base64
 import logging
 from email.message import EmailMessage
+from email.utils import parseaddr
 
 import aiosmtplib
+import httpx
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
+# Borne dure : évite tout blocage de la requête (ex. SMTP filtré par l'hébergeur).
+_SEND_TIMEOUT = 15  # secondes
+
+
+def _sender() -> dict:
+    """Parse SMTP_FROM ('Lima <noreply@x.fr>' ou 'noreply@x.fr') en {name, email}."""
+    name, addr = parseaddr(settings.SMTP_FROM)
+    return {"name": name or "Lima", "email": addr or settings.SMTP_FROM}
+
+
+async def _send_via_brevo_api(
+    to: str,
+    subject: str,
+    html_body: str,
+    attachments: list[tuple[str, bytes, str]] | None,
+    ics_attachment: str | None,
+    ics_filename: str,
+) -> None:
+    """Envoi via l'API HTTP Brevo (HTTPS) — contourne le filtrage SMTP de l'hébergeur."""
+    payload: dict = {
+        "sender": _sender(),
+        "to": [{"email": to}],
+        "subject": subject,
+        "htmlContent": html_body,
+    }
+    files = [
+        {"name": fname, "content": base64.b64encode(blob).decode()}
+        for fname, blob, _ctype in (attachments or [])
+    ]
+    if ics_attachment:
+        files.append({
+            "name": ics_filename,
+            "content": base64.b64encode(ics_attachment.encode("utf-8")).decode(),
+        })
+    if files:
+        payload["attachment"] = files
+
+    async with httpx.AsyncClient(timeout=_SEND_TIMEOUT) as client:
+        resp = await client.post(
+            BREVO_API_URL,
+            headers={"api-key": settings.BREVO_API_KEY, "accept": "application/json"},
+            json=payload,
+        )
+    if resp.status_code >= 300:
+        raise RuntimeError(f"Brevo API {resp.status_code}: {resp.text[:300]}")
 
 
 async def send_email(
@@ -18,10 +68,14 @@ async def send_email(
     ics_filename: str = "planning-lima.ics",
     attachments: list[tuple[str, bytes, str]] | None = None,
 ) -> None:
-    """Send a HTML email via SMTP, or skip when SMTP is not configured."""
+    """Envoie un email HTML. Priorité à l'API Brevo (HTTPS), repli SMTP, sinon skip."""
+    if settings.BREVO_API_KEY:
+        await _send_via_brevo_api(to, subject, html_body, attachments, ics_attachment, ics_filename)
+        return
+
     if not settings.SMTP_HOST:
         logger.warning(
-            "SMTP_HOST n'est pas configuré, envoi d'email ignoré pour %s (%s)",
+            "Aucun email configuré (ni BREVO_API_KEY ni SMTP_HOST), envoi ignoré pour %s (%s)",
             to,
             subject,
         )
@@ -53,6 +107,7 @@ async def send_email(
         username=settings.SMTP_USER or None,
         password=settings.SMTP_PASSWORD or None,
         start_tls=settings.SMTP_TLS,
+        timeout=_SEND_TIMEOUT,
     )
 
 

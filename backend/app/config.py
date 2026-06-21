@@ -47,6 +47,8 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     SMTP_FROM: str = "noreply@lima.asso.fr"
     SMTP_TLS: bool = True
+    # API HTTP Brevo (prioritaire sur le SMTP — contourne le filtrage SMTP de Railway)
+    BREVO_API_KEY: str = ""
 
     # Server
     PORT: int = 8000
