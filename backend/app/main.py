@@ -39,6 +39,7 @@ from app.routers import (
     events,
     feedback,
     members,
+    reimbursements,
     seasons,
     settings as settings_router,
     show_plans,
@@ -113,6 +114,7 @@ app.include_router(commissions.router)
 app.include_router(show_plans.router)
 app.include_router(settings_router.router)
 app.include_router(feedback.router)
+app.include_router(reimbursements.router)
 app.include_router(admin.router, prefix="/api/admin")
 
 # ---------------------------------------------------------------------------
