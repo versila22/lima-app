@@ -229,6 +229,9 @@ export const api = {
 
   postForm: <T>(path: string, form: FormData, params?: RequestOptions["params"]) =>
     request<T>("POST", path, { body: form, params }),
+
+  patchForm: <T>(path: string, form: FormData, params?: RequestOptions["params"]) =>
+    request<T>("PATCH", path, { body: form, params }),
 };
 
 function normalizeEndpointStats(value: unknown): EndpointStat[] {
@@ -527,6 +530,64 @@ export function assignMember(
 
 export function removeAssignment(id: string, assignment_id: string): Promise<void> {
   return api.delete<void>(`/alignments/${id}/assign/${assignment_id}`);
+}
+
+// ---- Reimbursement types + helpers ----
+
+export interface ReimbursementAttachment {
+  id: string;
+  url: string;
+  filename: string;
+  content_type: string;
+}
+
+export interface Reimbursement {
+  id: string;
+  first_name: string;
+  last_name: string;
+  purchase_description: string;
+  store: string | null;
+  email: string;
+  direct_expenses_eur: number;
+  funds_source: "own" | "association";
+  km_distance: number;
+  km_rate_eur: number;
+  km_amount_eur: number;
+  trip_description: string | null;
+  toll_eur: number;
+  total_eur: number;
+  status: "awaiting_confirmation" | "pending" | "processed";
+  confirm_deadline: string | null;
+  finalized_at: string | null;
+  created_at: string;
+  attachments: ReimbursementAttachment[];
+}
+
+export function submitReimbursement(form: FormData): Promise<Reimbursement> {
+  return api.postForm<Reimbursement>("/reimbursements", form);
+}
+export function adjustReimbursement(id: string, form: FormData): Promise<Reimbursement> {
+  return api.patchForm<Reimbursement>(`/reimbursements/${id}`, form);
+}
+export function confirmReimbursement(id: string): Promise<Reimbursement> {
+  return api.post<Reimbursement>(`/reimbursements/${id}/confirm`);
+}
+export function getMyPendingReimbursement(): Promise<Reimbursement | null> {
+  return api.get<Reimbursement | null>("/reimbursements/mine");
+}
+export function listReimbursements(): Promise<Reimbursement[]> {
+  return api.get<Reimbursement[]>("/reimbursements");
+}
+export function setReimbursementStatus(id: string, status: "pending" | "processed"): Promise<Reimbursement> {
+  const form = new FormData();
+  form.append("status", status);
+  return api.patchForm<Reimbursement>(`/reimbursements/${id}/status`, form);
+}
+export function deleteReimbursement(id: string): Promise<void> {
+  return api.delete<void>(`/reimbursements/${id}`);
+}
+export function deleteReimbursementAttachment(id: string, attId: string): Promise<void> {
+  return api.delete<void>(`/reimbursements/${id}/attachments/${attId}`);
 }
 
 // ---- Event cast helpers ----
