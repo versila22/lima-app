@@ -11,6 +11,7 @@ from app.models.show_plan import ShowPlan
 from app.models.activity_log import ActivityLog
 from app.models.feedback import Feedback
 from app.models.email_log import EmailLog
+from app.models.reimbursement import Reimbursement, ReimbursementAttachment  # noqa: F401
 
 __all__ = [
     "Season",
@@ -27,4 +28,6 @@ __all__ = [
     "ActivityLog",
     "Feedback",
     "EmailLog",
+    "Reimbursement",
+    "ReimbursementAttachment",
 ]
