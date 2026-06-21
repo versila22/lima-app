@@ -18,6 +18,7 @@ import {
   MessageSquareWarning,
   Gift,
   Shield,
+  ReceiptEuro,
 } from "lucide-react";
 import { FeedbackDialog } from "@/components/FeedbackDialog";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -44,10 +45,12 @@ const menuItems = [
   { icon: User, label: "Mon Profil", path: "/mon-profil" },
   { icon: CalendarDays, label: "Mon Planning", path: "/mon-planning" },
   { icon: Images, label: "Galerie", path: "/galerie" },
+  { icon: ReceiptEuro, label: "Remboursement", path: "/remboursement" },
   { icon: Users, label: "Membres", path: "/membres" },
   // { icon: LayoutGrid, label: "Alignements", path: "/alignements", adminOnly: true }, // masqué jusqu'en septembre
   { icon: BarChart3, label: "Statistiques", path: "/stats", adminOnly: true },
   { icon: MessageSquareWarning, label: "Remarques / bugs", path: "/admin/feedback", adminOnly: true },
+  { icon: ReceiptEuro, label: "Remboursements", path: "/admin/remboursements", adminOnly: true },
   { icon: Settings, label: "Paramètres", path: "/settings", adminOnly: true },
 ];
 

@@ -37,6 +37,7 @@ type SettingsFormData = {
   association_name: string;
   association_email: string;
   association_website: string;
+  treasurer_emails: string;
   membership_fee_default: number;
   player_fee_match: number;
   player_fee_cabaret: number;
@@ -66,6 +67,7 @@ export default function Settings() {
         association_name: settings.association_name as string,
         association_email: settings.association_email as string,
         association_website: settings.association_website as string,
+        treasurer_emails: settings.treasurer_emails as string,
         membership_fee_default: settings.membership_fee_default as number,
         player_fee_match: settings.player_fee_match as number,
         player_fee_cabaret: settings.player_fee_cabaret as number,
@@ -146,6 +148,14 @@ export default function Settings() {
                 id="assoc-email"
                 type="email"
                 {...register("association_email")}
+                className="bg-background/50"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="treasurer-emails">Email(s) des trésoriers (notifications remboursement, séparés par virgule)</Label>
+              <Input
+                id="treasurer-emails"
+                {...register("treasurer_emails")}
                 className="bg-background/50"
               />
             </div>
