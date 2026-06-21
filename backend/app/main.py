@@ -63,16 +63,20 @@ async def lifespan(app: FastAPI):
         print(traceback.format_exc())
 
     scheduler_task = None
+    sweep_task = None
     if not settings.is_development:
         import asyncio
-        from app.scheduler import scheduler_loop
+        from app.scheduler import scheduler_loop, confirmation_sweep_loop
         scheduler_task = asyncio.create_task(scheduler_loop())
+        sweep_task = asyncio.create_task(confirmation_sweep_loop())
 
     yield
 
     # On shutdown
     if scheduler_task is not None:
         scheduler_task.cancel()
+    if sweep_task is not None:
+        sweep_task.cancel()
     print("INFO:     Shutting down.")
 
 
