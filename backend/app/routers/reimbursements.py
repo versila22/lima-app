@@ -67,6 +67,8 @@ async def _validate_files(files: List[UploadFile]):
             continue
         if not (f.content_type or "").startswith(ALLOWED_CONTENT):
             raise HTTPException(422, "Fichiers acceptés : images et PDF uniquement")
+        if f.size is not None and f.size > MAX_FILE_BYTES:
+            raise HTTPException(422, "Fichier trop volumineux (max 10 Mo)")
 
 
 async def _load(db, reimbursement_id) -> Reimbursement:
@@ -201,6 +203,8 @@ async def confirm_now(
     r = await _load(db, reimbursement_id)
     if r.submitter_member_id != current_user.id:
         raise HTTPException(403, "Ce n'est pas ta demande")
+    if r.status != STATUS_AWAITING:
+        raise HTTPException(409, "Demande déjà finalisée")
     await reimbursement_service.finalize_reimbursement(db, r)
     await db.refresh(r, attribute_names=["attachments"])
     return build_read(r)

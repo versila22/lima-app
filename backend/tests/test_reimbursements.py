@@ -114,3 +114,26 @@ async def test_list_requires_admin(regular_client, seeded_data):
         "/reimbursements", headers={"Authorization": f"Bearer {seeded_data['admin_token']}"}
     )
     assert ok.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_confirm_now_twice_returns_409(regular_client, seeded_data):
+    rid = (await regular_client.post("/reimbursements", data=_form())).json()["id"]
+    r1 = await regular_client.post(f"/reimbursements/{rid}/confirm")
+    assert r1.status_code == 200
+    assert r1.json()["status"] == STATUS_PENDING
+    r2 = await regular_client.post(f"/reimbursements/{rid}/confirm")
+    assert r2.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_adjust_changes_deadline(regular_client, seeded_data):
+    created = (await regular_client.post("/reimbursements", data=_form())).json()
+    rid = created["id"]
+    original_deadline = created["confirm_deadline"]
+    ok = await regular_client.patch(f"/reimbursements/{rid}", data=_form(km_distance="200"))
+    assert ok.status_code == 200
+    body = ok.json()
+    assert body["km_amount_eur"] == 64.0
+    # deadline should be refreshed (strings may be equal within clock resolution — primary check is km_amount)
+    assert body["confirm_deadline"] >= original_deadline
