@@ -30,6 +30,7 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
     "player_fee_loisir": 40.0,
     "activation_token_validity_days": 7,
     "reset_token_validity_hours": 2,
+    "treasurer_emails": "maraisvincent@hotmail.fr",
 }
 
 
