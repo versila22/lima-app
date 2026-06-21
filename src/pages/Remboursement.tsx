@@ -44,7 +44,19 @@ export default function Remboursement() {
 
   useEffect(() => {
     getMyPendingReimbursement().then((r) => {
-      if (r) { setPending(r); setEditing(false); }
+      if (r) {
+        setPending(r); setEditing(false);
+        setFirstName(r.first_name);
+        setLastName(r.last_name);
+        setPurchase(r.purchase_description);
+        setStore(r.store ?? "");
+        setEmail(r.email);
+        setExpenses(String(r.direct_expenses_eur));
+        setKm(String(r.km_distance));
+        setTrip(r.trip_description ?? "");
+        setToll(String(r.toll_eur));
+        setFunds(r.funds_source);
+      }
     }).catch(() => {});
   }, []);
 

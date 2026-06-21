@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useSearchParams, useLocation } from "react-router-dom";
+import { useSearchParams, useLocation, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -16,6 +16,7 @@ import {
   Check,
   ChevronsUpDown,
   ExternalLink,
+  ReceiptEuro,
   ImagePlus,
   X as XIcon,
   Images,
@@ -200,9 +201,6 @@ interface CastMember {
   last_name: string;
   role: string;
 }
-
-const REIMBURSEMENT_URL = "https://form.jotform.com/251113498983061";
-
 
 const DETAIL_ROLE_LABELS: Record<string, { label: string; emoji: string }> = {
   JR: { label: "Joueur", emoji: "🎭" },
@@ -987,15 +985,13 @@ function EventDetailBody({
         </div>
       )}
       <div className="pt-2 border-t border-border">
-        <a
-          href={REIMBURSEMENT_URL}
-          target="_blank"
-          rel="noopener noreferrer"
+        <Link
+          to="/remboursement"
           className="inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-colors"
         >
-          <ExternalLink className="w-4 h-4 shrink-0" />
+          <ReceiptEuro className="w-4 h-4 shrink-0" />
           Demander un remboursement au trésorier
-        </a>
+        </Link>
       </div>
 
       {/* Photo gallery */}
