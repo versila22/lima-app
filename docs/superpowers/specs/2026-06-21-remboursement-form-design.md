@@ -23,6 +23,8 @@ automatique des trésoriers, page d'admin de suivi, calcul fiable côté serveur
 | Backend | **Complet** : persistance DB + email aux trésoriers + page admin de suivi. |
 | Email trésoriers | **Réglage admin** : clé `treasurer_emails` dans `app_settings` (clé `association`), éditable depuis la page Paramètres. |
 | Barème km | **0,32 €/km**, constante serveur, figée dans la demande au moment de la soumission. |
+| Statut | `awaiting_confirmation` → `pending` → `processed`. Le trésorier est admin ; il passe `pending` ↔ `processed`. |
+| Relecture demandeur | **Email de confirmation** au demandeur avec récap. Fenêtre de **5 min** : sans action → envoi auto aux trésoriers (« go ») ; sinon le demandeur ajuste sa déclaration (le timer repart). |
 
 ## Périmètre fonctionnel
 
@@ -44,6 +46,27 @@ automatique des trésoriers, page d'admin de suivi, calcul fiable côté serveur
 > Le total et le montant km affichés côté client sont **recalculés et validés
 > côté serveur**. On ne fait jamais confiance aux montants envoyés par le front.
 
+### Flux de relecture (« grace period » 5 min)
+1. Le membre soumet → la demande est créée en statut **`awaiting_confirmation`**,
+   `confirm_deadline = now + 5 min`. **Les trésoriers ne sont PAS encore notifiés.**
+2. Immédiatement :
+   - **Email de confirmation au demandeur** : récap complet (achat, magasin, dépenses,
+     km + montant km, péage, **total**) + lien vers l'app pour ajuster, et la mention
+     « sans action sous 5 min, ta demande part automatiquement aux trésoriers ».
+   - L'écran bascule sur une vue **« Demande en relecture »** : récap + compte à rebours
+     + bouton **« C'est bon, envoyer aux trésoriers »** (= confirmer maintenant) + bouton
+     **« Ajuster »** (rouvre le formulaire pré-rempli).
+3. Si le membre **ajuste** (édite + ré-enregistre) tant que `awaiting_confirmation` :
+   la demande est mise à jour et `confirm_deadline` **repart à now + 5 min**.
+4. Si le membre **confirme maintenant** : finalisation immédiate.
+5. **Finalisation** (`pending`) : déclenchée soit par « confirmer maintenant », soit par
+   le balayage serveur quand `confirm_deadline <= now`. Elle **notifie les trésoriers**
+   et verrouille l'édition par le membre.
+
+> La finalisation s'appuie sur un **deadline persisté en DB** + un **balayage serveur
+> périodique** (pas un `sleep` en mémoire), donc c'est **restart-safe** : si Railway
+> redéploie pendant la fenêtre, la demande est finalisée au prochain balayage.
+
 ## Architecture backend (FastAPI)
 
 Miroir du module `feedback` (model + router + tests) et du pattern d'upload R2
@@ -64,9 +87,11 @@ de `events.py` (`upload_event_photo`).
 - `trip_description` `String` nullable (trajet)
 - `toll_eur` `Numeric(10,2)` (défaut 0)
 - `total_eur` `Numeric(10,2)` (calculé serveur)
-- `status` `String` enum logique : `pending` | `processed` (défaut `pending`)
+- `status` `String` enum logique : `awaiting_confirmation` | `pending` | `processed` (défaut `awaiting_confirmation`)
+- `confirm_deadline` `DateTime(tz)` nullable (= `created_at + 5 min`, remis à jour à chaque ajustement ; `NULL` une fois finalisé)
 - `submitter_member_id` FK `members.id` `ON DELETE SET NULL` (membre connecté)
 - `created_at` `DateTime(tz)`
+- `finalized_at` `DateTime(tz)` nullable (horodatage de l'envoi aux trésoriers)
 
 **`reimbursement_attachments`** (table fille, multi-fichiers)
 - `id` UUID PK
@@ -88,25 +113,43 @@ de `events.py` (`upload_event_photo`).
   - Validation : montants ≥ 0 ; au moins un de (dépenses, km, péage) > 0 ; `funds_source` ∈ {own, association} ; fichiers `image/*` ou `application/pdf`, ≤ 10 Mo/fichier, ≤ 6 fichiers.
   - Calcul serveur : `km_amount = round(km × 0.32, 2)`, `total = depenses + km_amount + peage`.
   - Upload chaque fichier vers R2 (`put_object`, clé `reimbursements/{id}/{uuid}{ext}`), crée les rows attachments.
-  - Envoie l'email aux trésoriers (best-effort, n'échoue pas la requête si l'email plante — log).
+  - Statut `awaiting_confirmation`, `confirm_deadline = now + 5 min`.
+  - Envoie l'**email de confirmation au demandeur** (best-effort). **Pas** d'email trésoriers ici.
   - Retourne `ReimbursementRead` (201).
+- `PATCH "/{id}"` — **propriétaire** (`submitter_member_id == current_user`) **et** statut `awaiting_confirmation` uniquement : met à jour les champs (recalcul serveur), peut **ajouter** des fichiers (multipart), **remet `confirm_deadline = now + 5 min`**. (Admin : peut aussi changer `status` pending↔processed — voir plus bas.)
+- `POST "/{id}/confirm"` — propriétaire, statut `awaiting_confirmation` → **finalise immédiatement** (notifie les trésoriers, `status=pending`, `confirm_deadline=NULL`, `finalized_at=now`).
+- `DELETE "/{id}/attachments/{att_id}"` — propriétaire pendant `awaiting_confirmation` (ou admin) : retire une pièce jointe (supprime l'objet R2 best-effort).
 - `GET ""` — liste, **admin only** (`require_admin`), tri `created_at desc`, attachments présignés.
-- `PATCH "/{id}"` — admin only : changer `status` (pending ↔ processed).
+- `GET "/mine"` — la dernière demande en cours du membre connecté (pour réafficher la vue « en relecture »), ou `null`.
+- `PATCH "/{id}/status"` — admin only : `pending` ↔ `processed`.
 - `DELETE "/{id}"` — admin only : supprime la demande (et, best-effort, les objets R2).
 - Enregistré dans `main.py` via `app.include_router(reimbursements.router)`.
+
+### Finalisation & balayage (scheduler)
+- Fonction `finalize_reimbursement(db, reimbursement)` : passe `pending`, `confirm_deadline=NULL`, `finalized_at=now`, **notifie les trésoriers** (idempotent : ne ré-envoie pas si déjà `pending`).
+- Nouvelle fonction service `finalize_due_confirmations(db)` : sélectionne les demandes `awaiting_confirmation` dont `confirm_deadline <= now` et les finalise.
+- `scheduler.py` : ajouter une **2ᵉ boucle** `confirmation_sweep_loop()` qui tourne **toutes les 60 s** et appelle `finalize_due_confirmations`. Lancée dans le `lifespan` de `main.py` via un second `asyncio.create_task(...)` à côté de `scheduler_loop()`. **Restart-safe** (deadline en DB ; au démarrage, rattrape les fenêtres expirées pendant un downtime).
 
 ### Constante barème
 `KM_RATE_EUR = Decimal("0.32")` définie dans le router (ou `app/config.py`), source unique de vérité serveur.
 
-### Email trésoriers
-- Nouvelle fonction `send_reimbursement_notification(...)` dans `email_service.py`
-  (même style que les autres `send_*`).
-- Destinataires : `treasurer_emails` lu depuis les settings (`association`). Si vide → on log un warning et on **n'envoie pas** (pas d'échec de la requête).
-- Corps : récap (nom/prénom, achat, magasin, dépenses, km + montant km, péage, **total**, source des fonds, email du demandeur) + mention du nombre de pièces jointes. Liens vers les pièces = URLs **présignées** (bucket R2 privé).
+### Emails
+Deux emails distincts (les deux best-effort : si SMTP non configuré, `send_email` skip proprement — la demande n'échoue jamais à cause de l'email) :
+
+1. **Confirmation au demandeur** — `send_reimbursement_confirmation(to=email_demandeur, recap, adjust_url)`.
+   Récap complet + lien app + « sans action sous 5 min, ta demande part aux trésoriers ».
+   Envoyé à la **soumission** (statut `awaiting_confirmation`).
+
+2. **Notification trésorier** — `send_reimbursement_notification(to=treasurer_emails, recap, attachments)`.
+   Envoyée à la **finalisation** (confirm-now ou balayage).
+   - Récap (nom/prénom, achat, magasin, dépenses, km + montant km, péage, **total**, source des fonds, email du demandeur).
+   - **Les pièces jointes (factures/tickets + RIB) sont attachées au mail** — le RIB contient l'IBAN (le « numéro ») dont le trésorier a besoin pour rembourser. Les fichiers sont relus depuis R2 (`get_object`) et joints. Fallback : si un fichier est trop gros / illisible, on met le **lien présigné** à la place.
+
+- `email_service.send_email(...)` est **généralisé** pour accepter une liste de pièces jointes `(filename, bytes, content_type)` (aujourd'hui il ne gère qu'un `.ics`). Rétro-compatible.
 
 ### Settings
-- Ajouter `"treasurer_emails": ""` à `DEFAULT_SETTINGS` (`routers/settings.py`).
-  Format : emails séparés par virgule. Parsé/nettoyé à la lecture.
+- Ajouter `"treasurer_emails": "maraisvincent@hotmail.fr"` à `DEFAULT_SETTINGS` (`routers/settings.py`) — **trésorier par défaut : Vincent Marais**.
+  Format : emails séparés par virgule. Parsé/nettoyé à la lecture. Éditable depuis Paramètres.
 
 ### Migration
 - Révision Alembic ajoutant `reimbursements` + `reimbursement_attachments`
@@ -148,15 +191,24 @@ de `events.py` (`upload_event_photo`).
 
 ## Tests
 - Backend `backend/tests/test_reimbursements.py` (miroir `test_feedback.py`) :
-  - soumission membre → 201, total & montant km correctement calculés serveur,
+  - soumission membre → 201, statut `awaiting_confirmation`, total & montant km calculés serveur,
   - montants envoyés par le client ignorés (anti-triche),
   - validation (montants négatifs, type fichier, tous montants à zéro),
-  - `GET`/`PATCH`/`DELETE` interdits aux non-admins, OK admin,
-  - email best-effort : pas d'échec si `treasurer_emails` vide.
+  - **grace period** : `finalize_due_confirmations` ne finalise pas avant deadline, finalise après → statut `pending` + notif trésorier appelée,
+  - **confirm-now** : `POST /{id}/confirm` finalise immédiatement (propriétaire only),
+  - **ajustement** : `PATCH /{id}` par le propriétaire en `awaiting_confirmation` met à jour + **remet le deadline** ; interdit si déjà `pending` ; interdit pour un autre membre,
+  - `GET`/`status`/`DELETE` admin interdits aux non-admins,
+  - emails best-effort : pas d'échec si SMTP absent / `treasurer_emails` vide.
 - Pas de tests E2E ajoutés ici (déploiement géré par `deploy-guard` au moment de la mise en prod).
 
+## Dépendance email
+La confirmation demandeur ET la notification trésorier dépendent du SMTP (Brevo/Railway).
+Si l'envoi est encore bloqué (récupération domaine Gandi en cours), `send_email` skip
+proprement et **le flux fonctionnel reste valide** : la demande se finalise quand même
+après 5 min et reste consultable/traitable dans la page admin. À surveiller en prod.
+
 ## Hors périmètre (YAGNI)
-- Pas de workflow d'approbation multi-états (juste `pending`/`processed`).
+- Pas de workflow d'approbation multi-états au-delà de `awaiting_confirmation`/`pending`/`processed`.
 - Pas d'export comptable / CSV (pourra venir plus tard si besoin).
-- Pas de notification au demandeur (le Jotform n'en a pas ; l'email saisi sert au récap trésorier). À rediscuter si souhaité.
+- Pas d'edit-link tokenisé public : l'ajustement se fait **dans l'app** (membre connecté).
 - Pas de gestion de plusieurs barèmes / années fiscales : 0,32 €/km figé (modifiable plus tard via constante ou setting).
