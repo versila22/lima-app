@@ -116,7 +116,9 @@ async def submit(
     )
     db.add(r)
     await db.flush()
-    r.attachments = await reimbursement_service.upload_files(r.id, real_files)
+    new_atts = await reimbursement_service.upload_files(r.id, real_files)
+    for a in new_atts:
+        db.add(a)
     await db.commit()
     await db.refresh(r, attribute_names=["attachments"])
 

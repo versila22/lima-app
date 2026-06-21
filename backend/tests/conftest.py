@@ -21,6 +21,7 @@ from app.models.email_log import EmailLog
 from app.models.event import Event
 from app.models.feedback import Feedback
 from app.models.member import Member
+from app.models.reimbursement import Reimbursement, ReimbursementAttachment
 from app.models.member_season import MemberSeason
 from app.models.season import Season
 from app.models.show_plan import ShowPlan
@@ -77,6 +78,8 @@ async def setup_test_database():
 async def clean_db():
     async with TestingSessionLocal() as session:
         for model in [
+            ReimbursementAttachment,
+            Reimbursement,
             EmailLog,
             Feedback,
             ActivityLog,
