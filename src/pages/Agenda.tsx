@@ -21,6 +21,7 @@ import {
   X as XIcon,
   Images,
   FileImage,
+  Bell,
 } from "lucide-react";
 import {
   format,
@@ -928,6 +929,33 @@ function EventDetailBody({
           </div>
         ) : null}
         {isAdmin && <CastEditor eventId={event.id} cast={cast as EventCastMember[]} />}
+        {isAdmin && (
+          <div className="pt-2 border-t border-border">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={async () => {
+                if (!window.confirm("Envoyer un rappel par email au casting de cet événement ?")) return;
+                try {
+                  const r = await api.post<{ sent: number; recipients: number }>(
+                    `/events/${event.id}/remind`,
+                  );
+                  toast.success(
+                    r.recipients > 0
+                      ? `Rappel envoyé à ${r.recipients} joueur(s)`
+                      : "Aucun joueur casté à notifier",
+                  );
+                } catch (e) {
+                  toast.error(e instanceof ApiError ? e.detail ?? "Erreur" : "Erreur");
+                }
+              }}
+            >
+              <Bell className="w-4 h-4 shrink-0" />
+              Rappel aux joueurs
+            </Button>
+          </div>
+        )}
       {showParticipation && (
         <div className="pt-2 border-t border-border space-y-3">
           <div className="flex items-center justify-between">

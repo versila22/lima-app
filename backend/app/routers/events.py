@@ -1,6 +1,7 @@
 """Events router."""
 
-from datetime import datetime
+import logging
+from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import UUID
 
@@ -17,11 +18,12 @@ from botocore.exceptions import ClientError
 from starlette.concurrency import run_in_threadpool
 
 from app.config import settings
-from app.models.alignment import AlignmentAssignment, AlignmentEvent
+from app.models.alignment import Alignment, AlignmentAssignment, AlignmentEvent
 from app.models.event import Event, EventPhoto
 from app.models.member import Member
 from app.models.show_plan import ShowPlan
 from app.models.event import EventRegistration
+from app.models.venue import Venue
 from app.schemas.event import (
     CalendarImportReport,
     EventCreate,
@@ -33,10 +35,97 @@ from app.schemas.event import (
 )
 from app.schemas.alignment import AssignmentRole
 from app.services import cast_service, import_service
+from app.services.email_service import send_event_reminder_email
 from app.services.storage import sign_photo_url
 from app.utils.deps import get_current_user, require_admin
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/events", tags=["events"])
+
+
+def _manual_when_label(start_at: datetime) -> str:
+    """Libellé temporel pour un rappel manuel (l'event peut être à J+n)."""
+    today = datetime.now(timezone.utc).replace(tzinfo=None).date()
+    delta = (start_at.date() - today).days
+    if delta <= 0:
+        return "aujourd'hui"
+    if delta == 1:
+        return "demain"
+    if delta < 7:
+        return f"dans {delta} jours"
+    if delta == 7:
+        return "dans une semaine"
+    return f"le {start_at.strftime('%d/%m')}"
+
+
+@router.post("/{event_id}/remind")
+async def remind_event_casting(
+    event_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: Member = Depends(require_admin),
+):
+    """Envoie un rappel manuel au casting de l'événement (admin only).
+
+    Mêmes destinataires que les rappels auto J-1/J-7 : membres affectés via un
+    alignement *publié*, actifs, avec email et rappels activés. Renvoi autorisé
+    (action volontaire) : pas de traçage email_logs, n'interfère pas avec l'auto.
+    """
+    ev = (
+        await db.execute(
+            select(Event.title, Event.start_at, Venue.name)
+            .outerjoin(Venue, Venue.id == Event.venue_id)
+            .where(Event.id == event_id)
+        )
+    ).first()
+    if ev is None:
+        raise HTTPException(status_code=404, detail="Événement introuvable")
+    title, start_at, venue_name = ev
+
+    rows = (
+        await db.execute(
+            select(Member.first_name, Member.email, AlignmentAssignment.role)
+            .join(AlignmentAssignment, AlignmentAssignment.member_id == Member.id)
+            .join(Alignment, Alignment.id == AlignmentAssignment.alignment_id)
+            .where(
+                AlignmentAssignment.event_id == event_id,
+                Alignment.status == "published",
+                Member.is_active.is_(True),
+                Member.email.is_not(None),
+                Member.email_reminders_enabled.is_(True),
+            )
+        )
+    ).all()
+
+    seen: set[str] = set()
+    recipients: list[tuple[str, str, str]] = []
+    for first_name, email, role in rows:
+        if email in seen:
+            continue
+        seen.add(email)
+        recipients.append((first_name, email, role))
+
+    event_date = start_at.strftime("%d/%m/%Y à %H:%M")
+    when_label = _manual_when_label(start_at)
+
+    sent = 0
+    for first_name, email, role in recipients:
+        try:
+            await send_event_reminder_email(
+                to=email,
+                first_name=first_name,
+                event_title=title,
+                event_date=event_date,
+                role=role,
+                venue_name=venue_name,
+                base_url=settings.FRONTEND_URL,
+                when_label=when_label,
+            )
+            sent += 1
+        except Exception:
+            logger.exception("Rappel manuel échoué pour %s (event %s)", email, event_id)
+
+    return {"sent": sent, "recipients": len(recipients)}
 
 
 class EventCastMember(BaseModel):
