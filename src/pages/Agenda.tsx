@@ -936,16 +936,26 @@ function EventDetailBody({
               size="sm"
               className="gap-2"
               onClick={async () => {
-                if (!window.confirm("Envoyer un rappel par email au casting de cet événement ?")) return;
                 try {
+                  const preview = await api.post<{ recipients: number }>(
+                    `/events/${event.id}/remind`,
+                    undefined,
+                    { dry_run: true },
+                  );
+                  if (preview.recipients === 0) {
+                    toast.error("Aucun joueur casté à notifier pour cet événement.");
+                    return;
+                  }
+                  if (
+                    !window.confirm(
+                      `Envoyer un rappel par email à ${preview.recipients} joueur(s) du casting ?`,
+                    )
+                  )
+                    return;
                   const r = await api.post<{ sent: number; recipients: number }>(
                     `/events/${event.id}/remind`,
                   );
-                  toast.success(
-                    r.recipients > 0
-                      ? `Rappel envoyé à ${r.recipients} joueur(s)`
-                      : "Aucun joueur casté à notifier",
-                  );
+                  toast.success(`Rappel envoyé à ${r.recipients} joueur(s)`);
                 } catch (e) {
                   toast.error(e instanceof ApiError ? e.detail ?? "Erreur" : "Erreur");
                 }

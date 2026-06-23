@@ -62,6 +62,7 @@ def _manual_when_label(start_at: datetime) -> str:
 @router.post("/{event_id}/remind")
 async def remind_event_casting(
     event_id: UUID,
+    dry_run: bool = False,
     db: AsyncSession = Depends(get_db),
     _: Member = Depends(require_admin),
 ):
@@ -70,6 +71,9 @@ async def remind_event_casting(
     Mêmes destinataires que les rappels auto J-1/J-7 : membres affectés via un
     alignement *publié*, actifs, avec email et rappels activés. Renvoi autorisé
     (action volontaire) : pas de traçage email_logs, n'interfère pas avec l'auto.
+
+    `dry_run=true` : ne fait que compter les destinataires (pour la confirmation
+    côté UI), sans envoyer.
     """
     ev = (
         await db.execute(
@@ -104,6 +108,9 @@ async def remind_event_casting(
             continue
         seen.add(email)
         recipients.append((first_name, email, role))
+
+    if dry_run:
+        return {"sent": 0, "recipients": len(recipients), "dry_run": True}
 
     event_date = start_at.strftime("%d/%m/%Y à %H:%M")
     when_label = _manual_when_label(start_at)
