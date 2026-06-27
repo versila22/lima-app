@@ -14,6 +14,14 @@ if (SENTRY_DSN) {
       tracesSampleRate: 0.1,
       // Don't send PII by default
       sendDefaultPii: false,
+      // "Build périmé" : un chunk lazy dont le hash a changé après un déploiement.
+      // Transitoire et auto-réparé par le handler vite:preloadError ci-dessous, donc
+      // non actionnable — on l'exclut du projet Sentry (issue récurrente sinon).
+      ignoreErrors: [
+        /Failed to fetch dynamically imported module/i,
+        /error loading dynamically imported module/i,
+        /Importing a module script failed/i,
+      ],
     });
   });
 }
@@ -21,7 +29,10 @@ if (SENTRY_DSN) {
 // Auto-recover from a stale lazy-loaded chunk after a deploy: when a dynamic
 // import fails because the hashed asset no longer exists (a new build shipped
 // while this page was open), reload once to pick up the fresh index.html.
-window.addEventListener("vite:preloadError", () => {
+window.addEventListener("vite:preloadError", (event) => {
+  // preventDefault() empêche Vite de relancer l'erreur : pas de flash d'error
+  // boundary ni de capture parasite avant le reload, qu'on déclenche nous-mêmes.
+  event.preventDefault();
   const KEY = "vite-preload-reloaded-at";
   const last = Number(sessionStorage.getItem(KEY) || 0);
   // Guard against reload loops if the asset is genuinely unreachable.
